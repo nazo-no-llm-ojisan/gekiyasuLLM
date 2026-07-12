@@ -21,8 +21,8 @@
 - **パス:** `C:\dev\project\gekiyasuLLM`
 - **Remote:** `https://github.com/nazo-no-llm-ojisan/gekiyasuLLM.git`
 - **ブランチ:** `main` (公開前提)
-- **最新同期コミット:** `e2b3d141eeaf58422616bc8394bb6dadfefb4323`
-  - `fix(proxy): isolate client credentials and block POST fallback`
+- **最新同期コミット:** `3f8b968`（L11 ピン・手動 E2E 手順）
+  - P0/P1 正本: `e2b3d14` · residual 記録: `ba402f1`
   - 直前の疑義コミット `4bbc1fb` は CI failure の未完成状態。follow-up で修正済み。
 
 ### 現在のピン
