@@ -3,17 +3,11 @@
  * Will move under upstream/openai-compatible.ts; keep vendor-neutral
  * InternalChatRequest types in @gekiyasu/schema — do not treat OpenAI as the only shape.
  */
-import type { IncomingMessage, ServerResponse } from "node:http";
+import type { IncomingMessage } from "node:http";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ProxyConfig } from "./config.js";
-import {
-  assertSafeUpstreamUrl,
-  extractBearerValue,
-  isProxyAuthorization,
-  PLACEHOLDER_BEARERS,
-  safeEqualString,
-} from "./security.js";
+import { assertSafeUpstreamUrl } from "./security.js";
 import { joinUpstreamUrl } from "./url-join.js";
 
 const MAX_REDIRECTS = 5;
@@ -77,51 +71,11 @@ const HOP_BY_HOP = new Set([
 ]);
 
 /**
- * Pick the `Authorization` value to send upstream.
- *
- * NOTE: This does **not** consult the target offering origin. The caller
- * (single-upstream `proxyRequest` for `upstreamBaseUrl`, or `executor.ts`
- * `resolveAuthForAttempt` for route plans) is responsible for origin-scope:
- * client `Authorization` is only forwarded when the target origin matches
- * `config.upstreamBaseUrl`; other origins must use proxy-owned
- * `providerApiKeys[providerId]` (or skip with `credential_unavailable`).
- */
-export function pickAuthHeader(
-  req: IncomingMessage,
-  config: ProxyConfig,
-): string | undefined {
-  const fromClient = req.headers.authorization;
-  if (typeof fromClient === "string" && fromClient.length > 0) {
-    // Do not treat proxy-token Authorization form as upstream key
-    if (isProxyAuthorization(fromClient)) {
-      if (config.upstreamApiKey) {
-        return `Bearer ${config.upstreamApiKey}`;
-      }
-      return undefined;
-    }
-    const bearer = extractBearerValue(fromClient);
-    if (bearer && config.proxyToken && safeEqualString(bearer, config.proxyToken)) {
-      return config.upstreamApiKey ? `Bearer ${config.upstreamApiKey}` : undefined;
-    }
-    if (
-      config.allowPlaceholderApiKeySwap &&
-      config.upstreamApiKey &&
-      PLACEHOLDER_BEARERS.has(fromClient)
-    ) {
-      return `Bearer ${config.upstreamApiKey}`;
-    }
-    return fromClient;
-  }
-  if (config.upstreamApiKey) {
-    return `Bearer ${config.upstreamApiKey}`;
-  }
-  return undefined;
-}
-
-/**
  * Build upstream request headers from the client request using an allowlist.
  * Does not set Authorization — callers must set the resolved credential explicitly
- * (pickAuthHeader for single-upstream; resolveAuthForAttempt for route plans).
+ * (see `executor.resolveAuthForAttempt` for the route-plan path; the old
+ * single-upstream `proxyRequest` is gone — server.ts now goes through
+ * `executeRoutePlan` even when the plan has a single primary).
  *
  * Tenant / correlation headers (openai-organization / openai-project /
  * idempotency-key) are NOT API keys, but can identify a tenant or request.
@@ -264,170 +218,6 @@ export async function fetchUpstream(
   }
 
   throw new Error("Redirect loop guard failed");
-}
-
-export async function proxyRequest(
-  req: IncomingMessage,
-  res: ServerResponse,
-  config: ProxyConfig,
-  pathWithQuery: string,
-  baseUrlOverride?: string,
-): Promise<void> {
-  const auth = pickAuthHeader(req, config);
-  if (!auth) {
-    res.writeHead(401, { "content-type": "application/json" });
-    res.end(
-      JSON.stringify({
-        error: {
-          message:
-            "No upstream API key. Set OPENAI_API_KEY / GEKIYASU_UPSTREAM_API_KEY, or send Authorization: Bearer <key>.",
-          type: "invalid_request_error",
-          code: "missing_api_key",
-        },
-      }),
-    );
-    return;
-  }
-
-  let url: string;
-  try {
-    url = resolveUpstreamUrl(config, pathWithQuery, baseUrlOverride);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    res.writeHead(403, { "content-type": "application/json" });
-    res.end(
-      JSON.stringify({
-        error: {
-          message,
-          type: "proxy_error",
-          code: "upstream_not_allowed",
-        },
-      }),
-    );
-    return;
-  }
-
-  const method = req.method ?? "GET";
-
-  let body: Buffer | undefined;
-  if (method !== "GET" && method !== "HEAD") {
-    try {
-      body = await readBody(req, config.maxBodyBytes);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      const code =
-        err instanceof Error && "code" in err
-          ? String((err as { code?: string }).code)
-          : "body_error";
-      res.writeHead(code === "body_too_large" ? 413 : 400, {
-        "content-type": "application/json",
-      });
-      res.end(
-        JSON.stringify({
-          error: { message, type: "invalid_request_error", code },
-        }),
-      );
-      return;
-    }
-  }
-
-  const headers = buildUpstreamHeaders(req, config, {
-    targetBaseUrl: config.upstreamBaseUrl,
-  });
-  headers.set("authorization", auth);
-  if (body && body.length > 0 && !headers.has("content-type")) {
-    headers.set("content-type", "application/json");
-  }
-
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), config.upstreamTimeoutMs);
-  const onClientGone = () => {
-    if (!res.writableFinished) {
-      ac.abort();
-    }
-  };
-  req.on("aborted", onClientGone);
-  res.on("close", onClientGone);
-
-  let upstream: Response;
-  try {
-    upstream = await fetchUpstream(url, {
-      method,
-      headers,
-      body: body && body.length > 0 ? Uint8Array.from(body) : undefined,
-      signal: ac.signal,
-      allowedHosts: config.allowedUpstreamHosts,
-    });
-  } catch (err) {
-    clearTimeout(timer);
-    req.off("aborted", onClientGone);
-    res.off("close", onClientGone);
-    const aborted =
-      err instanceof Error &&
-      (err.name === "AbortError" || err.message.includes("abort"));
-    const message = err instanceof Error ? err.message : String(err);
-    const forbidden =
-      err instanceof Error &&
-      (message.includes("not in the allowlist") ||
-        message.includes("private") ||
-        message.includes("Refusing HTTPS"));
-    if (!res.headersSent) {
-      res.writeHead(aborted ? 504 : forbidden ? 403 : 502, {
-        "content-type": "application/json",
-      });
-      res.end(
-        JSON.stringify({
-          error: {
-            message: aborted
-              ? `Upstream timeout after ${config.upstreamTimeoutMs}ms`
-              : `Upstream fetch failed: ${message}`,
-            type: "proxy_error",
-            code: aborted
-              ? "upstream_timeout"
-              : forbidden
-                ? "upstream_not_allowed"
-                : "upstream_unreachable",
-          },
-        }),
-      );
-    }
-    return;
-  }
-  clearTimeout(timer);
-
-  const outHeaders: Record<string, string> = {};
-  upstream.headers.forEach((value, key) => {
-    const lower = key.toLowerCase();
-    if (HOP_BY_HOP.has(lower)) return;
-    outHeaders[key] = value;
-  });
-
-  res.writeHead(upstream.status, outHeaders);
-
-  if (!upstream.body) {
-    req.off("aborted", onClientGone);
-    res.off("close", onClientGone);
-    res.end();
-    return;
-  }
-
-  try {
-    const nodeIn = Readable.fromWeb(
-      upstream.body as import("node:stream/web").ReadableStream,
-    );
-    await pipeline(nodeIn, res, { signal: ac.signal });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (!res.headersSent) {
-      res.writeHead(502, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: { message, type: "proxy_error" } }));
-    } else if (!res.destroyed) {
-      res.destroy(err instanceof Error ? err : undefined);
-    }
-  } finally {
-    req.off("aborted", onClientGone);
-    res.off("close", onClientGone);
-  }
 }
 
 /**

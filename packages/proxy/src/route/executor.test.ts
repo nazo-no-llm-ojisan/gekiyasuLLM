@@ -12,7 +12,6 @@ import {
   executeRoutePlan,
   orderedOfferingIds,
   resolveAuthForAttempt,
-  resolvePrimaryTarget,
   resolveTarget,
   shouldFallbackForAttempt,
   shouldFallbackHttpStatus,
@@ -227,42 +226,6 @@ describe("shouldFallbackForAttempt", () => {
         method,
       );
     }
-  });
-});
-
-describe("resolvePrimaryTarget", () => {
-  it("uses plan.primary from the catalog (not a side path)", () => {
-    const catalog = new Map<string, OfferingTarget>([
-      [
-        "passthrough:default",
-        {
-          id: "passthrough:default",
-          providerId: "local",
-          baseUrl: "https://api.openai.com/v1",
-        },
-      ],
-      [
-        "other:offering",
-        {
-          id: "other:offering",
-          providerId: "other",
-          baseUrl: "https://other.example/v1",
-        },
-      ],
-    ]);
-    const plan = planFor("other:offering");
-    const target = resolvePrimaryTarget(plan, catalog);
-    assert.equal(target.id, "other:offering");
-    assert.equal(
-      resolveTarget("other:offering", catalog).baseUrl,
-      "https://other.example/v1",
-    );
-  });
-
-  it("throws when plan.primary is not in catalog", () => {
-    const catalog = new Map<string, OfferingTarget>();
-    const plan = planFor("missing:id");
-    assert.throws(() => resolvePrimaryTarget(plan, catalog), /Unknown offering/);
   });
 });
 

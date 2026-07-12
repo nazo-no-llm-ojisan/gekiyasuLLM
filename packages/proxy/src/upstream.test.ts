@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import type { IncomingMessage } from "node:http";
 import { describe, it } from "node:test";
 import type { ProxyConfig } from "./config.js";
-import { buildUpstreamHeaders, pickAuthHeader } from "./upstream.js";
+import { buildUpstreamHeaders } from "./upstream.js";
 
 function reqWithHeaders(
   headers: Record<string, string | string[] | undefined>,
@@ -66,17 +66,6 @@ describe("buildUpstreamHeaders", () => {
     assert.equal(headers.get("x-gekiyasu-token"), null);
     assert.equal(headers.get("proxy-authorization"), null);
     assert.equal(headers.get("x-custom-leak"), null);
-  });
-
-  it("does not inject Authorization from pickAuthHeader", () => {
-    const req = reqWithHeaders({
-      authorization: "Bearer client-key",
-      "content-type": "application/json",
-    });
-    const headers = buildUpstreamHeaders(req, baseConfig);
-    assert.equal(headers.get("authorization"), null);
-    // Callers still resolve auth separately
-    assert.equal(pickAuthHeader(req, baseConfig), "Bearer client-key");
   });
 });
 

@@ -54,14 +54,6 @@ export function resolveTarget(
   return target;
 }
 
-/** @deprecated use resolveTarget(plan.primary, catalog) */
-export function resolvePrimaryTarget(
-  plan: RoutePlan,
-  catalog: Map<string, OfferingTarget>,
-): OfferingTarget {
-  return resolveTarget(plan.primary, catalog);
-}
-
 export function getOrigin(urlStr: string): string {
   try {
     const url = new URL(urlStr);
