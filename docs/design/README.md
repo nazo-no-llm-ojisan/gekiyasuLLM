@@ -32,6 +32,7 @@
 | [03-stack-roadmap-and-adrs.md](./03-stack-roadmap-and-adrs.md) | スタック・ロードマップ・ADR |
 | [04-licensing-coi-corrections.md](./04-licensing-coi-corrections.md) | **ライセンス・COI・訂正（早期固定）** |
 | [05-adapters-normalization-routing.md](./05-adapters-normalization-routing.md) | **アダプタ境界・Evidence・Offering・RoutePlan** |
+| [06-model-identity-and-normalization.md](./06-model-identity-and-normalization.md) | **モデル同定・正規化契約**（収集層。Proxy と分離。コード未移植可） |
 
 ## 仮称
 

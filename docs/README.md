@@ -32,8 +32,9 @@
 
 | 場所 | 内容 |
 |---|---|
-| [design/README.md](./design/README.md) | 設計 01–05 の索引 |
+| [design/README.md](./design/README.md) | 設計 01–06 の索引 |
 | design/01 … 05 | 企画・要件・ADR・ライセンス・アダプタ境界 |
+| [design/06-model-identity-and-normalization.md](./design/06-model-identity-and-normalization.md) | モデル同定・正規化（収集層契約。Proxy と分離） |
 
 ## コード・UI
 

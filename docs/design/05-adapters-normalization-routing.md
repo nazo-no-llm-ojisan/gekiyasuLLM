@@ -6,7 +6,7 @@
 **目的:** MVP 実装を壊さず、後から掘り返しにくい概念境界を先に固定する。  
 特に **Evidence / Offering / RoutePlan** は初期から置く。
 
-関連: [02 スキーマ](./02-architecture-routing-and-security.md) · [03 ADR](./03-stack-roadmap-and-adrs.md) · 型: `packages/schema`
+関連: [02 スキーマ](./02-architecture-routing-and-security.md) · [03 ADR](./03-stack-roadmap-and-adrs.md) · [06 モデル同定](./06-model-identity-and-normalization.md) · 型: `packages/schema`
 
 ---
 

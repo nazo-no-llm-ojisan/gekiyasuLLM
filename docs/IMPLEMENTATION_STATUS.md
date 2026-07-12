@@ -64,6 +64,8 @@
 | **T-035** | feed 署名検証 (F-SEC-05) | todo（**公開フィード必須ゲート**） |
 | **T-037** | stats CLI / 集計 | todo |
 | **T-038** | IDE 一通 docs | todo（利用者任意） |
+| **T-040** | design/06 モデル同定・正規化契約 | **done** |
+| **T-039** | model-id / developer pure TS | todo（収集。Proxy 非混入） |
 
 | 項目（未採番・メモ） | メモ |
 |---|---|

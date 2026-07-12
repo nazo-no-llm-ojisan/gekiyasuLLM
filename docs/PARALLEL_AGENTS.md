@@ -118,6 +118,8 @@
 | T-036 | proxy | Circuit breaker on offering failures | T-028 | packages/proxy/src/route/** | circuit open/half-open tests | N fails → skip offering for T seconds | forbidden | todo（Phase 3 残り） |
 | T-037 | proxy | Stats CLI / summary endpoint (no bodies) | T-032 | packages/proxy/src/stats/**, index* | summary test | `stats` or local summary without secrets | forbidden | todo（後段） |
 | T-038 | docs/proxy | IDE one-shot E2E note after user success | T-032 | docs/L11*, ROADMAP* | — | ROADMAP L11 IDE checkbox when user confirms | forbidden | todo（利用者任意） |
+| T-039 | schema | Port model-id + developer normalize pure TS | - | packages/schema/src/** | model-id / developer unit tests | parse `:free` first; infra→family developer; no proxy coupling | proposed | todo（収集層。設計 06 参照） |
+| T-040 | docs | Design 06 model identity contract memo | - | docs/design/06* | — | 06 が索引・05 からリンク | forbidden | **done** |
 
 #### バックログ注記（2026-07-12 外部監査）
 
@@ -125,6 +127,7 @@
 - **公開署名フィード配信の前**に T-033 → T-034 → T-035 をゲートとする。
 - T-031 は tenant 識別子漏洩の residual（API key ではない）。T-033 と並列可。
 - T-036 は Phase 3 製品価値（落ちたら次＋一時回避）。T-037/T-038 は運用・UX。
+- **T-039/T-040:** メンテナ私有の multi-router 観測経験を収集層に載せる。**Proxy 本線とパス分離。** 私有 raw は持ち込まない。契約メモは design/06（T-040 done）。
 
 契約を触りたくなったら **新 id で `contract_changes: proposed`** を1本だけ立て、マージ後に実装タスクを並列化。
 

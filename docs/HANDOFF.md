@@ -85,7 +85,8 @@
 | Phase 3 | T-036 | circuit breaker |
 | 公開前ゲート | T-034 → T-035 | DNS pin → feed 署名 |
 | 後段 | T-037 / T-038 | stats CLI / IDE docs |
+| 収集層 | **T-040 done** / **T-039 todo** | [design/06](./design/06-model-identity-and-normalization.md) 契約メモ。私有観測ツール由来。Proxy と分離 |
 
 詳細: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) · [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)
 
-台帳: T-032 (L10) **done**。T-033–T-038 **todo 起票済**。
+台帳: T-032 (L10) **done**。T-033–T-038 todo。T-040 **done**（design/06）。
