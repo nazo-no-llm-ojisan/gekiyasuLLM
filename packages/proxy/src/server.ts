@@ -91,10 +91,9 @@ export function createServer(config: ProxyConfig): http.Server {
       }
 
       res.setHeader("x-gekiyasu-route-plan", describeExecution({ plan }));
-      res.setHeader("x-gekiyasu-offering", plan.primary);
 
       try {
-        await executeRoutePlan({
+        const result = await executeRoutePlan({
           plan,
           catalog,
           req,
@@ -102,14 +101,13 @@ export function createServer(config: ProxyConfig): http.Server {
           config,
           pathWithQuery,
         });
+        // offering / attempts headers set inside executor when possible
+        void result;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (!res.headersSent) {
-          const code = message.startsWith("Unknown offering")
-            ? "unknown_offering"
-            : "internal_error";
           sendJson(res, 500, {
-            error: { message, type: "proxy_error", code },
+            error: { message, type: "proxy_error", code: "internal_error" },
           });
         }
       }

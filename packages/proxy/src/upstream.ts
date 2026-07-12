@@ -59,7 +59,7 @@ export function pickAuthHeader(
   return undefined;
 }
 
-function buildUpstreamHeaders(
+export function buildUpstreamHeaders(
   req: IncomingMessage,
   config: ProxyConfig,
 ): Headers {

@@ -11,8 +11,8 @@
 | 層 | 状態 |
 |---|---|
 | 設計 docs | 先行・厚い |
-| Proxy | **中継 + 境界ガード + plan filter/rank + executor(primary)** |
-| ルーティング | L6 まで（fallback **実行**は未 = L7） |
+| Proxy | **中継 + 境界ガード + plan filter/rank + executor fallback** |
+| ルーティング | L7 まで（circuit breaker は未） |
 | フィード収集 | 未 |
 | Dashboard | 静的デモ |
 | 本番利用 | **不可** |
@@ -40,7 +40,7 @@
 |---|---|
 | RoutePlan filter+rank | 済 |
 | Executor plan.primary | 済 |
-| Executor fallbacks | **未**（L7） |
+| Executor fallbacks | **済**（5xx/429/timeout 等で次候補。circuit 未） |
 | maxCostPerRequest | estimatedCostPerRequest のみ（$/M と混同しない） |
 | preferLowCachePrice | 死コードバグ修正。既定は inputPerMillion で安定ソート |
 

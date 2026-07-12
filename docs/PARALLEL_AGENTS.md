@@ -107,7 +107,7 @@
 | T-025 | ci | npm test runs schema and proxy | T-020 | package.json / 将来 .github | root `npm test` | both packages test | forbidden | **done** |
 | T-026 | docs | failure taxonomy table as canonical | - | docs/** | FAILURE_TAXONOMY.md | table canonical | forbidden | **done** |
 | T-027 | proxy | multi-candidate hard filter + soft rank | T-022 | packages/proxy/src/route/** | plan.test.ts | 2+ candidates green | forbidden | **done** |
-| T-028 | proxy | Executor walks plan.fallbacks on failure | T-023,T-027 | packages/proxy/src/route/**, upstream* | executor fallback test | 1 fail→2nd green | forbidden | todo ← **次** |
+| T-028 | proxy | Executor walks plan.fallbacks on failure | T-023,T-027 | packages/proxy/src/route/**, upstream* | executor fallback test | 1 fail→2nd green | forbidden | **done** |
 
 契約を触りたくなったら **新 id で `contract_changes: proposed`** を1本だけ立て、マージ後に実装タスクを並列化。
 
