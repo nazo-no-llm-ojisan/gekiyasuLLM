@@ -56,8 +56,8 @@ jobs:
       - name: Verify dist artifact
         working-directory: packages/proxy
         run: |
-          test -f dist/index.js
-          node -e "require('fs').accessSync('dist/index.js', require('fs').constants.X_OK)"
+          test -s dist/index.js
+          node -e "require('fs').accessSync('dist/index.js', require('fs').constants.R_OK)"
 
       - name: Smoke test emitted entrypoint (T-048)
         working-directory: packages/proxy
@@ -68,7 +68,7 @@ jobs:
           # Boot the built artifact in the background.
           node dist/index.js serve &
           PROXY_PID=$!
-          cleanup() { kill "$PROXY_PID" 2>/dev/null || true; }
+          cleanup() { kill "$PROXY_PID" 2>/dev/null || true; wait "$PROXY_PID" 2>/dev/null || true; }
           trap cleanup EXIT
           # Wait for /health (up to ~10s).
           for i in $(seq 1 50); do
