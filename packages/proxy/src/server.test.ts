@@ -26,6 +26,7 @@ function testConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
     statsFile: undefined,
     circuitFailureThreshold: 3,
     circuitOpenSeconds: 300,
+    corsAllowlist: [],
     ...overrides,
   };
 }
@@ -219,56 +220,110 @@ describe("request-aware routing on the real server (issue #2)", () => {
   });
 });
 
-describe("CORS preflight", () => {
-  it("allows OPTIONS without proxy token", async () => {
+describe("CORS preflight (T-047 / issue #3)", () => {
+  it("reflects an allowlisted origin on OPTIONS and includes credentials + private-network", async () => {
+    await withServer(
+      testConfig({ corsAllowlist: ["http://localhost:8080"] }),
+      async (baseUrl) => {
+        const res = await fetch(`${baseUrl}/v1/models`, {
+          method: "OPTIONS",
+          headers: {
+            origin: "http://localhost:8080",
+            "access-control-request-method": "GET",
+            "access-control-request-headers": "authorization,content-type",
+          },
+        });
+
+        assert.equal(res.status, 204);
+        assert.equal(
+          res.headers.get("access-control-allow-origin"),
+          "http://localhost:8080",
+        );
+        assert.equal(res.headers.get("access-control-allow-credentials"), "true");
+        assert.equal(
+          res.headers.get("access-control-allow-private-network"),
+          "true",
+        );
+        assert.match(
+          res.headers.get("access-control-allow-headers") ?? "",
+          /authorization/i,
+        );
+      },
+    );
+  });
+
+  it("adds CORS headers to JSON errors when origin is allowlisted", async () => {
+    await withServer(
+      testConfig({ corsAllowlist: ["http://localhost:3000"] }),
+      async (baseUrl) => {
+        const res = await fetch(`${baseUrl}/v1/models`, {
+          headers: { origin: "http://localhost:3000" },
+        });
+
+        assert.equal(res.status, 401);
+        assert.equal(
+          res.headers.get("access-control-allow-origin"),
+          "http://localhost:3000",
+        );
+        assert.equal(
+          res.headers.get("access-control-allow-credentials"),
+          "true",
+        );
+      },
+    );
+  });
+
+  it("adds no permissive CORS headers when the origin is not allowlisted (issue #3 / default)", async () => {
     await withServer(testConfig(), async (baseUrl) => {
       const res = await fetch(`${baseUrl}/v1/models`, {
-        method: "OPTIONS",
-        headers: {
-          origin: "http://localhost:8080",
-          "access-control-request-method": "GET",
-          "access-control-request-headers": "authorization,content-type",
-        },
+        headers: { origin: "http://attacker.example" },
       });
 
-      assert.equal(res.status, 204);
+      assert.equal(res.status, 401);
+      // No CORS reflection.
+      assert.equal(res.headers.get("access-control-allow-origin"), null);
       assert.equal(
-        res.headers.get("access-control-allow-origin"),
-        "http://localhost:8080",
+        res.headers.get("access-control-allow-credentials"),
+        null,
       );
-      assert.equal(res.headers.get("access-control-allow-credentials"), "true");
       assert.equal(
         res.headers.get("access-control-allow-private-network"),
-        "true",
-      );
-      assert.match(
-        res.headers.get("access-control-allow-headers") ?? "",
-        /authorization/i,
+        null,
       );
     });
   });
 
-  it("adds CORS headers to JSON errors", async () => {
-    await withServer(testConfig(), async (baseUrl) => {
-      const res = await fetch(`${baseUrl}/v1/models`);
+  it("OPTIONS from an unallowlisted origin is rejected with no CORS grant", async () => {
+    await withServer(
+      testConfig({ corsAllowlist: ["http://allowed.example"] }),
+      async (baseUrl) => {
+        const res = await fetch(`${baseUrl}/v1/models`, {
+          method: "OPTIONS",
+          headers: {
+            origin: "http://attacker.example",
+            "access-control-request-method": "GET",
+          },
+        });
 
-      assert.equal(res.status, 401);
-      assert.equal(res.headers.get("access-control-allow-origin"), "*");
-    });
+        assert.equal(res.status, 204);
+        // No Access-Control-Allow-Origin → browser will block the actual call.
+        assert.equal(res.headers.get("access-control-allow-origin"), null);
+        assert.equal(
+          res.headers.get("access-control-allow-private-network"),
+          null,
+        );
+      },
+    );
   });
 
-  it("reflects Origin on JSON errors for credentialed browser clients", async () => {
+  it("Access-Control-Allow-Private-Network is absent when no origin is allowlisted", async () => {
     await withServer(testConfig(), async (baseUrl) => {
-      const res = await fetch(`${baseUrl}/v1/models`, {
-        headers: { origin: "http://localhost:3000" },
-      });
-
-      assert.equal(res.status, 401);
+      const res = await fetch(`${baseUrl}/health`);
       assert.equal(
-        res.headers.get("access-control-allow-origin"),
-        "http://localhost:3000",
+        res.headers.get("access-control-allow-private-network"),
+        null,
       );
-      assert.equal(res.headers.get("access-control-allow-credentials"), "true");
+      assert.equal(res.headers.get("access-control-allow-origin"), null);
     });
   });
 });

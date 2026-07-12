@@ -53,6 +53,7 @@ function baseConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
     statsFile: undefined,
     circuitFailureThreshold: 3,
     circuitOpenSeconds: 300,
+    corsAllowlist: [],
     ...overrides,
   };
 }

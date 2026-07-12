@@ -56,6 +56,16 @@ export type ProxyConfig = {
    * may be replaced by upstreamApiKey.
    */
   allowPlaceholderApiKeySwap: boolean;
+  /**
+   * Exact-match list of origins that may receive CORS headers (T-047).
+   * Empty (default) means CORS is OFF — the server emits no
+   * Access-Control-Allow-Origin / Allow-Credentials / Allow-Private-Network
+   * headers, even for preflight.
+   *
+   * `*` is NOT supported: an empty allowlist is the safe default. Add an
+   * explicit origin (scheme + host + port) when browser access is needed.
+   */
+  corsAllowlist: string[];
   feedFile?: string;
   /**
    * Proxy-owned API keys keyed by providerId (not client-supplied credentials).
@@ -161,6 +171,12 @@ export function loadConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
     { extraAllowedHosts },
   );
 
+  const corsAllowlist = parseHostAllowlist(
+    overrides.corsAllowlist !== undefined
+      ? overrides.corsAllowlist.join(",")
+      : env("GEKIYASU_CORS_ALLOWLIST"),
+  ).filter((s) => s.startsWith("http://") || s.startsWith("https://"));
+
   const allowedUpstreamHosts =
     overrides.allowedUpstreamHosts ??
     buildAllowedHosts(upstreamBaseUrl, extraAllowedHosts);
@@ -189,6 +205,7 @@ export function loadConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
       envInt("GEKIYASU_CIRCUIT_OPEN_SECONDS", DEFAULT_CIRCUIT_OPEN_SECONDS),
     allowPlaceholderApiKeySwap:
       overrides.allowPlaceholderApiKeySwap ?? isLoopbackHost(host),
+    corsAllowlist: overrides.corsAllowlist ?? corsAllowlist,
     feedFile: overrides.feedFile ?? env("GEKIYASU_FEED_FILE"),
     providerApiKeys: overrides.providerApiKeys ?? loadProviderApiKeys(),
     statsFile: resolveStatsFile(

@@ -28,6 +28,7 @@ const baseConfig = {
   statsFile: undefined,
   circuitFailureThreshold: 3,
   circuitOpenSeconds: 300,
+  corsAllowlist: [],
 } satisfies ProxyConfig;
 
 describe("buildUpstreamHeaders", () => {

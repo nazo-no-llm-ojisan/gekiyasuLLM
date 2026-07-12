@@ -127,7 +127,17 @@
 | T-044-prep | proxy | **M1** M1 prerequisites: RequestFacts, PreparedRequest, apiCompat, trust unknown | T-030 | packages/schema/src/route.ts, packages/proxy/src/route/** | request-facts / prepared-request / catalog apiCompat / fail-closed trust tests | see T-044-prep row below | proposed | **done** |
 | T-045 | proxy | **M1** reject unsupported apiCompat in catalog | T-044 | packages/proxy/src/route/** | catalog apiCompat test | non-openai_chat (MVP) excluded fail-closed | forbidden | **done** |
 | T-046 | proxy | **M1** allowsPrivateCode fail-closed | T-044 | packages/proxy/src/route/** | privateMode unknown trust test | missing trust ≠ allows private; privateMode only explicit true | forbidden | **done** |
-| T-047 | proxy | **品質レーン** CORS actual responses + origin allowlist | - | packages/proxy/src/server*, executor* | CORS success-path test | success/error/stream same policy; default no open origin reflect | proposed（env/config/API 動作変更。後方互換のみ） | todo |
+| T-047 | proxy | **品質レーン** CORS actual responses + origin allowlist | - | packages/proxy/src/server*, config*, security* | CORS success-path test | success/error/stream same policy; default no open origin reflect | proposed（env/config/API 動作変更。後方互換のみ） | doing（**M1 後・P0**。issue #3） |
+
+#### T-047 done_when（issue #3 / P0 セキュリティ）
+
+- 既定で CORS ヘッダを一切出さない（`Access-Control-Allow-Origin: *` / 任意 Origin 反射を廃止）。
+- `GEKIYASU_CORS_ALLOWLIST`（カンマ区切り origin）に exact match がある場合のみ CORS を返す。
+- `Access-Control-Allow-Credentials: true` は allowlist 一致時のみ。
+- `Access-Control-Allow-Private-Network: true` は allowlist 一致時のみ。
+- preflight / 200 / 401 / 502 / ストリーミング すべての経路で同じポリシー。
+- `providerApiKeys` か `upstreamApiKey` が設定されていて `proxyToken` 未設定 + loopback bind は、**警告ログ**で知らせる（後方互換）。非 loopback bind は **起動失敗**（既存ロジックと一致）。
+- 既存テスト（CORS preflight で Origin 反射を期待しているもの）を、新挙動に追随して書き換える。
 | T-048 | ci | **M3** test discovery or list-sync + proxy build in CI | T-025 | packages/proxy/package.json, .github/** | CI fails on missing test / runs glob | all `*.test.ts` run; `npm run build` in CI | forbidden | todo（**M3**） |
 | T-049 | proxy | **品質レーン** minimize unauthenticated /health | - | packages/proxy/src/server*, config*, security* | health leakage test | no full upstreamBaseUrl without token; reject query/fragment in base URL | proposed（/health response contract 縮小。後方互換なし） | todo |
 | T-050 | proxy/fixtures | **M2** vertical slice 2–3 OpenAI-compatible providers | T-044 | packages/proxy/**, fixtures/**, docs/** | vertical slice fixture or manual note | same logical model: price→offering→plan→rewrite for ≥2 providers | proposed | todo（**M2**。要 M1） |

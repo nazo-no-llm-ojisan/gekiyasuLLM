@@ -23,41 +23,31 @@ export type RunningServer = {
   close: () => Promise<void>;
 };
 
-function sendJson(
-  res: http.ServerResponse,
-  status: number,
-  body: unknown,
-  req?: http.IncomingMessage,
-): void {
-  res.writeHead(status, {
-    ...corsHeaders(req),
-    "content-type": "application/json",
-  });
-  res.end(JSON.stringify(body));
-}
-
-function corsHeaders(req?: http.IncomingMessage): Record<string, string> {
-  const origin = req?.headers.origin;
-  const allowOrigin = typeof origin === "string" && origin.length > 0 ? origin : "*";
-  const headers: Record<string, string> = {
-    "access-control-allow-origin": allowOrigin,
-    "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers":
-      "authorization,content-type,x-gekiyasu-token,openai-organization,openai-project",
-    "access-control-expose-headers":
-      "x-gekiyasu-route-plan,x-gekiyasu-offering,x-gekiyasu-attempts,x-gekiyasu-fallback",
-    "access-control-allow-private-network": "true",
-    vary: "Origin",
+function buildCorsHeaders(allowlist: string[]): (req?: http.IncomingMessage) => Record<string, string> {
+  // T-047 / issue #3: fail-closed CORS. The proxy only emits permissive
+  // CORS headers when the request's Origin exactly matches an entry in
+  // `allowlist` (loaded from GEKIYASU_CORS_ALLOWLIST). The default is
+  // empty, which means no Access-Control-Allow-Origin / -Credentials /
+  // -Private-Network headers are emitted, even for preflight. `*` is not
+  // supported on purpose: any browser access must be explicit.
+  return (req) => {
+    const origin = req?.headers.origin;
+    const allowed = typeof origin === "string" && allowlist.includes(origin) ? origin : undefined;
+    if (!allowed) {
+      return {} as Record<string, string>;
+    }
+    return {
+      "access-control-allow-origin": allowed,
+      "access-control-allow-methods": "GET,POST,OPTIONS",
+      "access-control-allow-headers":
+        "authorization,content-type,x-gekiyasu-token,openai-organization,openai-project",
+      "access-control-expose-headers":
+        "x-gekiyasu-route-plan,x-gekiyasu-offering,x-gekiyasu-attempts,x-gekiyasu-fallback",
+      "access-control-allow-credentials": "true",
+      "access-control-allow-private-network": "true",
+      vary: "Origin",
+    } as Record<string, string>;
   };
-  if (allowOrigin !== "*") {
-    headers["access-control-allow-credentials"] = "true";
-  }
-  return headers;
-}
-
-function sendOptions(req: http.IncomingMessage, res: http.ServerResponse): void {
-  res.writeHead(204, corsHeaders(req));
-  res.end();
 }
 
 function buildStatsStore(config: ProxyConfig): StatsStore {
@@ -102,6 +92,25 @@ export function createServer(config: ProxyConfig): http.Server {
     openSeconds: config.circuitOpenSeconds,
   });
   const stats = buildStatsStore(config);
+  const cors = buildCorsHeaders(config.corsAllowlist);
+
+  const sendJson = (
+    res: http.ServerResponse,
+    status: number,
+    body: unknown,
+    req?: http.IncomingMessage,
+  ): void => {
+    res.writeHead(status, {
+      ...cors(req),
+      "content-type": "application/json",
+    });
+    res.end(JSON.stringify(body));
+  };
+
+  const sendOptions = (req: http.IncomingMessage, res: http.ServerResponse): void => {
+    res.writeHead(204, cors(req));
+    res.end();
+  };
 
   return http.createServer(async (req, res) => {
     const host = req.headers.host ?? `${config.host}:${config.port}`;
