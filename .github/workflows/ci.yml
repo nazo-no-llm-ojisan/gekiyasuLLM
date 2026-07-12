@@ -44,3 +44,41 @@ jobs:
       - name: Test proxy
         working-directory: packages/proxy
         run: npm test
+
+      # T-048: build the proxy artifact and prove the emitted entrypoint is
+      # runnable end-to-end. A refactor that typechecks and passes unit
+      # tests but breaks the published bin (`dist/index.js`) is otherwise
+      # undetectable before merge.
+      - name: Build proxy
+        working-directory: packages/proxy
+        run: npm run build
+
+      - name: Verify dist artifact
+        working-directory: packages/proxy
+        run: |
+          test -f dist/index.js
+          node -e "require('fs').accessSync('dist/index.js', require('fs').constants.X_OK)"
+
+      - name: Smoke test emitted entrypoint (T-048)
+        working-directory: packages/proxy
+        env:
+          GEKIYASU_HOST: 127.0.0.1
+          GEKIYASU_PORT: "16191"
+        run: |
+          # Boot the built artifact in the background.
+          node dist/index.js serve &
+          PROXY_PID=$!
+          cleanup() { kill "$PROXY_PID" 2>/dev/null || true; }
+          trap cleanup EXIT
+          # Wait for /health (up to ~10s).
+          for i in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:16191/health >/dev/null 2>&1; then
+              echo "smoke ok: /health responded"
+              curl -fsS http://127.0.0.1:16191/health
+              echo
+              exit 0
+            fi
+            sleep 0.2
+          done
+          echo "smoke failed: /health never responded"
+          exit 1
