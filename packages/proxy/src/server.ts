@@ -1,12 +1,12 @@
 import http from "node:http";
 import type { ProxyConfig } from "./config.js";
+import {
+  buildOfferingCatalog,
+  PASSTHROUGH_OFFERING_ID,
+} from "./route/catalog.js";
+import { describeExecution, executeRoutePlan } from "./route/executor.js";
 import { buildRoutePlan } from "./route/plan.js";
-import { describeExecution } from "./route/executor.js";
 import { checkProxyToken } from "./security.js";
-import { proxyRequest } from "./upstream.js";
-
-/** MVP: one synthetic offering until feed-driven routing exists. */
-const MVP_OFFERING_ID = "passthrough:default";
 
 export type RunningServer = {
   server: http.Server;
@@ -24,12 +24,13 @@ function sendJson(
 }
 
 export function createServer(config: ProxyConfig): http.Server {
+  const catalog = buildOfferingCatalog(config);
+
   return http.createServer(async (req, res) => {
     const host = req.headers.host ?? `${config.host}:${config.port}`;
     const url = new URL(req.url ?? "/", `http://${host}`);
     const path = url.pathname;
 
-    // Health stays unauthenticated (local liveness only)
     if (path === "/health" || path === "/healthz") {
       sendJson(res, 200, {
         ok: true,
@@ -40,7 +41,6 @@ export function createServer(config: ProxyConfig): http.Server {
       return;
     }
 
-    // OpenAI-compatible surface (passthrough for MVP)
     if (
       path === "/v1/models" ||
       path.startsWith("/v1/models/") ||
@@ -65,15 +65,27 @@ export function createServer(config: ProxyConfig): http.Server {
       }
 
       const pathWithQuery = path + url.search;
-      const plan = buildRoutePlan({ soleOfferingId: MVP_OFFERING_ID });
+      const plan = buildRoutePlan({ soleOfferingId: PASSTHROUGH_OFFERING_ID });
       res.setHeader("x-gekiyasu-route-plan", describeExecution({ plan }));
+      res.setHeader("x-gekiyasu-offering", plan.primary);
+
       try {
-        await proxyRequest(req, res, config, pathWithQuery);
+        await executeRoutePlan({
+          plan,
+          catalog,
+          req,
+          res,
+          config,
+          pathWithQuery,
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (!res.headersSent) {
-          sendJson(res, 500, {
-            error: { message, type: "proxy_error", code: "internal_error" },
+          const code = message.startsWith("Unknown offering")
+            ? "unknown_offering"
+            : "internal_error";
+          sendJson(res, code === "unknown_offering" ? 500 : 500, {
+            error: { message, type: "proxy_error", code },
           });
         }
       }
