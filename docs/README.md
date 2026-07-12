@@ -25,6 +25,7 @@
 | [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) | 設計MVP vs 実装のギャップ（**コード同期の正本**） |
 | [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md) | 失敗分類（`credential_unavailable` 等） |
 | [HANDOFF.md](./HANDOFF.md) | セッション引き継ぎ（ピン・コミット・次の一手） |
+| [L11_MANUAL_E2E.md](./L11_MANUAL_E2E.md) | **実キー手動 E2E**（利用者実行。エージェントは有償 API 禁止） |
 | [CORRECTIONS.md](./CORRECTIONS.md) | 価格等の訂正の残し方 |
 
 ## 厚い設計

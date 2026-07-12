@@ -17,9 +17,9 @@
 | 地図 | 位置 |
 |---|---|
 | 大枠 | **Phase 2 完了 → Phase 3 進行中**（統計・E2E 未。fallback 骨格・CostEstimate 済） |
-| ローカル | **L9 完了 → 次 L10**（ローカル統計）または **L11**（実キー E2E） |
+| ローカル | **L9 完了 → 次 L11**（実キー手動 E2E・推奨）→ その後 **L10**（統計） |
 
-中継・plan/filter/fallback（GET）・静的フィード・最小コスト見積はある。POST 自動 fallback はしない。本番向けではない。
+中継・plan/filter/fallback（GET）・静的フィード・最小コスト見積はある。POST 自動 fallback はしない。本番向けではない。L11 は [L11_MANUAL_E2E.md](./L11_MANUAL_E2E.md)（利用者手動・有償は承認必須）。
 
 ---
 

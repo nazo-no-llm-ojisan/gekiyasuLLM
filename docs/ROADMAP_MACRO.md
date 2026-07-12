@@ -24,7 +24,7 @@ Phase 7 広告・法人 ░░░░░░░░░░░░ 任意・未着手
 ```
 
 **一言:** 静的フィードから候補を複数読み込んで選択・実行可能。GET/HEAD 失敗時 fallback と最小 CostEstimate あり。  
-**まだ:** 実キー E2E 確認・ローカル統計・circuit breaker。POST 等の非冪等 method は自動 fallback しない（二重課金防止）。
+**まだ:** 実キー E2E（手動・[L11_MANUAL_E2E.md](./L11_MANUAL_E2E.md)）・ローカル統計・circuit breaker。POST 等の非冪等 method は自動 fallback しない（二重課金防止）。次の本線は **L11 を小さく通してから L10** が推奨。
 
 ---
 

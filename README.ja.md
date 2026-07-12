@@ -17,7 +17,7 @@
 | 地図 | 位置 |
 |---|---|
 | **大枠** | Phase 2 完了 → Phase 3 進行中 → [docs/ROADMAP_MACRO.md](./docs/ROADMAP_MACRO.md) |
-| **ローカル** | **L9 完了 → 次 L10 / L11** → [docs/ROADMAP_LOCAL.md](./docs/ROADMAP_LOCAL.md) |
+| **ローカル** | **L9 完了 → 次 L11 手動 E2E（推奨）→ L10 統計** → [docs/ROADMAP_LOCAL.md](./docs/ROADMAP_LOCAL.md) · [docs/L11_MANUAL_E2E.md](./docs/L11_MANUAL_E2E.md) |
 
 - 既定ポート **`16191`**（`http://127.0.0.1:16191/v1`）
 - 中継・plan/filter/rank・**GET/HEAD fallback**・静的フィード catalog・最小 CostEstimate あり

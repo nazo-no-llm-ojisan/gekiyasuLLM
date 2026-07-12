@@ -39,6 +39,12 @@ curl http://127.0.0.1:16191/v1/models -H "Authorization: Bearer $OPENAI_API_KEY"
 
 Dashboard (static demo): `http://127.0.0.1:16191/dashboard/`
 
+## Manual E2E (L11)
+
+One real-key smoke test is recommended after unit/CI green. **You run it with your own key** — agents and CI must not call paid APIs without explicit maintainer approval.
+
+Checklist: [docs/L11_MANUAL_E2E.md](../../docs/L11_MANUAL_E2E.md) (`/health` → `/v1/models` → short `/v1/chat/completions`).
+
 ## Credential & routing policy (important)
 
 | Rule | Behavior |

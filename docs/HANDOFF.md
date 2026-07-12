@@ -27,7 +27,7 @@
 
 ### 現在のピン
 - **大枠 (ROADMAP_MACRO.md):** Phase 2 完了。Phase 3 進行中（fallback 骨格・CostEstimate 済。統計・E2E 未）
-- **ローカル (ROADMAP_LOCAL.md):** **L9 完了 → 次 L10（ローカル統計）または L11（実キー E2E）**
+- **ローカル (ROADMAP_LOCAL.md):** **L9 完了 → 次 L11（実キー手動 E2E・推奨）→ その後 L10（統計）**
 - **中継先:** `http://127.0.0.1:16191/v1`
 - **静的 UI:** `http://127.0.0.1:16191/dashboard/` (認証なし・sample JSON のみ)
 
@@ -60,12 +60,17 @@
 - 検証: unit（`upstream.test.ts` allowlist）+ executor の local HTTP server 実受信 header 検査あり。redirect またぎ `fetchUpstream` は未カバー
 
 ### 次の本線候補
-1. **L10 ローカル統計** — 成功/失敗/目安コストのローカル記録
-2. **L11 実キー E2E** — 手動疎通（有料 API は承認必須）
+1. **L11 実キー E2E（推奨）** — [L11_MANUAL_E2E.md](./L11_MANUAL_E2E.md)  
+   - 利用者が **自分のキー** で health → models → 短い chat を一通  
+   - routing / credential isolation / POST passthrough の実確認  
+   - **エージェント・CI は有償 API を叩かない**（明示承認なしは禁止）  
+   - 成功後: ROADMAP_LOCAL の L11 チェック + 本 HANDOFF に日付のみ（キー・本文なし）
+2. **L10 ローカル統計** — L11 後推奨。L11 で見えた offering / attempts / status / latency / estimate を記録対象のたたき台にする
 
 ### 将来（本線外・P0 ではない）
 - tenant/correlation headers（`openai-organization` / `openai-project` / `idempotency-key`）を configured upstream origin のみに限定
 - `providerApiKeys` → endpoint/origin 単位 credential mapping（上と同一タスク束がよい）
 - 詳細: [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)「将来タスク」
+- redirect またぎ `fetchUpstream` integration coverage
 
-台帳 `docs/PARALLEL_AGENTS.md` は `T-030` まで **done**。新規本線は未採番 L10 または L11。
+台帳 `docs/PARALLEL_AGENTS.md` は `T-030` まで **done**、`T-031` は本線外 todo。本線は L11 手動 → L10。
