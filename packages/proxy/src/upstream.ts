@@ -63,6 +63,8 @@ const HOP_BY_HOP = new Set([
   "upgrade",
   "host",
   "content-length",
+  // undici fetch auto-decompresses; never advertise encoding of the raw wire body
+  "content-encoding",
 ]);
 
 export function pickAuthHeader(

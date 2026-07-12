@@ -1049,3 +1049,115 @@ describe("executeRoutePlan P1 non-idempotent fallback", () => {
     assert.ok(!attempted.includes("second"));
   });
 });
+
+describe("response header hygiene after undici decompression", () => {
+  it("strips content-encoding when rewriting /v1/models JSON body", async () => {
+    // Node fetch/undici auto-decompresses bodies but may leave Content-Encoding
+    // on the Response headers. Forwarding that with a plain JSON body breaks
+    // aiohttp clients without brotli (e.g. OpenWebUI verify).
+    const catalog = new Map<string, OfferingTarget>([
+      [
+        "primary",
+        {
+          id: "primary",
+          providerId: "providerA",
+          baseUrl: "https://a.example/v1",
+        },
+      ],
+    ]);
+    const attempt: AttemptFn = async (target) => ({
+      kind: "ok",
+      offeringId: target.id,
+      response: new Response(
+        JSON.stringify({
+          data: [{ id: "model-a" }],
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+            "content-encoding": "br",
+          },
+        },
+      ),
+    });
+    const res = createMockRes();
+    const req = createMockReq("GET", { authorization: "Bearer sk-test" });
+    const config = baseConfig({
+      providerApiKeys: { providerA: "sk-test" },
+    });
+
+    const result = await executeRoutePlan({
+      plan: {
+        primary: "primary",
+        fallbacks: [],
+        reason: [],
+        generatedAt: "",
+      },
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/models",
+      attempt,
+    });
+
+    assert.equal(result.offeringId, "primary");
+    assert.equal(res.resState.statusCode, 200);
+    assert.equal(res.resState.headers.get("content-encoding"), undefined);
+    const body = JSON.parse(res.resState.body) as {
+      object?: string;
+      data?: { id: string; object?: string }[];
+    };
+    assert.equal(body.object, "list");
+    assert.equal(body.data?.[0]?.id, "model-a");
+  });
+
+  it("strips content-encoding on streamed non-models responses", async () => {
+    const catalog = new Map<string, OfferingTarget>([
+      [
+        "primary",
+        {
+          id: "primary",
+          providerId: "providerA",
+          baseUrl: "https://a.example/v1",
+        },
+      ],
+    ]);
+    const attempt: AttemptFn = async (target) => ({
+      kind: "ok",
+      offeringId: target.id,
+      response: new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "content-encoding": "br",
+        },
+      }),
+    });
+    const res = createMockRes();
+    const req = createMockReq("POST", { authorization: "Bearer sk-test" }, "{}");
+    const config = baseConfig({
+      providerApiKeys: { providerA: "sk-test" },
+    });
+
+    await executeRoutePlan({
+      plan: {
+        primary: "primary",
+        fallbacks: [],
+        reason: [],
+        generatedAt: "",
+      },
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/chat/completions",
+      attempt,
+    });
+
+    assert.equal(res.resState.statusCode, 200);
+    assert.equal(res.resState.headers.get("content-encoding"), undefined);
+    assert.equal(JSON.parse(res.resState.body).ok, true);
+  });
+});

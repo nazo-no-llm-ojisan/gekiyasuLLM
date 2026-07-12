@@ -570,7 +570,10 @@ function copyResponseHeaders(upstream: Response): Record<string, string> {
       lower === "connection" ||
       lower === "keep-alive" ||
       lower === "transfer-encoding" ||
-      lower === "content-length"
+      lower === "content-length" ||
+      // Node fetch/undici already decodes compressed bodies; keep Content-Encoding
+      // and clients (e.g. aiohttp without brotli) try to decompress plain JSON.
+      lower === "content-encoding"
     ) {
       return;
     }
