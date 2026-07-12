@@ -5,7 +5,7 @@
 | 見たいもの | ファイル |
 |---|---|
 | **大枠（Phase 0–7）とピン** | [ROADMAP_MACRO.md](./ROADMAP_MACRO.md) |
-| **ローカル節（L0–L12 完了 + L13〜）とピン** | [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) |
+| **ローカル（L0–L12 履歴 + M1–M3）** | [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) |
 | 設計とコードのギャップ表 | [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) |
 | 並列タスク台帳 T-0xx | [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md) |
 | 短いユーザ報告 | [USER_STATUS_TEMPLATE.md](./USER_STATUS_TEMPLATE.md) |
@@ -16,12 +16,16 @@
 
 | 地図 | 位置 |
 |---|---|
-| 大枠 | **Phase 2 完了 → Phase 3 ほぼ。次は request-aware（製品中核）** |
-| ローカル | **L12 完了** · 次セクション **L13**（model↔offering + `upstreamModelId` 書換） |
+| 大枠 | Phase 1–3 ほぼ完了 → **次は M1（正しく振り分ける）** |
+| ローカル | **L12 完了** · 本線 **M1**（T-044 request-aware） |
 
-中継・plan/filter/fallback（GET）・静的フィード・CostEstimate・credential isolation・ローカル統計 JSONL あり。POST 自動 fallback はしない。  
-**まだ「ただの proxy」寄り** — 要求 model がルーティングに未使用。公開フィード前は L17 署名 + L18 DNS pin。  
-詳細: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) · 台帳 [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)
+```text
+M1 正しいルーティング  →  M2 データ縦貫通  →  M3 安全な自動公開
+     T-044–046              T-039,024,050,051     T-035,034,048
+```
+
+中継・fallback・静的 feed・統計・circuit あり。要求 model はまだ未使用。  
+詳細は [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md)。作業単位は [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)。
 
 ---
 
@@ -31,12 +35,12 @@
 docs/
   ROADMAP.md              ← この索引
   ROADMAP_MACRO.md        ← 製品全体の相
-  ROADMAP_LOCAL.md        ← 今やってるローカル作業の相
-  IMPLEMENTATION_STATUS.md← 機能IDごとの実装/未実装
-  PARALLEL_AGENTS.md      ← 並列タスクと所有 path
-  BRAINLESS_TDD.md        ← 赤緑コミットのやり方
-  USER_STATUS_TEMPLATE.md ← ユーザ向け短報
-  FAILURE_TAXONOMY.md     ← 失敗分類の正本
-  CORRECTIONS.md          ← 訂正方針
-  design/                 ← 厚い設計（01–05, ADR）
+  ROADMAP_LOCAL.md        ← 利用者向け段階 (L) + 本線マイルストーン (M)
+  PARALLEL_AGENTS.md      ← T 番号・owned_paths・done_when
+  IMPLEMENTATION_STATUS.md← 機能ごとの実装/未実装
+  design/                 ← 厚い設計
 ```
+
+- **L** = 到達段階の履歴（L0–L12 完了）  
+- **M** = これから進む依存マイルストーン（線形の L13–L24 は使わない）  
+- **T** = エージェント作業単位  

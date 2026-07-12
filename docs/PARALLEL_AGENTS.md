@@ -103,7 +103,7 @@
 | T-021 | schema | Offering parses one fixed-price fixture | - | packages/schema/**, fixtures/** | parse-offering.test.ts | 1 test green | forbidden | **done** |
 | T-022 | proxy | RoutePlan selects sole eligible offering | - | packages/proxy/src/route/** | plan.test.ts | 1 test green | forbidden | **done** |
 | T-023 | proxy | Executor uses plan.primary for upstream | T-022 | packages/proxy/src/route/**, upstream* | executor.test.ts | 1 test green | forbidden | **done** |
-| T-024 | parser | Pricing parser reads one saved HTML fixture | - | fixtures/**, 将来 packages/collectors/** | parser test | 1 test green | forbidden | todo |
+| T-024 | parser | **M2** Pricing parser one saved HTML fixture | - | fixtures/**, 将来 packages/collectors/** | parser test | 1 test green from offline HTML | forbidden | todo（**M2**） |
 | T-025 | ci | npm test runs schema and proxy | T-020 | package.json / 将来 .github | root `npm test` | both packages test | forbidden | **done** |
 | T-026 | docs | failure taxonomy table as canonical | - | docs/** | FAILURE_TAXONOMY.md | table canonical | forbidden | **done** |
 | T-027 | proxy | multi-candidate hard filter + soft rank | T-022 | packages/proxy/src/route/** | plan.test.ts | 2+ candidates green | forbidden | **done** |
@@ -113,38 +113,42 @@
 | T-031 | proxy | Origin-scope tenant headers + endpoint credential map | T-030 | packages/proxy/src/** | header origin-scope tests | org/project/idempotency only on configured origin; keys by origin/endpoint | forbidden | **done** |
 | T-032 | proxy | L10 local request stats JSONL | T-028 | packages/proxy/src/stats/**, server*, config* | store.test.ts | append metadata-only events; no bodies/keys | forbidden | **done** |
 | T-033 | proxy | Block IPv6 ULA / link-local / v4-mapped in SSRF filter | T-020 | packages/proxy/src/security* | security.test.ts IPv6 cases | fc00::/7 fe80::/10 ::ffff:10.x rejected | forbidden | **done** |
-| T-034 | proxy | DNS rebinding guard / resolve-and-pin | T-033 | packages/proxy/src/security*, upstream* | rebind-focused tests | resolved address re-checked vs private ranges | forbidden | todo（公開フィード前） |
-| T-035 | proxy/schema | Feed signature verification (F-SEC-05) | T-029 | packages/schema/**, packages/proxy/** | verify signed feed fixture | unsigned/invalid feed rejected when required | proposed | todo（**公開フィード必須ゲート**） |
-| T-036 | proxy | Circuit breaker on offering failures | T-028 | packages/proxy/src/route/** | circuit open/half-open tests | N fails → skip offering for T seconds | forbidden | **done** |
-| T-037 | proxy | Stats CLI / summary endpoint (no bodies) | T-032 | packages/proxy/src/stats/**, index* | summary test | `stats` or local summary without secrets | forbidden | todo（後段） |
-| T-038 | docs/proxy | IDE one-shot E2E note after user success | T-032 | docs/L11*, ROADMAP* | — | ROADMAP L11 IDE checkbox when user confirms | forbidden | todo（利用者任意） |
-| T-039 | schema | Port model-id + developer normalize pure TS | - | packages/schema/src/** | model-id / developer unit tests | parse `:free` first; infra→family developer; no proxy coupling | proposed | todo（収集層。設計 06 参照） |
+| T-034 | proxy | **M3** DNS rebinding / resolve-and-pin | T-033 | packages/proxy/src/security*, upstream* | rebind-focused tests | resolved address re-checked vs private ranges; pin before connect | forbidden | todo（**M3** 公開必須） |
+| T-035 | proxy/schema | **M3** Feed signature verification (F-SEC-05) | T-029 | packages/schema/**, packages/proxy/** | verify signed feed fixture | unsigned/invalid rejected when required; feed host ≠ auto allowlist | proposed | todo（**M3** 公開必須） |
+| T-036 | proxy | **品質レーン** Circuit breaker | T-028 | packages/proxy/src/route/** | circuit open/half-open tests | N fails → skip offering for T seconds | forbidden | **done** |
+| T-037 | proxy | **品質レーン** Stats CLI / summary (no bodies) | T-032 | packages/proxy/src/stats/**, index* | summary test | `stats` or local summary without secrets | forbidden | todo |
+| T-038 | docs/proxy | **品質レーン** IDE one-shot E2E note | T-032 | docs/L11*, ROADMAP* | — | ROADMAP IDE checkbox when user confirms | forbidden | todo |
+| T-039 | schema | **M2** model-id + developer normalize pure TS | - | packages/schema/src/** | model-id / developer unit tests | parse `:free` first; infra→family developer; no proxy coupling | proposed | todo（**M2**。設計 06） |
 | T-040 | docs | Design 06 model identity contract memo | - | docs/design/06* | — | 06 が索引・05 からリンク | forbidden | **done** |
-| T-041 | schema | Evaluate thin Lua hook for model identity rules | T-039 | packages/schema/src/**, docs/design/06* | hook contract test or spike note | built-in TS matcher remains default; optional Lua hook can be removed without data migration | proposed | todo（wasmoon 等の評価。薄く・撤退可能に） |
-| T-042 | ci/release | Single-file binary release spike | T-025 | package.json, packages/proxy/**, .github/**, docs/** | release packaging smoke test | Win/macOS/Linux artifact approach documented; checksum plan noted | proposed | todo（SEA/pkg 評価。Lua/WASM 同梱は別確認） |
-| T-043 | docs | NFR: influence on measured availability | - | docs/** | — | herding / self-reference risk and local-routing mitigation are documented | forbidden | todo（思想・NFR。実装タスクではない） |
-| T-044 | proxy | L13 request-aware routing + upstreamModelId rewrite | T-030 | packages/proxy/src/** | plan/executor request-model tests | request model/alias selects offerings; body model rewritten to upstreamModelId | proposed | todo（**本線最優先**。ローカル L13） |
-| T-045 | proxy | L14 reject unsupported apiCompat in catalog | T-029 | packages/proxy/src/route/** | catalog apiCompat test | non-openai_chat (MVP) offerings excluded fail-closed | forbidden | todo（L14。T-044 と並列可） |
-| T-046 | proxy | L15 allowsPrivateCode fail-closed | - | packages/proxy/src/route/** | privateMode unknown trust test | missing trust ≠ allows private; privateMode only explicit true | forbidden | todo（L15。小さく赤緑） |
-| T-047 | proxy | L16 CORS on actual responses + origin allowlist | - | packages/proxy/src/server*, executor* | CORS success-path test | success/error/stream same policy; default no open origin reflect | forbidden | todo（L16） |
-| T-048 | ci | L19 test discovery or list-sync + proxy build in CI | T-025 | packages/proxy/package.json, .github/** | CI fails on missing test file or runs glob | all *.test.ts run; `npm run build` in CI | forbidden | todo（L19） |
-| T-049 | proxy | L20 minimize unauthenticated /health | - | packages/proxy/src/server*, config*, security* | health leakage test | no full upstreamBaseUrl without token; reject query/fragment in base URL | forbidden | todo（L20） |
-| T-050 | proxy/fixtures | L22 vertical slice 2–3 OpenAI-compatible providers | T-044 | packages/proxy/**, fixtures/**, docs/** | vertical slice fixture or manual note | price→offering→plan→rewrite→probe path documented for ≥2 providers | proposed | todo（L22。「ただの proxy」脱出） |
-| T-051 | docs/site | L24 GitHub Pages min catalog from same feed | T-029 | docs/**, 将来 site/**, fixtures/feeds/** | — | static pages from feed JSON; evidence fields; no central relay | proposed | todo（L24。dashboard と責務分離） |
+| T-041 | schema | **品質レーン** thin Lua hook for model identity | T-039 | packages/schema/src/**, docs/design/06* | hook contract test or spike note | TS matcher default; optional Lua removable without data migration | proposed | todo |
+| T-042 | ci/release | **品質レーン** single-file binary release spike | T-025 | package.json, packages/proxy/**, .github/**, docs/** | release packaging smoke test | Win/macOS/Linux approach + checksum plan documented | proposed | todo |
+| T-043 | docs | **品質レーン** herding / self-reference NFR | - | docs/** | — | herding risk + local-routing mitigation documented | forbidden | todo |
+| T-044 | proxy | **M1** request-aware routing + upstreamModelId rewrite | T-030 | packages/proxy/src/** | plan/executor request-model tests | request model/alias selects offerings; body model = upstreamModelId | proposed | todo（**M1 本線**） |
+| T-045 | proxy | **M1** reject unsupported apiCompat in catalog | T-029 | packages/proxy/src/route/** | catalog apiCompat test | non-openai_chat (MVP) excluded fail-closed | forbidden | todo（**M1**。T-044 と並列可） |
+| T-046 | proxy | **M1** allowsPrivateCode fail-closed | - | packages/proxy/src/route/** | privateMode unknown trust test | missing trust ≠ allows private; privateMode only explicit true | forbidden | todo（**M1**） |
+| T-047 | proxy | **品質レーン** CORS actual responses + origin allowlist | - | packages/proxy/src/server*, executor* | CORS success-path test | success/error/stream same policy; default no open origin reflect | forbidden | todo |
+| T-048 | ci | **M3** test discovery or list-sync + proxy build in CI | T-025 | packages/proxy/package.json, .github/** | CI fails on missing test / runs glob | all `*.test.ts` run; `npm run build` in CI | forbidden | todo（**M3**） |
+| T-049 | proxy | **品質レーン** minimize unauthenticated /health | - | packages/proxy/src/server*, config*, security* | health leakage test | no full upstreamBaseUrl without token; reject query/fragment in base URL | forbidden | todo |
+| T-050 | proxy/fixtures | **M2** vertical slice 2–3 OpenAI-compatible providers | T-044 | packages/proxy/**, fixtures/**, docs/** | vertical slice fixture or manual note | same logical model: price→offering→plan→rewrite for ≥2 providers | proposed | todo（**M2**。要 M1） |
+| T-051 | docs/site | **M2** GitHub Pages min catalog from same feed | T-029 | docs/**, 将来 site/**, fixtures/feeds/** | — | static pages from feed JSON + evidence; not signed production feed; no central relay | proposed | todo（**M2**） |
 
-#### バックログ注記（2026-07-12 外部監査）
+#### マイルストーン対応（正本: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md)）
 
-- **ローカル MVP では大きな欠陥なし**（F-SEC-09/10 等は合格済み）。中継としては使えるが **request model 未接続**（→ T-044 / L13）。
-- **公開署名フィード配信の前**に T-034 + T-035 をゲートとする（T-033 done）。順序は ROADMAP_LOCAL 推奨: 本線 L13 後でもゲートは公開決断時必須。
-- **次セクション正本:** [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) L13–L24。監査会話メモ: `.agents/talk.md`。
-- **推奨本線:** T-044 → T-045 / T-046 → T-047 →（公開決断）T-035 → T-034 → T-050 縦貫通。
-- T-031 **done**（tenant header origin-scope）。endpoint credential map の残りは residual。
-- T-036 **done**（circuit: unit + executor + server 配線。2026-07-12 salvage）。T-037/T-038 は運用・UX。
-- **T-039/T-040:** 収集層。**Proxy 本線とパス分離。** 契約メモ design/06（T-040 done）。
-- **T-041:** pure TS matcher 既定、薄い Lua hook は撤退可能に評価。最初から Lua 前提にしない。
-- **T-042:** SEA/pkg 単一実行ファイル。Lua/WASM 採る場合は `.wasm` 同梱確認。
-- **T-043:** herding / 自己参照 NFR（docs のみ）。
-- **T-051:** Pages は公開カタログ。`/dashboard/` はローカル状態。中央中継は禁止のまま。
+| M | 完了条件（要約） | タスク |
+|---|---|---|
+| **M1** 正しく振り分ける | fixture 同一論理モデル → 適合最安 Offering → 正しい upstreamModelId | T-044, T-045, T-046 |
+| **M2** データ縦貫通 | 公式由来の同一 feed を Pages と Proxy が共有 | T-039, T-024, T-050, T-051 |
+| **M3** 安全な自動公開 | 自動更新公開 feed を Proxy が安全に取得・ルーティング | T-035, T-034, T-048 |
+| **品質レーン** | 本線を進めない並列 | T-047, T-049, T-037, T-038, T-042, T-036 done, … |
+
+#### バックログ注記
+
+- **いまの本線:** **M1 / T-044**（request-aware）。T-045・T-046 は M1 内で並列可。
+- **M2** は M1 後が本筋。T-039/T-024 は schema・fixtures なら M1 と path 非重複で先行可（Proxy 非混入）。
+- **M3** は公開フィード開始の必須ゲート。M1 なしでは「安全だが振り分けが嘘」。
+- **品質レーン**はマイルストーン番号を持たない。CORS/health/stats/配布など。
+- T-031 / T-033 / T-036 **done**。T-040 design/06 **done**。
+- Pages（T-051）は M2 の静的カタログ。署名本番は M3。中央中継は禁止のまま。
 
 契約を触りたくなったら **新 id で `contract_changes: proposed`** を1本だけ立て、マージ後に実装タスクを並列化。
 

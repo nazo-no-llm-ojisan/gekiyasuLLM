@@ -26,10 +26,10 @@
   - P0/P1 正本: `e2b3d14` · L11 curl: `d6326a9` 記録
 
 ### 現在のピン
-- **大枠 (ROADMAP_MACRO.md):** Phase 2–3 ほぼ。**次は Phase 3c / L13 request-aware**
-- **ローカル (ROADMAP_LOCAL.md):** **L12 完了 + L21 circuit done。次 L13**
+- **大枠:** Phase 1–3 ほぼ。**次はローカル M1**
+- **ローカル:** **L12 完了** · 本線 **M1**（T-044 request-aware）→ M2 → M3
 - **中継先:** `http://127.0.0.1:16191/v1`
-- **静的 UI:** `http://127.0.0.1:16191/dashboard/` (認証なし・sample JSON のみ)
+- **静的 UI:** `http://127.0.0.1:16191/dashboard/`
 
 ### コード配置
 - `packages/proxy` — ローカル Proxy (TypeScript)
@@ -85,16 +85,13 @@
 - 無効化: `GEKIYASU_STATS_FILE=off`
 - コード: `packages/proxy/src/stats/store.ts` + server 配線
 
-### 起票済みバックログ（2026-07-12 監査反映 + salvage）
+### 起票済みバックログ（M1–M3）
 
 | 優先 | ID | 内容 |
 |---|---|---|
-| **推奨次** | **T-044 / L13** | request-aware routing + upstreamModelId 書換 |
-| P1 横 | T-045 / T-046 / T-047 | apiCompat · private fail-closed · CORS |
-| 公開前ゲート | T-034 → T-035 | DNS pin → feed 署名 |
-| 後段 | T-037 / T-038 / T-048–T-051 | stats CLI · IDE · CI · health · 縦貫通 · Pages |
-| 収集層 | **T-040 done** / **T-039 todo** | [design/06](./design/06-model-identity-and-normalization.md) |
+| **M1 本線** | **T-044** · T-045 · T-046 | request-aware · apiCompat · private trust |
+| **M2** | T-039 · T-024 · T-050 · T-051 | model-id · collector · 縦貫通 · Pages |
+| **M3** | T-035 · T-034 · T-048 | 署名 · DNS pin · CI 硬化 |
+| **品質レーン** | T-047 · T-049 · T-037 · T-038 · T-042 | CORS · health · stats · IDE · 配布 |
 
 詳細: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) · [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)
-
-台帳: T-031/T-033/T-036 **done** · 次本線 **T-044**。
