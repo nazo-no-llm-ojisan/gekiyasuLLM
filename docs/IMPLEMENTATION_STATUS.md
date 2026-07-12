@@ -61,7 +61,18 @@
 | 項目 | メモ |
 |---|---|
 | **origin-scoped headers + credential mapping** | (1) `openai-organization` / `openai-project` / `idempotency-key` を **configured upstream origin にだけ**転送し、feed-driven 別 origin には送らない。(2) `providerApiKeys` を endpoint/origin 単位 mapping へ移行。同一パッケージで扱うとよい。**今すぐの P0 ではない**。`idempotency-key` は POST fallback 未実装の現段階では必須ではない |
+| **IPv6 private / link-local SSRF** | `isPrivateOrLinkLocalIpv4` は IPv4 のみ。`fc00::/7`・`fe80::/10`・IPv4-mapped IPv6 等は未ブロック。allowlist 依存。公開フィード段階前に拡張推奨（外部監査 2026-07-12） |
+| **DNS rebinding / pin** | ホスト名 allowlist のみ。解決先が内網 IP になるケースは未防御。設計脅威モデルには記載済・実装未 |
+| **feed 署名検証 (F-SEC-05)** | 静的ファイル読込のみ。公開署名フィード配信の **必須ゲート** |
 | POST fallback opt-in | idempotency サポート + ユーザー明示 opt-in 設計後に再検討 |
-| redaction / audit / DNS pin / circuit | 境界・運用の続き |
+| redaction / audit / circuit | 境界・運用の続き |
+| deprecated 整理 | `assertSafeUpstreamBaseUrl` 等 |
+| CI test 明示列挙 | `package.json` の test スクリプトに新ファイルを忘れず追加 |
 
-**P0/P1 正本コミット:** `e2b3d14`（docs 同期 `d4880d8`）。`4bbc1fb` は未完成扱い。  
+## 外部監査メモ（2026-07-12）
+
+- **総評:** 設計とコードの整合は高い。F-SEC-09/10・SSRF redirect・header allowlist は文書どおり実装されている、と外部監査が確認。
+- **自己認識との一致:** 残課題リストと監査指摘はほぼ一致（健全）。
+- **スコープ結論:** 個人ローカル MVP では大きな欠陥なし。公開署名フィード前に IPv6 SSRF・署名・tenant header origin 限定を仕上げる。
+
+**P0/P1 正本コミット:** `e2b3d14`。L10: `591b0b9`。`4bbc1fb` は未完成扱い。  
