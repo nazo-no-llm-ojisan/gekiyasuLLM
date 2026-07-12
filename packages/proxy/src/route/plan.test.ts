@@ -4,6 +4,7 @@ import {
   buildRoutePlan,
   filterCandidates,
   rankCandidates,
+  selectCandidatesForRequestedModel,
   type RouteCandidate,
 } from "./plan.js";
 
@@ -84,6 +85,60 @@ describe("filterCandidates", () => {
       { maxCostPerRequest: 0.05 },
     );
     assert.equal(none.length, 0);
+  });
+});
+
+describe("selectCandidatesForRequestedModel (T-044)", () => {
+  it("returns only candidates whose modelId matches the requested one", () => {
+    const out = selectCandidatesForRequestedModel(
+      [
+        { id: "a", providerId: "p1", modelId: "gpt-4o-mini" },
+        { id: "b", providerId: "p2", modelId: "other-model" },
+        { id: "c", providerId: "p3", modelId: "gpt-4o-mini" },
+      ],
+      "gpt-4o-mini",
+    );
+    assert.deepEqual(
+      out.map((c) => c.id),
+      ["a", "c"],
+    );
+  });
+
+  it("includes candidates whose aliases list contains the requested model", () => {
+    const out = selectCandidatesForRequestedModel(
+      [
+        { id: "a", providerId: "p1", modelId: "minimax-m3", aliases: ["gpt-4o-mini"] },
+        { id: "b", providerId: "p2", modelId: "other-model" },
+      ],
+      "gpt-4o-mini",
+    );
+    assert.deepEqual(
+      out.map((c) => c.id),
+      ["a"],
+    );
+  });
+
+  it("drops candidates with neither modelId nor aliases", () => {
+    const out = selectCandidatesForRequestedModel(
+      [
+        { id: "a", providerId: "p1" },
+        { id: "b", providerId: "p2", modelId: "x" },
+      ],
+      "x",
+    );
+    assert.deepEqual(
+      out.map((c) => c.id),
+      ["b"],
+    );
+  });
+
+  it("returns the input unchanged when requestedModel is undefined", () => {
+    const candidates: RouteCandidate[] = [
+      { id: "a", providerId: "p1" },
+      { id: "b", providerId: "p2" },
+    ];
+    const out = selectCandidatesForRequestedModel(candidates, undefined);
+    assert.equal(out, candidates);
   });
 });
 

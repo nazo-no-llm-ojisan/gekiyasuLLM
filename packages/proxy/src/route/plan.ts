@@ -5,6 +5,29 @@ import type {
 } from "@gekiyasu/schema";
 
 /**
+ * Narrow candidates to those whose logical model matches the requested one.
+ * Pure: T-044 candidate-narrowing step. Strict match only:
+ *   - `requestedModel === candidate.modelId`
+ *   - `requestedModel` ∈ `candidate.aliases`
+ * Candidates with no `modelId` (and no aliases) are dropped here — the proxy
+ * cannot guarantee a faithful upstream write without a logical id.
+ *
+ * If `requestedModel` is undefined, returns the input unchanged (the executor
+ * will fall back to its existing cheapest-among-all behavior).
+ */
+export function selectCandidatesForRequestedModel(
+  candidates: RouteCandidate[],
+  requestedModel: string | undefined,
+): RouteCandidate[] {
+  if (!requestedModel) return candidates;
+  return candidates.filter((c) => {
+    if (c.modelId && c.modelId === requestedModel) return true;
+    if (c.aliases && c.aliases.includes(requestedModel)) return true;
+    return false;
+  });
+}
+
+/**
  * Candidate after hard filter, before / for scoring.
  * Subset of Offering fields needed for MVP routing.
  */
