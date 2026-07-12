@@ -6,7 +6,7 @@
   "local": {
     "proxy_default": "http://127.0.0.1:16191/v1",
     "phase": "Phase 1",
-    "local_pin": "L5 done → next L6 (multi-candidate)"
+    "local_pin": "L7 done → next L9 (CostEstimate) or L8 feed / L11 E2E"
   },
   "offerings": [
     {

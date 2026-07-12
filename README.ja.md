@@ -17,10 +17,10 @@
 | 地図 | 位置 |
 |---|---|
 | **大枠** | Phase 1 進行中（0 完了）。2 以降はローカル後 → [docs/ROADMAP_MACRO.md](./docs/ROADMAP_MACRO.md) |
-| **ローカル** | L4 完了 → 次 L5 / T-023（Executor） → [docs/ROADMAP_LOCAL.md](./docs/ROADMAP_LOCAL.md) |
+| **ローカル** | **L7 完了 → 次 L9**（CostEstimate）または L8 / L11 → [docs/ROADMAP_LOCAL.md](./docs/ROADMAP_LOCAL.md) |
 
 - 既定ポート **`16191`**（`http://127.0.0.1:16191/v1`）
-- いまは上流 1 本透過が中心。自動最安選択はまだ
+- 中継・plan/filter/fallback の骨格あり。catalog はまだ実質1本。フィード未
 - 索引: [docs/ROADMAP.md](./docs/ROADMAP.md) · docs 一覧: [docs/README.md](./docs/README.md)
 
 ```bash

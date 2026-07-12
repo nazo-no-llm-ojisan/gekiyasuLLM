@@ -48,12 +48,13 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 | L3 Offering fixture | T-021 | **done** |
 | L4 RoutePlan sole | T-022 | **done** |
 | L5 Executor primary | T-023 | **done** |
+| L6 hard filter + rank | T-027 | **done** |
+| L7 fallback 実行 | T-028 | **done** |
 | （parser 実験） | T-024 | todo（並列可・本線外でも可） |
-| ルート test | T-025 | **done** |
+| ルート test + GHA | T-025 | **done**（CI glob 修正済） |
 | 失敗分類 docs | T-026 | **done** |
-| L6–L7 候補・fallback | 未採番 | 後 |
 | L8 フィード | 未採番 | Phase 2 |
-| L9–L10 コスト・統計 | 未採番 | Phase 1 後半〜3 |
+| L9–L10 コスト・統計 | 未採番 | 次本線候補 |
 
 ---
 
@@ -73,11 +74,11 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 
 ## ローカル節の完了条件（Phase 1–3 まとめて）
 
-- [ ] IDE/SDK からローカル Proxy 経由で completion 成功（実キー）
-- [ ] RoutePlan → Executor が primary（と fallback）に従う
-- [ ] 静的フィード差し替えで候補が変わる
-- [ ] 失敗時に次候補へ少なくとも1段
-- [ ] ローカルに成功/失敗/目安コストが残る（形式は簡易で可）
+- [ ] IDE/SDK からローカル Proxy 経由で completion 成功（実キー）← L11
+- [x] RoutePlan → Executor が primary に従う（コード+テスト）
+- [x] 失敗時 fallback ロジック（コード+ユニット。catalog 複数は L8 後に実効）
+- [ ] 静的フィード差し替えで候補が変わる ← L8
+- [ ] ローカルに成功/失敗/目安コストが残る ← L9–L10
 
 全部チェック入ったら **大枠 Phase 1–3 完了** とみなし、[ROADMAP_MACRO.md](./ROADMAP_MACRO.md) のピンを Phase 4 手前に進める。
 
