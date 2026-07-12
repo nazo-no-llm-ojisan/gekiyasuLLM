@@ -45,6 +45,11 @@ curl http://127.0.0.1:16191/v1/models -H "Authorization: Bearer $OPENAI_API_KEY"
 | `GEKIYASU_PORT` | `16191` | Bind port |
 | `GEKIYASU_UPSTREAM_BASE_URL` | `https://api.openai.com/v1` | Upstream root |
 | `OPENAI_API_KEY` / `GEKIYASU_UPSTREAM_API_KEY` | — | Upstream key if client omits auth |
+| `GEKIYASU_UPSTREAM_ALLOWLIST` | — | Optional comma-separated allowed upstream hosts |
+| `GEKIYASU_MAX_BODY_BYTES` | 20MiB | Max buffered request body |
+| `GEKIYASU_UPSTREAM_TIMEOUT_MS` | 120000 | Upstream fetch timeout |
+
+Placeholder swap (`Bearer local` / `gekiyasu` / `sk-local` → env key) works **only when bind host is loopback**.
 
 ## License
 

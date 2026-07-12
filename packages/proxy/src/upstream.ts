@@ -5,6 +5,7 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { ProxyConfig } from "./config.js";
+import { PLACEHOLDER_BEARERS } from "./security.js";
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -19,19 +20,16 @@ const HOP_BY_HOP = new Set([
   "content-length",
 ]);
 
-function pickAuthHeader(
+export function pickAuthHeader(
   req: IncomingMessage,
   config: ProxyConfig,
 ): string | undefined {
   const fromClient = req.headers.authorization;
   if (typeof fromClient === "string" && fromClient.length > 0) {
-    // If client sent a local placeholder and we have an env key, prefer env
-    // for the common "local proxy holds the real key" setup.
     if (
+      config.allowPlaceholderApiKeySwap &&
       config.upstreamApiKey &&
-      (fromClient === "Bearer local" ||
-        fromClient === "Bearer gekiyasu" ||
-        fromClient === "Bearer sk-local")
+      PLACEHOLDER_BEARERS.has(fromClient)
     ) {
       return `Bearer ${config.upstreamApiKey}`;
     }
@@ -61,7 +59,6 @@ function buildUpstreamHeaders(
   }
   const auth = pickAuthHeader(req, config);
   if (auth) headers.set("authorization", auth);
-  // Avoid compressed body surprises when piping
   headers.delete("accept-encoding");
   return headers;
 }
@@ -93,15 +90,34 @@ export async function proxyRequest(
 
   let body: Buffer | undefined;
   if (method !== "GET" && method !== "HEAD") {
-    body = await readBody(req);
+    try {
+      body = await readBody(req, config.maxBodyBytes);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const code =
+        err instanceof Error && "code" in err
+          ? String((err as { code?: string }).code)
+          : "body_error";
+      res.writeHead(code === "body_too_large" ? 413 : 400, {
+        "content-type": "application/json",
+      });
+      res.end(
+        JSON.stringify({
+          error: { message, type: "invalid_request_error", code },
+        }),
+      );
+      return;
+    }
   }
 
   const headers = buildUpstreamHeaders(req, config);
-  // Re-apply auth after header copy
   headers.set("authorization", auth);
   if (body && body.length > 0 && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
+
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), config.upstreamTimeoutMs);
 
   let upstream: Response;
   try {
@@ -109,21 +125,29 @@ export async function proxyRequest(
       method,
       headers,
       body: body && body.length > 0 ? new Uint8Array(body) : undefined,
+      signal: ac.signal,
     });
   } catch (err) {
+    clearTimeout(timer);
+    const aborted =
+      err instanceof Error &&
+      (err.name === "AbortError" || err.message.includes("abort"));
     const message = err instanceof Error ? err.message : String(err);
-    res.writeHead(502, { "content-type": "application/json" });
+    res.writeHead(aborted ? 504 : 502, { "content-type": "application/json" });
     res.end(
       JSON.stringify({
         error: {
-          message: `Upstream fetch failed: ${message}`,
+          message: aborted
+            ? `Upstream timeout after ${config.upstreamTimeoutMs}ms`
+            : `Upstream fetch failed: ${message}`,
           type: "proxy_error",
-          code: "upstream_unreachable",
+          code: aborted ? "upstream_timeout" : "upstream_unreachable",
         },
       }),
     );
     return;
   }
+  clearTimeout(timer);
 
   const outHeaders: Record<string, string> = {};
   upstream.headers.forEach((value, key) => {
@@ -160,10 +184,26 @@ export async function proxyRequest(
   }
 }
 
-function readBody(req: IncomingMessage): Promise<Buffer> {
+export function readBody(
+  req: IncomingMessage,
+  maxBytes: number,
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on("data", (c: Buffer) => chunks.push(c));
+    let total = 0;
+    req.on("data", (c: Buffer) => {
+      total += c.length;
+      if (total > maxBytes) {
+        req.destroy();
+        const err = new Error(
+          `Request body exceeds max ${maxBytes} bytes`,
+        ) as Error & { code: string };
+        err.code = "body_too_large";
+        reject(err);
+        return;
+      }
+      chunks.push(c);
+    });
     req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });

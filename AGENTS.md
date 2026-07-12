@@ -84,6 +84,11 @@
 - OpenAI 互換は UpstreamAdapter の一つ。内部共通型を OpenAI 専用にしない。
 - 設計と実装が食い違ったら、差分をドキュメントか ADR に残してから直す。
 
+## 実装状況
+
+- 設計の「MVP ○」とコードの差は `docs/IMPLEMENTATION_STATUS.md` が正。更新したらそこも直す。
+- 監査で繰り返し出る穴: フィード動的 URL 前の allowlist、認証の多層化、redaction/audit。
+
 ## ユーザ報告・脳レスTDD
 
 **役割分担（必須）:**

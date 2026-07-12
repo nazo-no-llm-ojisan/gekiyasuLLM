@@ -37,6 +37,11 @@ async function main(): Promise<void> {
     console.warn(
       `[warn] Binding to ${config.host}. Prefer 127.0.0.1 unless you intentionally expose the proxy.`,
     );
+    if (!config.allowPlaceholderApiKeySwap) {
+      console.warn(
+        "[warn] Placeholder API key swap (Bearer local|gekiyasu|sk-local) is DISABLED off loopback.",
+      );
+    }
   }
 
   const running = await listen(config);

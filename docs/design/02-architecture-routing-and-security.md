@@ -32,24 +32,26 @@
 | F-RT-02 | capability 制約（tools/vision/json） | ○ |
 | F-RT-03 | コスト推定（入力/出力/キャッシュ/定額） | ○ |
 | F-RT-04 | 予算制限（日/月） | ○ |
-| F-RT-05 | timeout / retry / fallback | ○ |
-| F-RT-06 | circuit breaker | ○ |
-| F-RT-07 | rate limit 尊重（429 時 backoff） | ○ |
+| F-RT-05 | timeout / retry / fallback | ○（実装: timeout 済・retry/fallback 未） |
+| F-RT-06 | circuit breaker | ○（実装: 未） |
+| F-RT-07 | rate limit 尊重（429 時 backoff） | ○（実装: 未・ヘッダ透過のみ） |
 | F-RT-08 | prompt caching 価格考慮 | △ |
 | F-RT-09 | token estimation（tiktoken 系 / 近似） | ○ 近似可 |
 
 ### 5.3 セキュリティ・ポリシー
 
-| ID | 要件 | MVP |
-|---|---|---|
-| F-SEC-01 | API key は OS キーチェーン or 環境変数 or ローカル暗号化ファイル | ○ |
-| F-SEC-02 | secret redaction（ログ・telemetry） | ○ ログ |
-| F-SEC-03 | private repository / path policy | ○ 簡易 |
-| F-SEC-04 | provider allowlist / denylist | ○ |
-| F-SEC-05 | feed signature verification | 公開時 ○ |
-| F-SEC-06 | telemetry opt-in | 後続（既定 off） |
-| F-SEC-07 | local audit log | ○ |
-| F-SEC-08 | 生成コマンド/パッチの自動実行をしない | ○ 設計原則 |
+実装の正本は [IMPLEMENTATION_STATUS.md](../IMPLEMENTATION_STATUS.md)。下表の「MVP」は**目標**、「実装」はコード現状。
+
+| ID | 要件 | MVP目標 | 実装（2026-07-12） |
+|---|---|---|---|
+| F-SEC-01 | API key は OS キーチェーン or 環境変数 or ローカル暗号化ファイル | ○ | 部分（env/Bearer） |
+| F-SEC-02 | secret redaction（ログ・telemetry） | ○ ログ | 未 |
+| F-SEC-03 | private repository / path policy | ○ 簡易 | 未 |
+| F-SEC-04 | provider allowlist / denylist | ○ | 部分（upstream URL） |
+| F-SEC-05 | feed signature verification | 公開時 ○ | 未 |
+| F-SEC-06 | telemetry opt-in | 後続（既定 off） | 未（送信なし） |
+| F-SEC-07 | local audit log | ○ | 未 |
+| F-SEC-08 | 生成コマンド/パッチの自動実行をしない | ○ 設計原則 | 済 |
 
 ### 5.4 運用・UX
 
