@@ -18,6 +18,8 @@ import {
 } from "../upstream.js";
 import type { OfferingTarget } from "./catalog.js";
 import type { CircuitBreaker } from "./circuit.js";
+import { rewriteModelForOffering } from "./body-rewrite.js";
+import { selectCandidatesForRequestedModel } from "./plan.js";
 
 export type ExecutionContext = {
   plan: RoutePlan;
@@ -375,6 +377,44 @@ export async function executeRoutePlan(
   }
 
   const ids = orderedOfferingIds(plan);
+
+  // T-044: request-aware candidate narrowing.
+  // When PreparedRequest.facts.requestedModel is set, restrict the
+  // ordered ids to offerings that can actually serve that logical model
+  // (modelId match or alias match). Done here, after the plan is built
+  // and before any upstream read, so that:
+  //   - the cheapest-among-all behavior keeps working when no request
+  //     model is known (legacy / v1/models);
+  //   - injected `attempt` callbacks see a faithful, narrowed set;
+  //   - the original `body` is never mutated — we only filter ids.
+  const requestedModel = input.prepared?.facts?.requestedModel;
+  const eligibleIds = (() => {
+    if (!requestedModel) return ids;
+    const narrowed = selectCandidatesForRequestedModel(
+      ids
+        .map((id) => catalog.get(id))
+        .filter((c): c is OfferingTarget => Boolean(c)),
+      requestedModel,
+    ).map((c) => c.id);
+    if (narrowed.length === 0) return narrowed;
+    // Preserve the original plan order (primary first, then fallbacks).
+    return ids.filter((id) => narrowed.includes(id));
+  })();
+
+  if (requestedModel && eligibleIds.length === 0) {
+    // Fail-closed: unknown / no-matching model.
+    if (!res.headersSent) {
+      writeJson(res, 400, {
+        error: {
+          message: `No offering matches requested model '${requestedModel}'`,
+          type: "invalid_request_error",
+          code: "no_matching_offering",
+        },
+      });
+    }
+    return { offeringId: plan.primary, attempts: [] };
+  }
+
   const attemptLog: string[] = [];
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), config.upstreamTimeoutMs);
@@ -387,8 +427,8 @@ export async function executeRoutePlan(
   try {
     let lastRetry: AttemptRetry | undefined;
 
-    for (let i = 0; i < ids.length; i++) {
-      const id = ids[i]!;
+    for (let i = 0; i < eligibleIds.length; i++) {
+      const id = eligibleIds[i]!;
       let target: OfferingTarget;
       try {
         target = resolveTarget(id, catalog);
@@ -460,13 +500,22 @@ export async function executeRoutePlan(
         continue;
       }
 
+      // T-044: per-attempt upstreamModelId rewrite. Pure call; the
+      // original `body` Buffer is never mutated. When the body is not
+      // JSON, has no `model` field, or upstreamModelId is undefined,
+      // `rewriteModelForOffering` returns the original bytes unchanged.
+      const attemptBody =
+        body !== undefined && target.upstreamModelId !== undefined
+          ? rewriteModelForOffering(body, { upstreamModelId: target.upstreamModelId })
+          : body;
+
       const ctx: AttemptContext = {
         req,
         config,
         pathWithQuery,
         auth,
         method,
-        body,
+        body: attemptBody,
         signal: ac.signal,
       };
 

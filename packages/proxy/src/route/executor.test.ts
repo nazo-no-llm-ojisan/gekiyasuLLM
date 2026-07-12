@@ -1165,6 +1165,242 @@ describe("response header hygiene after undici decompression", () => {
   });
 });
 
+describe("executeRoutePlan request-aware routing (T-044)", () => {
+  const requestedModelOnly = (
+    candidates: { id: string; baseUrl: string; providerId: string; modelId?: string; aliases?: string[]; upstreamModelId?: string }[],
+  ): Map<string, OfferingTarget> => {
+    const m = new Map<string, OfferingTarget>();
+    for (const c of candidates) {
+      m.set(c.id, {
+        id: c.id,
+        providerId: c.providerId,
+        baseUrl: c.baseUrl,
+        modelId: c.modelId,
+        aliases: c.aliases,
+        upstreamModelId: c.upstreamModelId,
+      });
+    }
+    return m;
+  };
+
+  it("1: an unrelated cheap offering is not chosen when requestedModel does not match", async () => {
+    // Two offerings, both with provider keys. cheap-b is cheaper, but the
+    // request asks for model "gpt-x" which only offering-a can serve.
+    const catalog = requestedModelOnly([
+      { id: "a", baseUrl: "https://a.example/v1", providerId: "pA", modelId: "gpt-x", upstreamModelId: "gpt-x-internal" },
+      { id: "b", baseUrl: "https://b.example/v1", providerId: "pB", modelId: "gpt-y", upstreamModelId: "gpt-y-internal" },
+    ]);
+    const plan: RoutePlan = {
+      primary: "a",
+      fallbacks: ["b"],
+      reason: [],
+      generatedAt: "",
+    };
+    const tried: string[] = [];
+    const attempt: AttemptFn = async (target) => {
+      tried.push(target.id);
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response("{}", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      };
+    };
+    const res = createMockRes();
+    const req = createMockReq("GET", { authorization: "Bearer sk-test" });
+    const config = baseConfig({
+      upstreamApiKey: "sk-test",
+      providerApiKeys: { pA: "k-a", pB: "k-b" },
+    });
+    await executeRoutePlan({
+      plan,
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/chat/completions",
+      attempt,
+      prepared: { body: Buffer.from(""), facts: { requestedModel: "gpt-x" } },
+    });
+    assert.deepEqual(tried, ["a"], "only the matching offering is tried");
+  });
+
+  it("2: alias match rewrites the model to upstreamModelId for that offering", async () => {
+    const catalog = requestedModelOnly([
+      { id: "a", baseUrl: "https://a.example/v1", providerId: "pA", modelId: "minimax-m3", aliases: ["gpt-4o-mini"], upstreamModelId: "internal-mm-m3" },
+    ]);
+    const plan: RoutePlan = {
+      primary: "a",
+      fallbacks: [],
+      reason: [],
+      generatedAt: "",
+    };
+    const seen: { auth?: string; body?: Buffer } = {};
+    const attempt: AttemptFn = async (target, ctx) => {
+      seen.auth = ctx.auth;
+      seen.body = ctx.body;
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response("{}", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      };
+    };
+    const res = createMockRes();
+    const req = createMockReq("POST", { authorization: "Bearer sk-test", "content-type": "application/json" });
+    const config = baseConfig({ providerApiKeys: { pA: "k-a" } });
+    const original = Buffer.from(
+      JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }] }),
+      "utf8",
+    );
+    await executeRoutePlan({
+      plan,
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/chat/completions",
+      attempt,
+      prepared: { body: original, facts: { requestedModel: "gpt-4o-mini" } },
+    });
+    assert.ok(seen.body, "attempt should receive a body");
+    const parsed = JSON.parse(seen.body!.toString("utf8"));
+    assert.equal(parsed.model, "internal-mm-m3");
+  });
+
+  it("3: unknown requested model fails closed with no_matching_offering", async () => {
+    const catalog = requestedModelOnly([
+      { id: "a", baseUrl: "https://a.example/v1", providerId: "pA", modelId: "gpt-x", upstreamModelId: "gpt-x-internal" },
+    ]);
+    const plan: RoutePlan = {
+      primary: "a",
+      fallbacks: [],
+      reason: [],
+      generatedAt: "",
+    };
+    const tried: string[] = [];
+    const attempt: AttemptFn = async (target) => {
+      tried.push(target.id);
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response("{}", { status: 200, headers: { "content-type": "application/json" } }),
+      };
+    };
+    const res = createMockRes();
+    const req = createMockReq("GET", { authorization: "Bearer sk-test" });
+    const config = baseConfig({ providerApiKeys: { pA: "k-a" } });
+    await executeRoutePlan({
+      plan,
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/chat/completions",
+      attempt,
+      prepared: { body: Buffer.from(""), facts: { requestedModel: "no-such-model" } },
+    });
+    assert.deepEqual(tried, [], "no offering should be tried for an unknown model");
+    assert.equal(res.resState.statusCode, 400);
+    const err = JSON.parse(res.resState.body);
+    assert.equal(err.error.code, "no_matching_offering");
+  });
+
+  it("4: original body Buffer is not mutated; per-attempt bodies are distinct", async () => {
+    const catalog = requestedModelOnly([
+      { id: "a", baseUrl: "https://a.example/v1", providerId: "pA", modelId: "gpt-x", upstreamModelId: "MODEL_A" },
+      { id: "b", baseUrl: "https://b.example/v1", providerId: "pB", modelId: "gpt-x", upstreamModelId: "MODEL_B" },
+    ]);
+    const plan: RoutePlan = {
+      primary: "a",
+      fallbacks: ["b"],
+      reason: [],
+      generatedAt: "",
+    };
+    const seen: Buffer[] = [];
+    const attempt: AttemptFn = async (target, ctx) => {
+      seen.push(Buffer.from(ctx.body!));
+      if (target.id === "a") {
+        return { kind: "retry", offeringId: target.id, code: "http_503", message: "down", status: 503 };
+      }
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response("{}", { status: 200, headers: { "content-type": "application/json" } }),
+      };
+    };
+    const res = createMockRes();
+    // GET so that 503 on `a` triggers the P1 fallback path to `b`.
+    const req = createMockReq("GET", { authorization: "Bearer sk-test" });
+    const config = baseConfig({ providerApiKeys: { pA: "k-a", pB: "k-b" } });
+    const original = Buffer.from(
+      JSON.stringify({ model: "gpt-x", messages: [] }),
+      "utf8",
+    );
+    const originalSnapshot = Buffer.from(original);
+    await executeRoutePlan({
+      plan,
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/chat/completions",
+      attempt,
+      prepared: { body: original, facts: { requestedModel: "gpt-x" } },
+    });
+    assert.equal(original.equals(originalSnapshot), true, "original Buffer must not be mutated");
+    assert.equal(seen.length, 2);
+    assert.equal(JSON.parse(seen[0]!.toString("utf8")).model, "MODEL_A");
+    assert.equal(JSON.parse(seen[1]!.toString("utf8")).model, "MODEL_B");
+    assert.notEqual(seen[0], seen[1], "per-attempt bodies are different Buffer instances");
+  });
+
+  it("5: when PreparedRequest is given, the request stream is not re-read", async () => {
+    // Create a req with NO body (Readable.from([])). If the executor tried
+    // to readBody, the call would either hang or reject. The test passes
+    // only because the prepared body is used directly.
+    const catalog = requestedModelOnly([
+      { id: "a", baseUrl: "https://a.example/v1", providerId: "pA", modelId: "gpt-x", upstreamModelId: "gpt-x-internal" },
+    ]);
+    const plan: RoutePlan = {
+      primary: "a",
+      fallbacks: [],
+      reason: [],
+      generatedAt: "",
+    };
+    const attempt: AttemptFn = async (target, ctx) => {
+      // If body was re-read from the empty stream, ctx.body would be
+      // undefined (or the call would hang). We rely on the prepared body.
+      assert.ok(ctx.body, "ctx.body must come from prepared, not from re-read");
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response("{}", { status: 200, headers: { "content-type": "application/json" } }),
+      };
+    };
+    const res = createMockRes();
+    const req = createMockReq("POST", { authorization: "Bearer sk-test", "content-type": "application/json" }, null);
+    const config = baseConfig({ providerApiKeys: { pA: "k-a" } });
+    await executeRoutePlan({
+      plan,
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/chat/completions",
+      attempt,
+      prepared: {
+        body: Buffer.from(JSON.stringify({ model: "gpt-x", messages: [] }), "utf8"),
+        facts: { requestedModel: "gpt-x" },
+      },
+    });
+  });
+});
+
 describe("executeRoutePlan circuit breaker (T-036)", () => {
   const catalog = new Map<string, OfferingTarget>([
     ["first", { id: "first", providerId: "a", baseUrl: "https://a.example/v1" }],

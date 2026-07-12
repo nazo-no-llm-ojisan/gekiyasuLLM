@@ -123,10 +123,10 @@
 | T-041 | schema | **品質レーン** thin Lua hook for model identity | T-039 | packages/schema/src/**, docs/design/06* | hook contract test or spike note | TS matcher default; optional Lua removable without data migration | proposed | todo |
 | T-042 | ci/release | **品質レーン** single-file binary release spike | T-025 | package.json, packages/proxy/**, .github/**, docs/** | release packaging smoke test | Win/macOS/Linux approach + checksum plan documented | proposed | todo |
 | T-043 | docs | **品質レーン** herding / self-reference NFR | - | docs/** | — | herding risk + local-routing mitigation documented | forbidden | todo |
-| T-044 | proxy | **M1** request-aware routing + upstreamModelId rewrite | T-044-prep | packages/proxy/src/** | route request-model tests (5 below) | see T-044 done_when below | proposed | doing（**M1 本線**） |
-| T-044-prep | proxy | **M1** M1 prerequisites: RequestFacts, PreparedRequest, apiCompat, trust unknown | T-030 | packages/schema/src/route.ts, packages/proxy/src/route/** | request-facts / prepared-request / catalog apiCompat / fail-closed trust tests | see T-044-prep row below | proposed | doing（前提プロポーズ） |
-| T-045 | proxy | **M1** reject unsupported apiCompat in catalog | T-044-prep | packages/proxy/src/route/** | catalog apiCompat test | non-openai_chat (MVP) excluded fail-closed | forbidden | todo（**M1**。T-044 と並列可） |
-| T-046 | proxy | **M1** allowsPrivateCode fail-closed | T-044-prep | packages/proxy/src/route/** | privateMode unknown trust test | missing trust ≠ allows private; privateMode only explicit true | forbidden | todo（**M1**） |
+| T-044 | proxy | **M1** request-aware routing + upstreamModelId rewrite | T-044-prep | packages/proxy/src/** | route request-model tests (5 below) | see T-044 done_when below | proposed | **done** |
+| T-044-prep | proxy | **M1** M1 prerequisites: RequestFacts, PreparedRequest, apiCompat, trust unknown | T-030 | packages/schema/src/route.ts, packages/proxy/src/route/** | request-facts / prepared-request / catalog apiCompat / fail-closed trust tests | see T-044-prep row below | proposed | **done** |
+| T-045 | proxy | **M1** reject unsupported apiCompat in catalog | T-044 | packages/proxy/src/route/** | catalog apiCompat test | non-openai_chat (MVP) excluded fail-closed | forbidden | todo（**M1**。T-044 と並列可） |
+| T-046 | proxy | **M1** allowsPrivateCode fail-closed | T-044 | packages/proxy/src/route/** | privateMode unknown trust test | missing trust ≠ allows private; privateMode only explicit true | forbidden | todo（**M1**） |
 | T-047 | proxy | **品質レーン** CORS actual responses + origin allowlist | - | packages/proxy/src/server*, executor* | CORS success-path test | success/error/stream same policy; default no open origin reflect | proposed（env/config/API 動作変更。後方互換のみ） | todo |
 | T-048 | ci | **M3** test discovery or list-sync + proxy build in CI | T-025 | packages/proxy/package.json, .github/** | CI fails on missing test / runs glob | all `*.test.ts` run; `npm run build` in CI | forbidden | todo（**M3**） |
 | T-049 | proxy | **品質レーン** minimize unauthenticated /health | - | packages/proxy/src/server*, config*, security* | health leakage test | no full upstreamBaseUrl without token; reject query/fragment in base URL | proposed（/health response contract 縮小。後方互換なし） | todo |
@@ -137,7 +137,7 @@
 
 | M | 完了条件（要約） | タスク |
 |---|---|---|
-| **M1** 正しく振り分ける | fixture 同一論理モデル → 適合最安 Offering → 正しい upstreamModelId | T-044-prep, T-044, T-045, T-046 |
+| **M1** 正しく振り分ける | fixture 同一論理モデル → 適合最安 Offering → 正しい upstreamModelId | T-044 ✅, T-045, T-046 |
 
 #### T-044（M1 本線・done_when 5 本）
 
