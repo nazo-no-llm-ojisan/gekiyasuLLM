@@ -25,8 +25,27 @@ function sendJson(
   status: number,
   body: unknown,
 ): void {
-  res.writeHead(status, { "content-type": "application/json" });
+  res.writeHead(status, {
+    ...corsHeaders(),
+    "content-type": "application/json",
+  });
   res.end(JSON.stringify(body));
+}
+
+function corsHeaders(): Record<string, string> {
+  return {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-headers":
+      "authorization,content-type,x-gekiyasu-token,openai-organization,openai-project",
+    "access-control-expose-headers":
+      "x-gekiyasu-route-plan,x-gekiyasu-offering,x-gekiyasu-attempts,x-gekiyasu-fallback",
+  };
+}
+
+function sendOptions(res: http.ServerResponse): void {
+  res.writeHead(204, corsHeaders());
+  res.end();
 }
 
 function buildStatsStore(config: ProxyConfig): StatsStore {
@@ -72,6 +91,11 @@ export function createServer(config: ProxyConfig): http.Server {
     const host = req.headers.host ?? `${config.host}:${config.port}`;
     const url = new URL(req.url ?? "/", `http://${host}`);
     const path = url.pathname;
+
+    if (req.method === "OPTIONS") {
+      sendOptions(res);
+      return;
+    }
 
     if (path === "/health" || path === "/healthz") {
       sendJson(res, 200, {
