@@ -112,6 +112,37 @@ export function isProxyAuthorization(authorization: string): boolean {
   return extractProxyTokenFromAuthorization(authorization) !== undefined;
 }
 
+export function describeAuthShape(headers: {
+  [key: string]: string | string[] | undefined;
+}): string {
+  const rawProxyHeader =
+    headers[PROXY_TOKEN_HEADER] ?? headers["X-Gekiyasu-Token".toLowerCase()];
+  const proxyHeader = Array.isArray(rawProxyHeader)
+    ? rawProxyHeader[0]
+    : rawProxyHeader;
+  if (typeof proxyHeader === "string" && proxyHeader.trim().length > 0) {
+    return "x-gekiyasu-token";
+  }
+
+  const auth = headers.authorization;
+  const authVal = Array.isArray(auth) ? auth[0] : auth;
+  if (typeof authVal !== "string" || authVal.trim().length === 0) {
+    return "none";
+  }
+
+  const trimmed = authVal.trim();
+  if (/^Bearer\s+Bearer\s+gekiyasu-proxy:/i.test(trimmed)) {
+    return "bearer-bearer-gekiyasu-proxy";
+  }
+  if (/^Bearer\s+gekiyasu-proxy:/i.test(trimmed)) {
+    return "bearer-gekiyasu-proxy";
+  }
+  if (/^Bearer\s+/i.test(trimmed)) {
+    return "bearer-other";
+  }
+  return "non-bearer";
+}
+
 export type ProxyTokenCheck =
   | { ok: true }
   | { ok: false; code: "missing_proxy_token" | "invalid_proxy_token" };

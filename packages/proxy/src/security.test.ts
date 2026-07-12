@@ -6,6 +6,7 @@ import {
   buildAllowedHosts,
   canUsePlaceholderApiKeySwap,
   checkProxyToken,
+  describeAuthShape,
   extractProxyToken,
   isLoopbackHost,
   isPrivateOrLinkLocalIpv4,
@@ -129,6 +130,27 @@ describe("proxy token", () => {
     assert.deepEqual(
       checkProxyToken({ "x-gekiyasu-token": "secret" }, "secret"),
       { ok: true },
+    );
+  });
+  it("describes auth shape without exposing values", () => {
+    assert.equal(describeAuthShape({}), "none");
+    assert.equal(
+      describeAuthShape({ authorization: "Bearer gekiyasu-proxy:secret" }),
+      "bearer-gekiyasu-proxy",
+    );
+    assert.equal(
+      describeAuthShape({
+        authorization: "Bearer Bearer gekiyasu-proxy:secret",
+      }),
+      "bearer-bearer-gekiyasu-proxy",
+    );
+    assert.equal(
+      describeAuthShape({ authorization: "Bearer sk-secret" }),
+      "bearer-other",
+    );
+    assert.equal(
+      describeAuthShape({ "x-gekiyasu-token": "secret" }),
+      "x-gekiyasu-token",
     );
   });
 });

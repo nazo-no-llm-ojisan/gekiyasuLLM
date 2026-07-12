@@ -6,7 +6,7 @@ import {
 } from "./route/catalog.js";
 import { describeExecution, executeRoutePlan } from "./route/executor.js";
 import { buildRoutePlan } from "./route/plan.js";
-import { checkProxyToken } from "./security.js";
+import { checkProxyToken, describeAuthShape } from "./security.js";
 import {
   createJsonlStatsStore,
   createNullStatsStore,
@@ -99,6 +99,24 @@ export function createServer(config: ProxyConfig): http.Server {
     ) {
       const tokenCheck = checkProxyToken(req.headers, config.proxyToken);
       if (!tokenCheck.ok) {
+        console.warn(
+          JSON.stringify({
+            level: "warn",
+            event: "proxy_token_rejected",
+            code: tokenCheck.code,
+            method: req.method ?? "GET",
+            path,
+            authShape: describeAuthShape(req.headers),
+          }),
+        );
+        await recordRouteStat(stats, {
+          method: req.method ?? "GET",
+          path,
+          startedMs: Date.now(),
+          attempts: [],
+          status: 401,
+          errorCode: tokenCheck.code,
+        });
         sendJson(res, 401, {
           error: {
             message:
