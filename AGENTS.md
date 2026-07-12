@@ -31,8 +31,8 @@
 
 ### A. 全体監査・法務コンプライアンスの確認、または巨大なコンテキストウィンドウ（128k以上など）を持つモデルの場合
 リポジトリの公開方針、ライセンス、利益相反（COI）、表現ルール、訂正方針を確認するために、以下のドキュメントを読み込んでください。
-- [docs/GOVERNANCE.md](file:///c:/dev/project/gekiyasuLLM/docs/GOVERNANCE.md)
+- [docs/GOVERNANCE.md](./docs/GOVERNANCE.md)
 
 ### B. 実装・コーディング・テスト修正を行うモデルの場合
 ディレクトリ構造、実装方針MVP、TDDや並列作業のルールを確認するために、以下のドキュメントを読み込んでください。
-- [docs/DEVELOPMENT.md](file:///c:/dev/project/gekiyasuLLM/docs/DEVELOPMENT.md)
+- [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)
