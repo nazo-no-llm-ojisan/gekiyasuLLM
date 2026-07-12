@@ -127,7 +127,7 @@
 | T-044-prep | proxy | **M1** M1 prerequisites: RequestFacts, PreparedRequest, apiCompat, trust unknown | T-030 | packages/schema/src/route.ts, packages/proxy/src/route/** | request-facts / prepared-request / catalog apiCompat / fail-closed trust tests | see T-044-prep row below | proposed | **done** |
 | T-045 | proxy | **M1** reject unsupported apiCompat in catalog | T-044 | packages/proxy/src/route/** | catalog apiCompat test | non-openai_chat (MVP) excluded fail-closed | forbidden | **done** |
 | T-046 | proxy | **M1** allowsPrivateCode fail-closed | T-044 | packages/proxy/src/route/** | privateMode unknown trust test | missing trust ≠ allows private; privateMode only explicit true | forbidden | **done** |
-| T-047 | proxy | **品質レーン** CORS actual responses + origin allowlist | - | packages/proxy/src/server*, config*, security* | CORS success-path test | success/error/stream same policy; default no open origin reflect | proposed（env/config/API 動作変更。後方互換のみ） | doing（**M1 後・P0**。issue #3） |
+| T-047 | proxy | **品質レーン** CORS actual responses + origin allowlist | - | packages/proxy/src/server*, config*, security* | CORS success-path test | success/error/stream same policy; default no open origin reflect | proposed（env/config/API 動作変更。後方互換のみ） | **done** |
 
 #### T-047 done_when（issue #3 / P0 セキュリティ）
 
