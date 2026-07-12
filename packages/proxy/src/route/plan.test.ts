@@ -40,6 +40,40 @@ const C_unknown_stream: RouteCandidate = {
   free: false,
 };
 
+describe("apiCompat fail-closed (T-045)", () => {
+  it("rejects offerings whose apiCompat is not openai_chat", () => {
+    const candidates: RouteCandidate[] = [
+      { id: "ok", providerId: "p1", apiCompat: "openai_chat" },
+      { id: "anthropic", providerId: "p2", apiCompat: "anthropic_messages" },
+      { id: "responses", providerId: "p3", apiCompat: "openai_responses" },
+      { id: "gemini", providerId: "p4", apiCompat: "gemini" },
+      { id: "other", providerId: "p5", apiCompat: "other" },
+    ];
+    const { eligible, rejected } = filterCandidates(candidates, {});
+    assert.deepEqual(
+      eligible.map((c) => c.id),
+      ["ok"],
+    );
+    const byId = new Map(rejected.map((r) => [r.id, r.reason]));
+    for (const id of ["anthropic", "responses", "gemini", "other"]) {
+      assert.equal(byId.get(id), "api_compat_unsupported", id);
+    }
+  });
+
+  it("passes offerings with undefined apiCompat (passthrough + legacy)", () => {
+    const candidates: RouteCandidate[] = [
+      { id: "passthrough", providerId: "local-config" },
+      { id: "legacy", providerId: "p2" },
+    ];
+    const { eligible, rejected } = filterCandidates(candidates, {});
+    assert.equal(rejected.length, 0);
+    assert.deepEqual(
+      eligible.map((c) => c.id),
+      ["passthrough", "legacy"],
+    );
+  });
+});
+
 describe("filterCandidates", () => {
   it("drops candidates that fail requireTools", () => {
     const { eligible, rejected } = filterCandidates([A, B], {

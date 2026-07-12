@@ -108,6 +108,16 @@ function hardRejectReason(
   c: RouteCandidate,
   constraints: HardConstraints,
 ): string | null {
+  // T-045: MVP only supports the OpenAI-compatible Chat shape. Non-openai
+  // offerings are excluded fail-closed. Unknown (undefined) is allowed so
+  // the passthrough target (configured upstream) and legacy catalog
+  // entries keep working.
+  if (
+    c.apiCompat !== undefined &&
+    c.apiCompat !== "openai_chat"
+  ) {
+    return "api_compat_unsupported";
+  }
   if (constraints.denylistOfferingIds?.includes(c.id)) {
     return "denylist_offering";
   }
