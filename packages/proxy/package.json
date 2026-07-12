@@ -1,0 +1,25 @@
+{
+  "name": "@gekiyasu/proxy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "gekiyasuLLMProxy — local OpenAI-compatible LLM routing proxy",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "gekiyasu-proxy": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts serve",
+    "start": "node dist/index.js serve",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

@@ -14,11 +14,18 @@
 
 ## 現状
 
-- 中心は設計書（`docs/design/`）。実装コードはこれから追加していく
-- 当面の実装スコープ: **Phase 1〜3**（個人用ローカル Proxy、静的フィード、health / ローカル統計）
-- 中央サイト本格化・月額・広告は後段
+- 設計書 + **初期ローカル Proxy**（`packages/proxy`）
+- 既定ポート: **`16191`**（`http://127.0.0.1:16191/v1`）
+- MVP は上流 1 本への透過。ルーティングはこれから
+- 当面: Phase 1〜3。中央サイト本格化・月額・広告は後段
 
-エージェント向けルールは [AGENTS.md](./AGENTS.md)。
+```bash
+cd packages/proxy
+npm install
+npm run dev
+```
+
+エージェント向けルールは [AGENTS.md](./AGENTS.md)。Proxy 詳細は [packages/proxy/README.md](./packages/proxy/README.md)。
 
 ## 注意（必ず読む）
 
@@ -47,7 +54,7 @@
 - ルーティングは各利用者 PC 上の Proxy が実行
 - スポンサー / affiliate と編集評価を分離する
 - 秘密情報・API キー・署名秘密鍵はリポジトリに入れない
-- Proxy は既定で `127.0.0.1` のみにバインドする
+- Proxy は既定で `127.0.0.1:16191` のみにバインドする
 
 ## ライセンス
 
