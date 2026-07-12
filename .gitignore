@@ -1,0 +1,34 @@
+# Secrets / env (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_ed25519
+!id_ed25519.pub
+*_private.pem
+feed-signing.key
+*.secret
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+!.vscode/extensions.json
+
+# Dependencies / build (future)
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.pnpm-store/
+
+# Local proxy runtime (future)
+*.sqlite
+*.sqlite-journal
+data/
+logs/
+.cache/
