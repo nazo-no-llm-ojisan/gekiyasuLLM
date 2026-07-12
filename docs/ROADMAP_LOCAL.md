@@ -19,13 +19,13 @@ L5  Executor が plan.primary     ████ 完了（T-023）
 L6  複数候補 + hard filter       ████ 完了（T-027）
 L7  fallback 実行                ████ 完了（T-028; circuit は未）
 L8  静的フィード読込             ████ 完了（T-029; Phase 2）
-L9  CostEstimate 最小            ░░░░ 未
+L9  CostEstimate 最小            ████ 完了（T-029; input/output）
 L10 ローカル統計                 ░░░░ 未（Phase 3）
 L11 実キー E2E「IDE から1通」    ░░░░ 手動・未確認を想定
 L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard/）
 ```
 
-**ピン:** **L8 完了 → 次 L9 CostEstimate または L11 E2E**
+**ピン:** **L9 完了 → 次 L10 ローカル統計 または L11 E2E**
 
 ---
 
@@ -54,7 +54,8 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 | ルート test + GHA | T-025 | **done**（CI glob 修正済） |
 | 失敗分類 docs | T-026 | **done** |
 | L8 フィード | T-029 | **done** (Phase 2) |
-| L9–L10 コスト・統計 | 未採番 | 次本線候補 |
+| L9 コスト見積もり | T-029 | **done** |
+| L10 ローカル統計 | 未採番 | 次本線候補 |
 
 ---
 
@@ -62,7 +63,7 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 
 ```text
 1. ~~L7 fallback 実行~~ done
-2. L9     CostEstimate（input/output だけ）  ← 次の一手（本線候補）
+2. ~~L9     CostEstimate（input/output だけ）~~ done
 3. L11    実キー E2E（任意）
 4. L8     静的フィード pull
 5. L10    ローカル統計

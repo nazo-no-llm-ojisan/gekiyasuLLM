@@ -17,7 +17,7 @@
 | 地図 | 位置 |
 |---|---|
 | **大枠** | Phase 1 進行中（0 完了）。2 以降はローカル後 → [docs/ROADMAP_MACRO.md](./docs/ROADMAP_MACRO.md) |
-| **ローカル** | **L7 完了 → 次 L9**（CostEstimate）または L8 / L11 → [docs/ROADMAP_LOCAL.md](./docs/ROADMAP_LOCAL.md) |
+| **ローカル** | **L9 完了 → 次 L10 / L11** → [docs/ROADMAP_LOCAL.md](./docs/ROADMAP_LOCAL.md) |
 
 - 既定ポート **`16191`**（`http://127.0.0.1:16191/v1`）
 - 中継・plan/filter/fallback の骨格あり。catalog はまだ実質1本。フィード未
