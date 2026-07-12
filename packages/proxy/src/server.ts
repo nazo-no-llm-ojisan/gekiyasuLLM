@@ -2,6 +2,7 @@ import http from "node:http";
 import type { ProxyConfig } from "./config.js";
 import { buildRoutePlan } from "./route/plan.js";
 import { describeExecution } from "./route/executor.js";
+import { checkProxyToken } from "./security.js";
 import { proxyRequest } from "./upstream.js";
 
 /** MVP: one synthetic offering until feed-driven routing exists. */
@@ -13,22 +14,29 @@ export type RunningServer = {
   close: () => Promise<void>;
 };
 
+function sendJson(
+  res: http.ServerResponse,
+  status: number,
+  body: unknown,
+): void {
+  res.writeHead(status, { "content-type": "application/json" });
+  res.end(JSON.stringify(body));
+}
+
 export function createServer(config: ProxyConfig): http.Server {
   return http.createServer(async (req, res) => {
     const host = req.headers.host ?? `${config.host}:${config.port}`;
     const url = new URL(req.url ?? "/", `http://${host}`);
     const path = url.pathname;
 
-    // Health (local only)
+    // Health stays unauthenticated (local liveness only)
     if (path === "/health" || path === "/healthz") {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(
-        JSON.stringify({
-          ok: true,
-          service: "gekiyasuLLMProxy",
-          upstream: config.upstreamBaseUrl,
-        }),
-      );
+      sendJson(res, 200, {
+        ok: true,
+        service: "gekiyasuLLMProxy",
+        upstream: config.upstreamBaseUrl,
+        proxyTokenRequired: Boolean(config.proxyToken),
+      });
       return;
     }
 
@@ -41,8 +49,22 @@ export function createServer(config: ProxyConfig): http.Server {
       path === "/v1/embeddings" ||
       path === "/v1/responses"
     ) {
+      const tokenCheck = checkProxyToken(req.headers, config.proxyToken);
+      if (!tokenCheck.ok) {
+        sendJson(res, 401, {
+          error: {
+            message:
+              tokenCheck.code === "missing_proxy_token"
+                ? "Missing proxy token. Send header X-Gekiyasu-Token (or Authorization: Bearer gekiyasu-proxy:<token>)."
+                : "Invalid proxy token.",
+            type: "invalid_request_error",
+            code: tokenCheck.code,
+          },
+        });
+        return;
+      }
+
       const pathWithQuery = path + url.search;
-      // Selection (plan) is separate from execution (HTTP). Plan is logged for now.
       const plan = buildRoutePlan({ soleOfferingId: MVP_OFFERING_ID });
       res.setHeader("x-gekiyasu-route-plan", describeExecution({ plan }));
       try {
@@ -50,27 +72,21 @@ export function createServer(config: ProxyConfig): http.Server {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (!res.headersSent) {
-          res.writeHead(500, { "content-type": "application/json" });
-          res.end(
-            JSON.stringify({
-              error: { message, type: "proxy_error", code: "internal_error" },
-            }),
-          );
+          sendJson(res, 500, {
+            error: { message, type: "proxy_error", code: "internal_error" },
+          });
         }
       }
       return;
     }
 
-    res.writeHead(404, { "content-type": "application/json" });
-    res.end(
-      JSON.stringify({
-        error: {
-          message: `Unknown path: ${path}. Try /v1/chat/completions or /health.`,
-          type: "invalid_request_error",
-          code: "not_found",
-        },
-      }),
-    );
+    sendJson(res, 404, {
+      error: {
+        message: `Unknown path: ${path}. Try /v1/chat/completions or /health.`,
+        type: "invalid_request_error",
+        code: "not_found",
+      },
+    });
   });
 }
 

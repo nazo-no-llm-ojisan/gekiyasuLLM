@@ -7,7 +7,12 @@ import {
   DEFAULT_PROXY_HOST,
   DEFAULT_PROXY_PORT,
 } from "@gekiyasu/schema";
-import { assertSafeUpstreamBaseUrl, isLoopbackHost } from "./security.js";
+import {
+  assertSafeUpstreamBaseUrl,
+  buildAllowedHosts,
+  isLoopbackHost,
+  parseHostAllowlist,
+} from "./security.js";
 
 export const DEFAULT_HOST = DEFAULT_PROXY_HOST;
 export const DEFAULT_PORT = DEFAULT_PROXY_PORT;
@@ -24,8 +29,15 @@ export type ProxyConfig = {
   port: number;
   /** Upstream OpenAI-compatible API root, including /v1 if required */
   upstreamBaseUrl: string;
+  /** Hosts permitted for upstream fetches (base host + allowlist). */
+  allowedUpstreamHosts: string[];
   /** Used when the client does not send Authorization */
   upstreamApiKey: string | undefined;
+  /**
+   * When set, every /v1/* request must present X-Gekiyasu-Token (or Bearer gekiyasu-proxy:…).
+   * Health stays open.
+   */
+  proxyToken: string | undefined;
   maxBodyBytes: number;
   upstreamTimeoutMs: number;
   /**
@@ -58,10 +70,7 @@ export function loadConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
   }
 
   const host = overrides.host ?? env("GEKIYASU_HOST") ?? DEFAULT_HOST;
-  const allowlistRaw = env("GEKIYASU_UPSTREAM_ALLOWLIST");
-  const extraAllowedHosts = allowlistRaw
-    ? allowlistRaw.split(",").map((s) => s.trim()).filter(Boolean)
-    : [];
+  const extraAllowedHosts = parseHostAllowlist(env("GEKIYASU_UPSTREAM_ALLOWLIST"));
 
   const upstreamBaseUrl = assertSafeUpstreamBaseUrl(
     (
@@ -72,14 +81,20 @@ export function loadConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
     { extraAllowedHosts },
   );
 
+  const allowedUpstreamHosts =
+    overrides.allowedUpstreamHosts ??
+    buildAllowedHosts(upstreamBaseUrl, extraAllowedHosts);
+
   return {
     host,
     port: overrides.port ?? port,
     upstreamBaseUrl,
+    allowedUpstreamHosts,
     upstreamApiKey:
       overrides.upstreamApiKey ??
       env("GEKIYASU_UPSTREAM_API_KEY") ??
       env("OPENAI_API_KEY"),
+    proxyToken: overrides.proxyToken ?? env("GEKIYASU_PROXY_TOKEN"),
     maxBodyBytes:
       overrides.maxBodyBytes ??
       envInt("GEKIYASU_MAX_BODY_BYTES", DEFAULT_MAX_BODY_BYTES),

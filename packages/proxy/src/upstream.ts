@@ -5,7 +5,7 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { ProxyConfig } from "./config.js";
-import { PLACEHOLDER_BEARERS } from "./security.js";
+import { assertSafeUpstreamUrl, PLACEHOLDER_BEARERS } from "./security.js";
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -26,6 +26,13 @@ export function pickAuthHeader(
 ): string | undefined {
   const fromClient = req.headers.authorization;
   if (typeof fromClient === "string" && fromClient.length > 0) {
+    // Do not treat proxy-token Authorization form as upstream key
+    if (fromClient.startsWith("Bearer gekiyasu-proxy:")) {
+      if (config.upstreamApiKey) {
+        return `Bearer ${config.upstreamApiKey}`;
+      }
+      return undefined;
+    }
     if (
       config.allowPlaceholderApiKeySwap &&
       config.upstreamApiKey &&
@@ -51,6 +58,7 @@ function buildUpstreamHeaders(
     const lower = key.toLowerCase();
     if (HOP_BY_HOP.has(lower)) continue;
     if (lower === "authorization") continue;
+    if (lower === "x-gekiyasu-token") continue;
     if (Array.isArray(value)) {
       for (const v of value) headers.append(key, v);
     } else {
@@ -63,11 +71,32 @@ function buildUpstreamHeaders(
   return headers;
 }
 
+/**
+ * Resolve and validate the absolute upstream URL for this request.
+ * Call this for every fetch — including future feed-driven base_url overrides.
+ */
+export function resolveUpstreamUrl(
+  config: ProxyConfig,
+  pathWithQuery: string,
+  baseUrlOverride?: string,
+): string {
+  const base = (baseUrlOverride ?? config.upstreamBaseUrl).replace(/\/+$/, "");
+  const path = pathWithQuery.startsWith("/")
+    ? pathWithQuery
+    : `/${pathWithQuery}`;
+  const absolute = `${base}${path}`;
+  assertSafeUpstreamUrl(absolute, {
+    allowedHosts: config.allowedUpstreamHosts,
+  });
+  return absolute;
+}
+
 export async function proxyRequest(
   req: IncomingMessage,
   res: ServerResponse,
   config: ProxyConfig,
   pathWithQuery: string,
+  baseUrlOverride?: string,
 ): Promise<void> {
   const auth = pickAuthHeader(req, config);
   if (!auth) {
@@ -76,7 +105,7 @@ export async function proxyRequest(
       JSON.stringify({
         error: {
           message:
-            "No API key. Set OPENAI_API_KEY / GEKIYASU_UPSTREAM_API_KEY, or send Authorization: Bearer <key>.",
+            "No upstream API key. Set OPENAI_API_KEY / GEKIYASU_UPSTREAM_API_KEY, or send Authorization: Bearer <key>.",
           type: "invalid_request_error",
           code: "missing_api_key",
         },
@@ -85,7 +114,24 @@ export async function proxyRequest(
     return;
   }
 
-  const url = `${config.upstreamBaseUrl}${pathWithQuery.startsWith("/") ? "" : "/"}${pathWithQuery}`;
+  let url: string;
+  try {
+    url = resolveUpstreamUrl(config, pathWithQuery, baseUrlOverride);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.writeHead(403, { "content-type": "application/json" });
+    res.end(
+      JSON.stringify({
+        error: {
+          message,
+          type: "proxy_error",
+          code: "upstream_not_allowed",
+        },
+      }),
+    );
+    return;
+  }
+
   const method = req.method ?? "GET";
 
   let body: Buffer | undefined;

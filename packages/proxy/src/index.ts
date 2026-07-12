@@ -13,7 +13,11 @@ Default listen: http://${DEFAULT_HOST}:${DEFAULT_PORT}
 
 Upstream (default https://api.openai.com/v1):
   GEKIYASU_UPSTREAM_BASE_URL
+  GEKIYASU_UPSTREAM_ALLOWLIST   # optional extra hosts (comma-separated)
   OPENAI_API_KEY or GEKIYASU_UPSTREAM_API_KEY
+
+Proxy auth (recommended):
+  GEKIYASU_PROXY_TOKEN         # require X-Gekiyasu-Token on /v1/*
 
 Client base URL example:
   http://127.0.0.1:${DEFAULT_PORT}/v1
@@ -49,6 +53,14 @@ async function main(): Promise<void> {
   console.log(`  OpenAI base URL for clients: ${running.url}/v1`);
   console.log(`  Upstream: ${config.upstreamBaseUrl}`);
   console.log(`  Health: ${running.url}/health`);
+  if (config.proxyToken) {
+    console.log("  Proxy token: required (X-Gekiyasu-Token)");
+  } else {
+    console.log(
+      "  Proxy token: not set (GEKIYASU_PROXY_TOKEN). /v1 is open to anyone who can reach the bind address.",
+    );
+  }
+  console.log(`  Upstream allowlist: ${config.allowedUpstreamHosts.join(", ")}`);
   if (!config.upstreamApiKey) {
     console.log(
       "  Note: no OPENAI_API_KEY in env; clients must send Authorization: Bearer <key>",
