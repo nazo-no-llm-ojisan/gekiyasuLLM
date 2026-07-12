@@ -112,7 +112,7 @@ export async function fetchUpstream(
   init: {
     method: string;
     headers: Headers;
-    body?: Uint8Array;
+    body?: ArrayBuffer;
     signal: AbortSignal;
     allowedHosts: string[];
   },
@@ -120,7 +120,7 @@ export async function fetchUpstream(
   let url = initialUrl;
   let method = init.method;
   let headers = new Headers(init.headers);
-  let body: Uint8Array | undefined = init.body;
+  let body: ArrayBuffer | undefined = init.body;
   const initialOrigin = new URL(initialUrl).origin;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -129,10 +129,7 @@ export async function fetchUpstream(
     const res = await fetch(url, {
       method,
       headers,
-      body:
-        body && body.length > 0
-          ? Buffer.from(body.buffer, body.byteOffset, body.byteLength)
-          : undefined,
+      body: body && body.byteLength > 0 ? body : undefined,
       signal: init.signal,
       redirect: "manual",
     });
@@ -261,7 +258,13 @@ export async function proxyRequest(
     upstream = await fetchUpstream(url, {
       method,
       headers,
-      body: body && body.length > 0 ? new Uint8Array(body) : undefined,
+      body:
+        body && body.length > 0
+          ? body.buffer.slice(
+              body.byteOffset,
+              body.byteOffset + body.byteLength,
+            )
+          : undefined,
       signal: ac.signal,
       allowedHosts: config.allowedUpstreamHosts,
     });
