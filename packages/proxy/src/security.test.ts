@@ -132,6 +132,16 @@ describe("proxy token", () => {
       { ok: true },
     );
   });
+  it("accepts raw proxy token in standard Bearer auth for one-key clients", () => {
+    assert.deepEqual(
+      checkProxyToken({ authorization: "Bearer secret" }, "secret"),
+      { ok: true },
+    );
+    assert.equal(
+      checkProxyToken({ authorization: "Bearer wrong" }, "secret").ok,
+      false,
+    );
+  });
   it("describes auth shape without exposing values", () => {
     assert.equal(describeAuthShape({}), "none");
     assert.equal(

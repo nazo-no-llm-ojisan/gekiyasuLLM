@@ -59,7 +59,7 @@ npm run dev
 |---|---|
 | Base URL | `http://127.0.0.1:16191/v1` |
 | API Key | `sk-local`（loopback で env の upstream key に置換） |
-| Proxy token | `.env` に `GEKIYASU_PROXY_TOKEN` がある場合、API key 欄に `gekiyasu-proxy:<token>` を入れる一元化形式を推奨。custom header 対応クライアントなら `X-Gekiyasu-Token` + `sk-local` も可。非対応 IDE なら token なしで初回導通してもよい（**外部 bind 禁止**） |
+| Proxy token | `.env` に `GEKIYASU_PROXY_TOKEN` がある場合、OpenWebUI など Bearer API key 欄だけのクライアントでは API key 欄に `<token>` だけを入れる。custom header 対応クライアントなら `X-Gekiyasu-Token` + `sk-local` も可。非対応 IDE なら token なしで初回導通してもよい（**外部 bind 禁止**） |
 
 ---
 
@@ -75,7 +75,7 @@ curl -sS http://127.0.0.1:16191/health
 
 `GEKIYASU_PROXY_TOKEN` 設定時は header を付ける（値はシェル変数から。ログに出さない）。
 OpenWebUI など API key 欄だけで済ませたいクライアントでは、API key を
-`gekiyasu-proxy:<GEKIYASU_PROXY_TOKEN>` にする。
+`<GEKIYASU_PROXY_TOKEN>` にする（`Bearer` は UI 側が付ける）。
 
 ```bash
 curl.exe -sS http://127.0.0.1:16191/v1/models \

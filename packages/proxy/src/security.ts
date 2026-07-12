@@ -108,6 +108,11 @@ export function extractProxyTokenFromAuthorization(
   return match ? match[1]!.trim() : undefined;
 }
 
+export function extractBearerValue(authorization: string): string | undefined {
+  const match = /^Bearer\s+(.+)$/i.exec(authorization.trim());
+  return match ? match[1]!.trim() : undefined;
+}
+
 export function isProxyAuthorization(authorization: string): boolean {
   return extractProxyTokenFromAuthorization(authorization) !== undefined;
 }
@@ -153,6 +158,14 @@ export function checkProxyToken(
 ): ProxyTokenCheck {
   if (!expected) return { ok: true };
   const got = extractProxyToken(headers);
+  if (!got) {
+    const auth = headers.authorization;
+    const authVal = Array.isArray(auth) ? auth[0] : auth;
+    if (typeof authVal === "string") {
+      const bearer = extractBearerValue(authVal);
+      if (bearer && safeEqualString(bearer, expected)) return { ok: true };
+    }
+  }
   if (!got) return { ok: false, code: "missing_proxy_token" };
   if (!safeEqualString(got, expected)) {
     return { ok: false, code: "invalid_proxy_token" };

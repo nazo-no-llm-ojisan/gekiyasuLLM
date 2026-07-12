@@ -64,7 +64,7 @@ async function main(): Promise<void> {
   console.log(`  Health: ${running.url}/health`);
   console.log(`  Dashboard (static): ${running.url}/dashboard/`);
   if (config.proxyToken) {
-    console.log("  Proxy token: required (X-Gekiyasu-Token or Bearer gekiyasu-proxy:<token>)");
+    console.log("  Proxy token: required (Bearer <token>, X-Gekiyasu-Token, or Bearer gekiyasu-proxy:<token>)");
   } else {
     console.log(
       "  Proxy token: not set (GEKIYASU_PROXY_TOKEN). /v1 is open to anyone who can reach the bind address.",

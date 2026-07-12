@@ -4,7 +4,12 @@ import { pipeline } from "node:stream/promises";
 import type { RoutePlan } from "@gekiyasu/schema";
 import type { ProxyConfig } from "../config.js";
 import { normalizeModelsResponseJson } from "../models-response.js";
-import { isProxyAuthorization, PLACEHOLDER_BEARERS } from "../security.js";
+import {
+  extractBearerValue,
+  isProxyAuthorization,
+  PLACEHOLDER_BEARERS,
+  safeEqualString,
+} from "../security.js";
 import {
   buildUpstreamHeaders,
   fetchUpstream,
@@ -66,6 +71,13 @@ export function isProxyToken(auth: string): boolean {
   return isProxyAuthorization(auth);
 }
 
+export function isProxyBearer(auth: string, config: ProxyConfig): boolean {
+  const bearer = extractBearerValue(auth);
+  return Boolean(
+    bearer && config.proxyToken && safeEqualString(bearer, config.proxyToken),
+  );
+}
+
 export function isPlaceholderApiKey(auth: string): boolean {
   return PLACEHOLDER_BEARERS.has(auth);
 }
@@ -92,7 +104,7 @@ export function resolveAuthForAttempt(
   const sameConfiguredOrigin = targetOrigin === configuredUpstreamOrigin;
 
   if (sameConfiguredOrigin) {
-    if (clientAuth && !isProxyToken(clientAuth)) {
+    if (clientAuth && !isProxyToken(clientAuth) && !isProxyBearer(clientAuth, config)) {
       if (
         config.allowPlaceholderApiKeySwap &&
         isPlaceholderApiKey(clientAuth)

@@ -383,6 +383,17 @@ describe("resolveAuthForAttempt", () => {
       "Bearer real-global",
     );
   });
+
+  it("uses upstreamApiKey when standard Bearer carries the proxy token", () => {
+    const config = baseConfig({
+      proxyToken: "proxy-token",
+      upstreamApiKey: "real-global",
+    });
+    assert.equal(
+      resolveAuthForAttempt(configured, "Bearer proxy-token", config),
+      "Bearer real-global",
+    );
+  });
 });
 
 describe("executeRoutePlan fallback", () => {

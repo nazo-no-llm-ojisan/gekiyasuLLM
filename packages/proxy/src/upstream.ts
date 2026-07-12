@@ -9,8 +9,10 @@ import { pipeline } from "node:stream/promises";
 import type { ProxyConfig } from "./config.js";
 import {
   assertSafeUpstreamUrl,
+  extractBearerValue,
   isProxyAuthorization,
   PLACEHOLDER_BEARERS,
+  safeEqualString,
 } from "./security.js";
 import { joinUpstreamUrl } from "./url-join.js";
 
@@ -75,6 +77,10 @@ export function pickAuthHeader(
         return `Bearer ${config.upstreamApiKey}`;
       }
       return undefined;
+    }
+    const bearer = extractBearerValue(fromClient);
+    if (bearer && config.proxyToken && safeEqualString(bearer, config.proxyToken)) {
+      return config.upstreamApiKey ? `Bearer ${config.upstreamApiKey}` : undefined;
     }
     if (
       config.allowPlaceholderApiKeySwap &&

@@ -46,20 +46,27 @@ When `GEKIYASU_PROXY_TOKEN` is set, clients can authenticate in either of two
 ways:
 
 ```text
-API key: gekiyasu-proxy:<GEKIYASU_PROXY_TOKEN>
+API key: <GEKIYASU_PROXY_TOKEN>
 ```
 
 or:
 
 ```text
+API key: gekiyasu-proxy:<GEKIYASU_PROXY_TOKEN>
+```
+
+The raw proxy-token API-key form is recommended for clients such as OpenWebUI
+that only expose one OpenAI API key field and always send it as
+`Authorization: Bearer <value>`. In that mode, the proxy token is consumed
+locally and the upstream request uses `OPENAI_API_KEY` /
+`GEKIYASU_UPSTREAM_API_KEY` from the proxy process.
+
+Clients that support custom headers may also use:
+
+```text
 API key: sk-local
 Additional header: X-Gekiyasu-Token: <GEKIYASU_PROXY_TOKEN>
 ```
-
-The single API-key form is recommended for clients such as OpenWebUI that can
-store one OpenAI key field. In that mode, the proxy token is consumed locally
-and the upstream request uses `OPENAI_API_KEY` / `GEKIYASU_UPSTREAM_API_KEY`
-from the proxy process.
 
 Example:
 
