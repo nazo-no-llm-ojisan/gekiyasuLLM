@@ -45,6 +45,7 @@ export type ProxyConfig = {
    * may be replaced by upstreamApiKey.
    */
   allowPlaceholderApiKeySwap: boolean;
+  feedFile?: string;
 };
 
 function env(name: string): string | undefined {
@@ -103,5 +104,6 @@ export function loadConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
       envInt("GEKIYASU_UPSTREAM_TIMEOUT_MS", DEFAULT_UPSTREAM_TIMEOUT_MS),
     allowPlaceholderApiKeySwap:
       overrides.allowPlaceholderApiKeySwap ?? isLoopbackHost(host),
+    feedFile: overrides.feedFile ?? env("GEKIYASU_FEED_FILE"),
   };
 }
