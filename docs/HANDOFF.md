@@ -56,11 +56,16 @@
 
 ### 直近完了
 - L8 静的フィード、L9 CostEstimate
-- P0/P1 セキュリティ修正（`e2b3d14`）— CI green
+- P0/P1 セキュリティ修正（**正本 `e2b3d14`**、docs `d4880d8`）— 外部再監査でも合格。`4bbc1fb` の問題は実質解消
+- 検証: unit（`upstream.test.ts` allowlist）+ executor の local HTTP server 実受信 header 検査あり。redirect またぎ `fetchUpstream` は未カバー
 
 ### 次の本線候補
 1. **L10 ローカル統計** — 成功/失敗/目安コストのローカル記録
 2. **L11 実キー E2E** — 手動疎通（有料 API は承認必須）
-3. redaction / audit / circuit（境界強化の続き）
 
-台帳 `docs/PARALLEL_AGENTS.md` は `T-030`（credential isolation）まで **done**。新規本線は `T-031` 以降または未採番 L10。
+### 将来（本線外・P0 ではない）
+- tenant/correlation headers（`openai-organization` / `openai-project` / `idempotency-key`）を configured upstream origin のみに限定
+- `providerApiKeys` → endpoint/origin 単位 credential mapping（上と同一タスク束がよい）
+- 詳細: [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)「将来タスク」
+
+台帳 `docs/PARALLEL_AGENTS.md` は `T-030` まで **done**。新規本線は未採番 L10 または L11。

@@ -56,7 +56,8 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 | L8 フィード | T-029 | **done** (Phase 2) |
 | L9 コスト見積もり | T-029 | **done** |
 | L10 ローカル統計 | 未採番 | 次本線候補 |
-| credential isolation + POST no-fallback | T-030 | **done** |
+| credential isolation + POST no-fallback | T-030 | **done**（正本 `e2b3d14`） |
+| origin-scope tenant headers + key map | T-031 | todo（本線外） |
 
 ---
 

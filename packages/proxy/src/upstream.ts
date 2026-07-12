@@ -26,9 +26,15 @@ const SENSITIVE_REQUEST_HEADERS = [
  * Secrets (authorization, cookie, x-api-key, proxy token, proxy-authorization)
  * are never copied from the client — callers set Authorization explicitly.
  *
- * openai-organization / openai-project / idempotency-key are included for
- * OpenAI-compatible MVP. They are not API keys, but may identify a tenant;
- * future multi-origin routing may scope them to the configured upstream origin only.
+ * Tenant / correlation headers below are NOT API keys (P0 credential isolation
+ * is already origin-scoped for Authorization). Residual risk: they can identify
+ * a tenant or request and today are forwarded to any offering origin.
+ *
+ * Future (same bundle as endpoint/origin credential mapping — not urgent P0):
+ *   - forward openai-organization / openai-project / idempotency-key only when
+ *     target origin === configured upstreamBaseUrl origin
+ *   - never send them to feed-driven foreign origins
+ * idempotency-key is optional while POST auto-fallback remains disabled.
  */
 const UPSTREAM_REQUEST_HEADER_ALLOWLIST = new Set([
   "content-type",

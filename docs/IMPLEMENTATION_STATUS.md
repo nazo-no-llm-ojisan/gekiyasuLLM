@@ -36,6 +36,7 @@
 | **client Authorization の送信先** | **済** — `config.upstreamBaseUrl` の **exact origin 一致時のみ** client key を転送。別 origin は `providerApiKeys[providerId]` のみ（無ければ `credential_unavailable` で送信前 skip） |
 | **upstream request headers** | **済** — allowlist（`content-type` / `accept` 等）。`authorization` / `cookie` / `x-api-key` / `x-gekiyasu-token` / `proxy-authorization` は client からコピーしない |
 | **placeholder 置換** | **済** — loopback かつ configured upstream origin のみ。別 origin に global key を送らない |
+| **tenant / correlation headers** | **部分** — `openai-organization` / `openai-project` / `idempotency-key` は allowlist に入り **全 origin に転送され得る**（API key ではない。P0 ではない residual）。将来: configured upstream origin のみに限定 |
 
 ## ルーティング
 
@@ -49,9 +50,17 @@
 | preferLowCachePrice | 死コードバグ修正。既定は inputPerMillion で安定ソート |
 | 静的フィード → catalog | **済**（L8。`GEKIYASU_FEED_FILE`） |
 
-## 次
+## 次（本線）
 
 1. **L10** ローカル統計  
 2. **L11** 実キー E2E（任意・手動）  
-3. redaction / audit / DNS pin / circuit  
-4. POST fallback の将来設計（idempotency key + 明示 opt-in。現状は opt-in なし）  
+
+## 将来タスク（本線外・境界強化）
+
+| 項目 | メモ |
+|---|---|
+| **origin-scoped headers + credential mapping** | (1) `openai-organization` / `openai-project` / `idempotency-key` を **configured upstream origin にだけ**転送し、feed-driven 別 origin には送らない。(2) `providerApiKeys` を endpoint/origin 単位 mapping へ移行。同一パッケージで扱うとよい。**今すぐの P0 ではない**。`idempotency-key` は POST fallback 未実装の現段階では必須ではない |
+| POST fallback opt-in | idempotency サポート + ユーザー明示 opt-in 設計後に再検討 |
+| redaction / audit / DNS pin / circuit | 境界・運用の続き |
+
+**P0/P1 正本コミット:** `e2b3d14`（docs 同期 `d4880d8`）。`4bbc1fb` は未完成扱い。  
