@@ -147,6 +147,14 @@ GitHub 公開リポ（ソース + フィード JSON）
 
 ## 18. ロードマップ
 
+**生きたピン位置・ローカル段の詳細は docs 側が正本:**
+
+- 大枠: [ROADMAP_MACRO.md](../ROADMAP_MACRO.md)
+- ローカル節: [ROADMAP_LOCAL.md](../ROADMAP_LOCAL.md)
+- 索引: [ROADMAP.md](../ROADMAP.md)
+
+以下は設計時点の Phase 定義（変更時は MACRO と揃える）。
+
 | Phase | 成果物 | 依存 | 完了条件 | 主要リスク |
 |---|---|---|---|---|
 | **0 調査設計** | 本設計書、スキーマ草案、領域整理 | なし | ADR 合意（**達成済み**）。リポは公開前提 | スコープ肥大 |

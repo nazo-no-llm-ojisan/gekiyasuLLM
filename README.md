@@ -1,6 +1,6 @@
 # gekiyasuLLM
 
-[日本語の詳細 README](./README.ja.md) · [Design docs (JA)](./docs/design/) · [AGENTS.md (JA)](./AGENTS.md)
+[日本語の詳細 README](./README.ja.md) · [Roadmap / いまどこ](./docs/ROADMAP.md) · [docs](./docs/) · [AGENTS.md](./AGENTS.md)
 
 ---
 
@@ -12,7 +12,7 @@
 - The central service is intended to **publish signed routing feeds** (pricing, capabilities, campaigns, availability) and **not relay** your LLM requests by default.
 - Routing runs on your machine, using **your API keys** and **your policies** (cost, capabilities, trust, allowlists).
 
-**Status:** design + early proxy. Default **`127.0.0.1:16191`**. Code: `packages/proxy`, domain types: `packages/schema` (Evidence / Offering / RoutePlan). Not production-ready yet.
+**Status:** Phase 1 in progress (see [docs/ROADMAP.md](./docs/ROADMAP.md)). Local pin: after RoutePlan stub, next Executor uses `plan.primary`. Default **`127.0.0.1:16191`**. Not production-ready.
 
 **Disclaimer:** We do **not** guarantee prices, availability, quality, or security. Upstream choice and what you send (including private code) are **your responsibility**. Free tiers and campaigns change without notice. Sponsored / affiliate relationships are machine-readable in feeds (`sponsored`, `affiliate`, `editorial_rank_influence: "none"`) and must not bias default ranking. Corrections keep impact window, cause, and feed version ([docs/CORRECTIONS.md](./docs/CORRECTIONS.md)).
 
@@ -28,7 +28,7 @@
 - 中央は **署名付きルーティングフィード**（価格・能力・キャンペーン・可用性など）を配信し、原則として **ユーザーの LLM リクエストは中継しません**。
 - ルーティングは利用者の PC 上で、**自分の API キー**と**自分のポリシー**（コスト・能力・信頼度・allowlist 等）に従って行います。
 
-**現状:** 設計 + 初期 Proxy。既定 **`127.0.0.1:16191`**。`packages/proxy` + 型 `packages/schema`（Evidence / Offering / RoutePlan）。まだ本番向けではありません。
+**現状:** 大枠 **Phase 1 進行中**。ローカル **L4→次 L5**（[docs/ROADMAP.md](./docs/ROADMAP.md)）。既定 **`127.0.0.1:16191`**。まだ本番向けではありません。
 
 **注意:** 価格・可用性・品質・セキュリティは **保証しません**。上流の選定と送信内容（非公開コード含む）の責任は **利用者** にあります。無料枠・キャンペーンは予告なく変わります。スポンサー / 紹介はフィード上で機械可読に開示し、既定ランキングを歪めません。訂正は影響期間・原因・フィード版を残します（[docs/CORRECTIONS.md](./docs/CORRECTIONS.md)）。
 

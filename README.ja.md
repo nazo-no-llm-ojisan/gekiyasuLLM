@@ -12,12 +12,16 @@
 - 中央は原則として **ユーザーの LLM リクエストを中継しない**（鍵とプロンプトは利用者環境から上流へ）
 - 価格・能力・観測データはフィードとして配信し、ローカルでルーティングする
 
-## 現状
+## 現状（ピン）
 
-- 設計書 + **初期ローカル Proxy**（`packages/proxy`）
-- 既定ポート: **`16191`**（`http://127.0.0.1:16191/v1`）
-- MVP は上流 1 本への透過。ルーティングはこれから
-- 当面: Phase 1〜3。中央サイト本格化・月額・広告は後段
+| 地図 | 位置 |
+|---|---|
+| **大枠** | Phase 1 進行中（0 完了）。2 以降はローカル後 → [docs/ROADMAP_MACRO.md](./docs/ROADMAP_MACRO.md) |
+| **ローカル** | L4 完了 → 次 L5 / T-023（Executor） → [docs/ROADMAP_LOCAL.md](./docs/ROADMAP_LOCAL.md) |
+
+- 既定ポート **`16191`**（`http://127.0.0.1:16191/v1`）
+- いまは上流 1 本透過が中心。自動最安選択はまだ
+- 索引: [docs/ROADMAP.md](./docs/ROADMAP.md) · docs 一覧: [docs/README.md](./docs/README.md)
 
 ```bash
 cd packages/proxy
@@ -25,8 +29,7 @@ npm install
 npm run dev
 ```
 
-エージェント向けルールは [AGENTS.md](./AGENTS.md)。Proxy 詳細は [packages/proxy/README.md](./packages/proxy/README.md)。  
-短い進捗テンプレ: [docs/USER_STATUS_TEMPLATE.md](./docs/USER_STATUS_TEMPLATE.md)。開発ループ: [docs/BRAINLESS_TDD.md](./docs/BRAINLESS_TDD.md)（赤→緑→コミット）。
+[AGENTS.md](./AGENTS.md) · [packages/proxy/README.md](./packages/proxy/README.md) · [USER_STATUS_TEMPLATE](./docs/USER_STATUS_TEMPLATE.md) · [BRAINLESS_TDD](./docs/BRAINLESS_TDD.md)
 
 ## 注意（必ず読む）
 

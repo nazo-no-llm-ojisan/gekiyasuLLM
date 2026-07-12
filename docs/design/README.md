@@ -40,11 +40,11 @@
 | **gekiyasuLLM.com** | 情報サイト + フィード配信（将来） |
 | **gekiyasuLLMProxy** | ローカル OSS Proxy |
 
-## 現状メモ
+## 現状メモ・他 docs
 
-- Phase 0 設計は揃っている。Proxy 入口あり（`packages/proxy` / ポート 16191）
-- ライセンス / COI / 訂正 / 境界型は固定済み
-- メッセージは「信用して」ではなく **自分で検査できる**
-- ユーザ向け短い報告: [../USER_STATUS_TEMPLATE.md](../USER_STATUS_TEMPLATE.md)
+- **ピン位置:** [../ROADMAP.md](../ROADMAP.md)（大枠 MACRO / ローカル LOCAL）
+- docs 一覧: [../README.md](../README.md)
+- 設計は厚いが、**いまどこ**は ROADMAP 側を更新する
+- ユーザ短報: [../USER_STATUS_TEMPLATE.md](../USER_STATUS_TEMPLATE.md)
 - 脳レスTDD: [../BRAINLESS_TDD.md](../BRAINLESS_TDD.md)
-- 並列エージェント: [../PARALLEL_AGENTS.md](../PARALLEL_AGENTS.md)
+- 並列: [../PARALLEL_AGENTS.md](../PARALLEL_AGENTS.md)

@@ -20,6 +20,8 @@
 
 ## 最初に読むもの
 
+- **いまどこ?** `docs/ROADMAP.md` → MACRO（大枠）/ LOCAL（ローカル節）
+- docs 一覧: `docs/README.md`
 - 設計の索引: `docs/design/README.md`
 - ライセンス・COI・訂正: `docs/design/04-licensing-coi-corrections.md`, `docs/CORRECTIONS.md`
 - アダプタ境界・Evidence / Offering / RoutePlan: `docs/design/05-adapters-normalization-routing.md`

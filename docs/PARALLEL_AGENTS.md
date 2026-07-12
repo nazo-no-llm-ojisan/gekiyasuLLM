@@ -102,7 +102,7 @@
 | T-020 | proxy | security token + allowlist | - | packages/proxy/** | security.test.ts | npm test green | forbidden | **done** |
 | T-021 | schema | Offering parses one fixed-price fixture | - | packages/schema/**, fixtures/** | parse-offering.test.ts | 1 test green | forbidden | **done** |
 | T-022 | proxy | RoutePlan selects sole eligible offering | - | packages/proxy/src/route/** | plan.test.ts | 1 test green | forbidden | **done** |
-| T-023 | proxy | Executor uses plan.primary for upstream | T-022 | packages/proxy/src/route/**, upstream* | executor test | 1 test green | forbidden | todo |
+| T-023 | proxy | Executor uses plan.primary for upstream | T-022 | packages/proxy/src/route/**, upstream* | executor test | 1 test green | forbidden | todo ← **LOCAL L5 次** |
 | T-024 | parser | Pricing parser reads one saved HTML fixture | - | fixtures/**, 将来 packages/collectors/** | parser test | 1 test green | forbidden | todo |
 | T-025 | ci | npm test runs schema and proxy | T-020 | package.json / 将来 .github | root `npm test` | both packages test | forbidden | **done** |
 | T-026 | docs | failure taxonomy table as canonical | - | docs/** | FAILURE_TAXONOMY.md | table canonical | forbidden | **done** |
