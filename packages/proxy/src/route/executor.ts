@@ -444,7 +444,12 @@ export async function executeRoutePlan(
         continue;
       }
 
-      const hasMore = i < ids.length - 1;
+      // T-044 / issue #4: hasMore is derived from the NARROWED list, not
+      // the original plan. The loop iterates `eligibleIds`, so any
+      // 'there is another fallback to try' check must be against the
+      // same list — otherwise a future refactor that walks `ids`
+      // directly would walk un-matching fallbacks.
+      const hasMore = i < eligibleIds.length - 1;
 
       // Circuit breaker: skip offerings that are currently open.
       if (input.circuit && input.circuit.isOpen(id)) {

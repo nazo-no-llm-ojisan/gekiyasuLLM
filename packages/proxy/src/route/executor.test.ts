@@ -1359,6 +1359,63 @@ describe("executeRoutePlan request-aware routing (T-044)", () => {
     assert.notEqual(seen[0], seen[1], "per-attempt bodies are different Buffer instances");
   });
 
+  it("6: after request-aware narrowing, retry walks the NEXT eligibleId (issue #4)", async () => {
+    // Plan ids: [a, b, c]. requestedModel matches a and c only.
+    // eligibleIds = [a, c]. a returns a retryable 503 on GET; the
+    // executor must walk eligibleIds[1] = c, not the un-matching b.
+    // Before the fix, hasMore was derived from ids.length, so the
+    // intent (walk eligible fallbacks) was fragile under refactors.
+    const catalog = requestedModelOnly([
+      { id: "a", baseUrl: "https://a.example/v1", providerId: "pA", modelId: "gpt-x", upstreamModelId: "MODEL_A" },
+      { id: "b", baseUrl: "https://b.example/v1", providerId: "pB", modelId: "gpt-y", upstreamModelId: "MODEL_B" },
+      { id: "c", baseUrl: "https://c.example/v1", providerId: "pC", modelId: "gpt-x", upstreamModelId: "MODEL_C" },
+    ]);
+    const plan: RoutePlan = {
+      primary: "a",
+      fallbacks: ["b", "c"],
+      reason: [],
+      generatedAt: "",
+    };
+    const tried: string[] = [];
+    const seenModelByTarget: Record<string, string> = {};
+    const attempt: AttemptFn = async (target, ctx) => {
+      tried.push(target.id);
+      const bodyStr = ctx.body?.toString("utf8") ?? "{}";
+      seenModelByTarget[target.id] = JSON.parse(bodyStr).model as string;
+      if (target.id === "a") {
+        return { kind: "retry", offeringId: target.id, code: "http_503", message: "down", status: 503 };
+      }
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response("{}", { status: 200, headers: { "content-type": "application/json" } }),
+      };
+    };
+    const res = createMockRes();
+    const req = createMockReq("GET", { authorization: "Bearer sk-test" });
+    const config = baseConfig({ providerApiKeys: { pA: "k-a", pB: "k-b", pC: "k-c" } });
+    const original = Buffer.from(JSON.stringify({ model: "gpt-x", messages: [] }), "utf8");
+    const result = await executeRoutePlan({
+      plan,
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/chat/completions",
+      attempt,
+      prepared: { body: original, facts: { requestedModel: "gpt-x" } },
+    });
+    assert.deepEqual(tried, ["a", "c"], "fallback must skip un-matching b and pick c");
+    assert.equal(result.offeringId, "c");
+    assert.equal(seenModelByTarget["a"], "MODEL_A");
+    assert.equal(seenModelByTarget["c"], "MODEL_C");
+    // No phantom b entry in the attempt log.
+    assert.ok(
+      !result.attempts.some((a) => a.startsWith("b:")),
+      `unexpected attempts: ${result.attempts.join(",")}`,
+    );
+  });
+
   it("5: when PreparedRequest is given, the request stream is not re-read", async () => {
     // Create a req with NO body (Readable.from([])). If the executor tried
     // to readBody, the call would either hang or reject. The test passes
