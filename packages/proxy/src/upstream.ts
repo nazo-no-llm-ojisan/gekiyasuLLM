@@ -4,6 +4,8 @@
  * InternalChatRequest types in @gekiyasu/schema — do not treat OpenAI as the only shape.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import type { ProxyConfig } from "./config.js";
 import { assertSafeUpstreamUrl, PLACEHOLDER_BEARERS } from "./security.js";
 import { joinUpstreamUrl } from "./url-join.js";
@@ -252,21 +254,27 @@ export async function proxyRequest(
 
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), config.upstreamTimeoutMs);
+  const onClientGone = () => {
+    if (!res.writableFinished) {
+      ac.abort();
+    }
+  };
+  req.on("aborted", onClientGone);
+  res.on("close", onClientGone);
 
   let upstream: Response;
   try {
     upstream = await fetchUpstream(url, {
       method,
       headers,
-      body:
-        body && body.length > 0
-          ? Uint8Array.from(body)
-          : undefined,
+      body: body && body.length > 0 ? Uint8Array.from(body) : undefined,
       signal: ac.signal,
       allowedHosts: config.allowedUpstreamHosts,
     });
   } catch (err) {
     clearTimeout(timer);
+    req.off("aborted", onClientGone);
+    res.off("close", onClientGone);
     const aborted =
       err instanceof Error &&
       (err.name === "AbortError" || err.message.includes("abort"));
@@ -276,24 +284,26 @@ export async function proxyRequest(
       (message.includes("not in the allowlist") ||
         message.includes("private") ||
         message.includes("Refusing HTTPS"));
-    res.writeHead(aborted ? 504 : forbidden ? 403 : 502, {
-      "content-type": "application/json",
-    });
-    res.end(
-      JSON.stringify({
-        error: {
-          message: aborted
-            ? `Upstream timeout after ${config.upstreamTimeoutMs}ms`
-            : `Upstream fetch failed: ${message}`,
-          type: "proxy_error",
-          code: aborted
-            ? "upstream_timeout"
-            : forbidden
-              ? "upstream_not_allowed"
-              : "upstream_unreachable",
-        },
-      }),
-    );
+    if (!res.headersSent) {
+      res.writeHead(aborted ? 504 : forbidden ? 403 : 502, {
+        "content-type": "application/json",
+      });
+      res.end(
+        JSON.stringify({
+          error: {
+            message: aborted
+              ? `Upstream timeout after ${config.upstreamTimeoutMs}ms`
+              : `Upstream fetch failed: ${message}`,
+            type: "proxy_error",
+            code: aborted
+              ? "upstream_timeout"
+              : forbidden
+                ? "upstream_not_allowed"
+                : "upstream_unreachable",
+          },
+        }),
+      );
+    }
     return;
   }
   clearTimeout(timer);
@@ -308,31 +318,36 @@ export async function proxyRequest(
   res.writeHead(upstream.status, outHeaders);
 
   if (!upstream.body) {
+    req.off("aborted", onClientGone);
+    res.off("close", onClientGone);
     res.end();
     return;
   }
 
-  const reader = upstream.body.getReader();
   try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        res.write(Buffer.from(value));
-      }
-    }
-    res.end();
+    const nodeIn = Readable.fromWeb(
+      upstream.body as import("node:stream/web").ReadableStream,
+    );
+    await pipeline(nodeIn, res, { signal: ac.signal });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (!res.headersSent) {
       res.writeHead(502, { "content-type": "application/json" });
       res.end(JSON.stringify({ error: { message, type: "proxy_error" } }));
-    } else {
+    } else if (!res.destroyed) {
       res.destroy(err instanceof Error ? err : undefined);
     }
+  } finally {
+    req.off("aborted", onClientGone);
+    res.off("close", onClientGone);
   }
 }
 
+/**
+ * Buffer request body once (for retry/fallback reuse later).
+ * On overflow: pause and reject with body_too_large — do NOT destroy before
+ * the caller can write HTTP 413.
+ */
 export function readBody(
   req: IncomingMessage,
   maxBytes: number,
@@ -340,20 +355,43 @@ export function readBody(
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let total = 0;
-    req.on("data", (c: Buffer) => {
+    let settled = false;
+
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      fn();
+    };
+
+    const onData = (c: Buffer) => {
       total += c.length;
       if (total > maxBytes) {
-        req.destroy();
+        req.pause();
+        req.removeListener("data", onData);
+        // Drain remaining so socket can stay usable for error response
+        req.resume();
         const err = new Error(
           `Request body exceeds max ${maxBytes} bytes`,
         ) as Error & { code: string };
         err.code = "body_too_large";
-        reject(err);
+        finish(() => reject(err));
         return;
       }
       chunks.push(c);
-    });
-    req.on("end", () => resolve(Buffer.concat(chunks)));
-    req.on("error", reject);
+    };
+
+    const onEnd = () => finish(() => resolve(Buffer.concat(chunks)));
+    const onError = (e: Error) => finish(() => reject(e));
+
+    const cleanup = () => {
+      req.removeListener("data", onData);
+      req.removeListener("end", onEnd);
+      req.removeListener("error", onError);
+    };
+
+    req.on("data", onData);
+    req.on("end", onEnd);
+    req.on("error", onError);
   });
 }

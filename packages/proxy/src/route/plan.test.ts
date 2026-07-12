@@ -92,6 +92,12 @@ describe("rankCandidates", () => {
     const ranked = rankCandidates([A, B], { preferFree: true });
     assert.equal(ranked[0]?.id, "free:no-tools");
   });
+
+  it("defaults to lower inputPerMillion without preferLowCachePrice flag", () => {
+    const ranked = rankCandidates([A, B], { preferFree: false });
+    assert.equal(ranked[0]?.id, "free:no-tools"); // 0 < 1
+    assert.equal(ranked[1]?.id, "paid:tools");
+  });
 });
 
 describe("buildRoutePlan", () => {

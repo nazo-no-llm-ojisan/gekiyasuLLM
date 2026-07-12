@@ -1,65 +1,51 @@
 # 実装状況（設計との同期）
 
-監査指摘: 設計表の「MVP ○」と実コードが乖離していた。  
-**○ = 設計上の目標 / 実装 = いまのコード** をここに書く。チャットよりこのファイルが正。
+**○ = 設計上の目標 / 実装 = いまのコード。** チャットよりこのファイルが正。
 
-**いまの相のピン**（ロードマップ）: [ROADMAP.md](./ROADMAP.md)  
-失敗分類: [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)
+**ピン:** [ROADMAP.md](./ROADMAP.md) · 失敗分類: [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)
 
-最終更新: 2026-07-12（P0 /v1 二重・redirect SSRF・非loopback token・fail-closed）
+最終更新: 2026-07-12（P2 rank/body/stream + CI）
 
 ## 総評
 
 | 層 | 状態 |
 |---|---|
 | 設計 docs | 先行・厚い |
-| Proxy | **passthrough MVP**（1 上流透過） |
-| ルーティング | RoutePlan スタブのみ |
+| Proxy | **中継 + 境界ガード + plan filter/rank + executor(primary)** |
+| ルーティング | L6 まで（fallback **実行**は未 = L7） |
 | フィード収集 | 未 |
-| 本番利用 | **不可**（README どおり） |
+| Dashboard | 静的デモ |
+| 本番利用 | **不可** |
+| CI | **GitHub Actions `ci.yml` あり** |
 
-## セキュリティ F-SEC（design 5.3）
+## セキュリティ
 
-| ID | 設計MVP | 実装 |
-|---|---|---|
-| F-SEC-01 キー保管 | ○ 目標 | **部分** env / クライアント Bearer のみ。OSキーチェーン未 |
-| F-SEC-02 secret redaction | ○ 目標 | **未** |
-| F-SEC-03 private path policy | ○ 目標 | **未** |
-| F-SEC-04 allow/deny list | ○ 目標 | **部分** 上流 host allowlist（base+env）+ 私有IP拒否。provider 単位 deny は未 |
-| F-SEC-05 feed 署名 | 公開時 | **未** |
-| F-SEC-06 telemetry | 後続 off | **未**（送らない） |
-| F-SEC-07 audit log | ○ 目標 | **未** |
-| F-SEC-08 自動実行しない | ○ | **済**（プロキシは実行しない） |
-
-## ルーティング F-RT
-
-| ID | 実装 |
+| 項目 | 実装 |
 |---|---|
-| F-RT-05 timeout | **済** 上流 fetch タイムアウト（既定 120s） |
-| F-RT-05 retry | **未** |
-| F-RT-06 circuit breaker | **未** |
-| F-RT-07 rate limit 尊重 | **未**（ヘッダは透過） |
-| body 上限 | **済** 既定 20MiB（413） |
-| プレースホルダ鍵 | **済** ループバック bind 時のみ `Bearer local\|gekiyasu\|sk-local` → env 鍵 |
-| プロキシ層トークン | **済** `GEKIYASU_PROXY_TOKEN` → `X-Gekiyasu-Token`（未設定時は /v1 開放・起動時注意） |
-| 上流 allowlist | **済** + **redirect: manual** で Location 再検査。HTTPS→HTTP 拒否 |
-| URL join | **済** base が `/v1` 終端でも `/v1/v1` にしない（`joinUpstreamUrl`） |
-| 非loopback | **済** `GEKIYASU_PROXY_TOKEN` 必須（または `GEKIYASU_ALLOW_UNAUTHENTICATED_REMOTE=true`） |
-| hard filter | **済** require* は fail-closed。`maxCostPerRequest` は estimatedCostPerRequest のみ比較 |
-| リクエスト body ストリーム | **未**（全読みバッファ。NFR-02 未達） |
+| F-SEC-01 キー保管 | 部分（env / Bearer） |
+| F-SEC-02 redaction | 未 |
+| F-SEC-03 private path | 未 |
+| F-SEC-04 allowlist | 上流 host + redirect 再検査 + 私有IPv4 |
+| F-SEC-05 feed 署名 | 未 |
+| F-SEC-08 自動実行しない | 済 |
+| `/v1/v1` join | 済 `joinUpstreamUrl` |
+| redirect SSRF | 済 `redirect: "manual"` |
+| 非loopback | 済 token 必須（または危険フラグ） |
+| body 上限 | 済 413（destroy 前に reject） |
+| stream backpressure | 済 pipeline + client abort → upstream abort |
 
-## 次に足す順
+## ルーティング
 
-1. ~~設計と実装の同期表~~
-2. ~~body 上限・timeout・placeholder・URL ガード~~
-3. ~~プロキシ層トークン + allowlist 本体~~
-4. フィード動的 `base_url` を Executor に渡すとき **必ず** `resolveUpstreamUrl`（既に用意）
-5. redaction・audit・circuit・DNS pin（任意強化）
+| 項目 | 実装 |
+|---|---|
+| RoutePlan filter+rank | 済 |
+| Executor plan.primary | 済 |
+| Executor fallbacks | **未**（L7） |
+| maxCostPerRequest | estimatedCostPerRequest のみ（$/M と混同しない） |
+| preferLowCachePrice | 死コードバグ修正。既定は inputPerMillion で安定ソート |
 
-## テスト
+## 次
 
-```bash
-cd packages/proxy && npm test
-```
-
-現状: `security.test.ts`（token / allowlist / private IP / loopback）
+1. L7 fallback 実行  
+2. 実キー E2E  
+3. redaction / audit / DNS pin  

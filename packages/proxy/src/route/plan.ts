@@ -126,7 +126,12 @@ function hardRejectReason(
   return null;
 }
 
-/** Soft preferences: stable sort. */
+/**
+ * Soft preferences: stable sort.
+ * Default strategy (after preferFree): lower inputPerMillion, then id.
+ * preferLowCachePrice only affects order when both have cache prices later;
+ * it must NOT be `|| true` (was a bug that always forced price sort under wrong name).
+ */
 export function rankCandidates(
   eligible: RouteCandidate[],
   preferences: SoftPreferences = {},
@@ -137,12 +142,10 @@ export function rankCandidates(
       const bf = b.free ? 0 : 1;
       if (af !== bf) return af - bf;
     }
-    if (preferences.preferLowCachePrice || true) {
-      // default cost-ish: lower inputPerMillion first; unknown last
-      const ap = a.inputPerMillion ?? Number.POSITIVE_INFINITY;
-      const bp = b.inputPerMillion ?? Number.POSITIVE_INFINITY;
-      if (ap !== bp) return ap - bp;
-    }
+    // Default cost ordering by input $/M (explicit product default, not tied to preferLowCachePrice)
+    const ap = a.inputPerMillion ?? Number.POSITIVE_INFINITY;
+    const bp = b.inputPerMillion ?? Number.POSITIVE_INFINITY;
+    if (ap !== bp) return ap - bp;
     return a.id.localeCompare(b.id);
   });
 }
