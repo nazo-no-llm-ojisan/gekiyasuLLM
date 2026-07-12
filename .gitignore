@@ -40,3 +40,4 @@ coverage/
 packages/proxy/data/
 logs/
 .cache/
+/.kilo/kilo.jsonc
