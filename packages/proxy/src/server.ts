@@ -4,6 +4,7 @@ import {
   buildOfferingCatalog,
   candidatesFromCatalog,
 } from "./route/catalog.js";
+import { createCircuitBreaker } from "./route/circuit.js";
 import { describeExecution, executeRoutePlan } from "./route/executor.js";
 import { buildRoutePlan } from "./route/plan.js";
 import { checkProxyToken, describeAuthShape } from "./security.js";
@@ -94,6 +95,10 @@ async function recordRouteStat(
 
 export function createServer(config: ProxyConfig): http.Server {
   const catalog = buildOfferingCatalog(config);
+  const circuit = createCircuitBreaker({
+    failureThreshold: config.circuitFailureThreshold,
+    openSeconds: config.circuitOpenSeconds,
+  });
   const stats = buildStatsStore(config);
 
   return http.createServer(async (req, res) => {
@@ -203,6 +208,7 @@ export function createServer(config: ProxyConfig): http.Server {
           res,
           config,
           pathWithQuery,
+          circuit,
         });
         await recordRouteStat(stats, {
           method,

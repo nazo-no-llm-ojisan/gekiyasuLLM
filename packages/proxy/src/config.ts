@@ -25,6 +25,12 @@ export const DEFAULT_MAX_BODY_BYTES = 20 * 1024 * 1024; // 20 MiB
 /** Upstream fetch timeout (ms). */
 export const DEFAULT_UPSTREAM_TIMEOUT_MS = 120_000;
 
+/** Circuit breaker: consecutive failures before an offering is skipped. */
+export const DEFAULT_CIRCUIT_FAILURE_THRESHOLD = 3;
+
+/** Circuit breaker: seconds an offering stays blocked once open. */
+export const DEFAULT_CIRCUIT_OPEN_SECONDS = 300;
+
 export type ProxyConfig = {
   host: string;
   port: number;
@@ -41,6 +47,10 @@ export type ProxyConfig = {
   proxyToken: string | undefined;
   maxBodyBytes: number;
   upstreamTimeoutMs: number;
+  /** Circuit breaker: consecutive failures before an offering is skipped. */
+  circuitFailureThreshold: number;
+  /** Circuit breaker: seconds an offering stays blocked once open. */
+  circuitOpenSeconds: number;
   /**
    * When true (loopback bind only by default), Bearer local|gekiyasu|sk-local
    * may be replaced by upstreamApiKey.
@@ -171,6 +181,12 @@ export function loadConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
     upstreamTimeoutMs:
       overrides.upstreamTimeoutMs ??
       envInt("GEKIYASU_UPSTREAM_TIMEOUT_MS", DEFAULT_UPSTREAM_TIMEOUT_MS),
+    circuitFailureThreshold:
+      overrides.circuitFailureThreshold ??
+      envInt("GEKIYASU_CIRCUIT_FAILURES", DEFAULT_CIRCUIT_FAILURE_THRESHOLD),
+    circuitOpenSeconds:
+      overrides.circuitOpenSeconds ??
+      envInt("GEKIYASU_CIRCUIT_OPEN_SECONDS", DEFAULT_CIRCUIT_OPEN_SECONDS),
     allowPlaceholderApiKeySwap:
       overrides.allowPlaceholderApiKeySwap ?? isLoopbackHost(host),
     feedFile: overrides.feedFile ?? env("GEKIYASU_FEED_FILE"),

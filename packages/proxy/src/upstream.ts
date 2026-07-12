@@ -18,6 +18,15 @@ import { joinUpstreamUrl } from "./url-join.js";
 
 const MAX_REDIRECTS = 5;
 
+/** Origin (scheme+host+port) of a URL string, or the raw string on parse error. */
+function getOrigin(urlStr: string): string {
+  try {
+    return new URL(urlStr).origin;
+  } catch {
+    return urlStr;
+  }
+}
+
 /** Dropped on cross-origin redirects (credentials / session material). */
 const SENSITIVE_REQUEST_HEADERS = [
   "authorization",
@@ -103,17 +112,40 @@ export function pickAuthHeader(
  * Build upstream request headers from the client request using an allowlist.
  * Does not set Authorization — callers must set the resolved credential explicitly
  * (pickAuthHeader for single-upstream; resolveAuthForAttempt for route plans).
+ *
+ * Tenant / correlation headers (openai-organization / openai-project /
+ * idempotency-key) are NOT API keys, but can identify a tenant or request.
+ * They are forwarded only when the resolved target origin equals the configured
+ * upstream origin (T-031) so they are never leaked to foreign offering origins.
  */
+const TENANT_HEADERS = new Set([
+  "openai-organization",
+  "openai-project",
+  "idempotency-key",
+]);
+
+export type BuildUpstreamHeadersOpts = {
+  /** Resolved target base URL; tenant headers forwarded only when its origin matches configured upstream origin. */
+  targetBaseUrl?: string;
+};
+
 export function buildUpstreamHeaders(
   req: IncomingMessage,
-  _config?: ProxyConfig,
+  config?: ProxyConfig,
+  opts: BuildUpstreamHeadersOpts = {},
 ): Headers {
+  const forwardTenant =
+    opts.targetBaseUrl !== undefined &&
+    config !== undefined &&
+    getOrigin(config.upstreamBaseUrl) === getOrigin(opts.targetBaseUrl);
+
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
     if (value === undefined) continue;
     const lower = key.toLowerCase();
     if (HOP_BY_HOP.has(lower)) continue;
     if (!UPSTREAM_REQUEST_HEADER_ALLOWLIST.has(lower)) continue;
+    if (TENANT_HEADERS.has(lower) && !forwardTenant) continue;
     if (Array.isArray(value)) {
       for (const v of value) headers.append(key, v);
     } else {
@@ -289,7 +321,9 @@ export async function proxyRequest(
     }
   }
 
-  const headers = buildUpstreamHeaders(req, config);
+  const headers = buildUpstreamHeaders(req, config, {
+    targetBaseUrl: config.upstreamBaseUrl,
+  });
   headers.set("authorization", auth);
   if (body && body.length > 0 && !headers.has("content-type")) {
     headers.set("content-type", "application/json");

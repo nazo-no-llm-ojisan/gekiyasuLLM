@@ -26,6 +26,8 @@ const baseConfig = {
   allowPlaceholderApiKeySwap: true,
   providerApiKeys: {},
   statsFile: undefined,
+  circuitFailureThreshold: 3,
+  circuitOpenSeconds: 300,
 } satisfies ProxyConfig;
 
 describe("buildUpstreamHeaders", () => {
@@ -51,8 +53,11 @@ describe("buildUpstreamHeaders", () => {
     assert.equal(headers.get("accept"), "application/json");
     assert.equal(headers.get("accept-language"), "en");
     assert.equal(headers.get("user-agent"), "test-agent");
-    assert.equal(headers.get("openai-organization"), "org-123");
-    assert.equal(headers.get("idempotency-key"), "idem-1");
+    // Tenant headers forwarded only on the configured upstream origin (T-031).
+    // baseConfig.upstreamBaseUrl is api.openai.com, so a foreign target origin
+    // must NOT receive them.
+    assert.equal(headers.get("openai-organization"), null);
+    assert.equal(headers.get("idempotency-key"), null);
 
     assert.equal(headers.get("authorization"), null);
     assert.equal(headers.get("cookie"), null);
@@ -71,5 +76,32 @@ describe("buildUpstreamHeaders", () => {
     assert.equal(headers.get("authorization"), null);
     // Callers still resolve auth separately
     assert.equal(pickAuthHeader(req, baseConfig), "Bearer client-key");
+  });
+});
+
+describe("buildUpstreamHeaders tenant origin-scope (T-031)", () => {
+  const req = reqWithHeaders({
+    "content-type": "application/json",
+    "openai-organization": "org-123",
+    "openai-project": "proj-1",
+    "idempotency-key": "idem-1",
+  });
+
+  it("forwards tenant headers on the configured upstream origin", () => {
+    const headers = buildUpstreamHeaders(req, baseConfig, {
+      targetBaseUrl: "https://api.openai.com/v1",
+    });
+    assert.equal(headers.get("openai-organization"), "org-123");
+    assert.equal(headers.get("openai-project"), "proj-1");
+    assert.equal(headers.get("idempotency-key"), "idem-1");
+  });
+
+  it("drops tenant headers on a foreign origin", () => {
+    const headers = buildUpstreamHeaders(req, baseConfig, {
+      targetBaseUrl: "https://a.example/v1",
+    });
+    assert.equal(headers.get("openai-organization"), null);
+    assert.equal(headers.get("openai-project"), null);
+    assert.equal(headers.get("idempotency-key"), null);
   });
 });

@@ -39,6 +39,7 @@ OpenAI 風 `{ error: { message, type, code } }`。`type` は多く `proxy_error`
 | `not_found` | 未知パス |
 | `internal_error` | 予期せぬ内部エラー |
 | `http_*`（attempt log） | GET/HEAD で upstream が 408/429/5xx 等 → fallback 候補。POST では status を client へ透過し fallback しない |
+| `circuit_open`（attempt log / 最終 code） | offering が circuit open のため送信前 skip。次候補があれば続行。全滅時は 502 + `circuit_open` |
 
 ## 設計 docs との対応（旧 → 正本）
 

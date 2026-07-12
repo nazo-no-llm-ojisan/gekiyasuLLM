@@ -16,6 +16,8 @@ function testConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
     allowPlaceholderApiKeySwap: true,
     providerApiKeys: {},
     statsFile: undefined,
+    circuitFailureThreshold: 3,
+    circuitOpenSeconds: 300,
     ...overrides,
   };
 }

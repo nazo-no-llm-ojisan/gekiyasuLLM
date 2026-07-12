@@ -4,19 +4,19 @@
 
 **ピン:** [ROADMAP.md](./ROADMAP.md) · 失敗分類: [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)
 
-最終更新: 2026-07-12（T-033 IPv6 SSRF 後）
+最終更新: 2026-07-12（次セクション L13〜 を ROADMAP_LOCAL に起票後）
 
 ## 総評
 
 | 層 | 状態 |
 |---|---|
-| 設計 docs | 先行・厚い |
+| 設計 docs | 先行・厚い。ローカル **L13〜** は [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) |
 | Proxy | **中継 + 境界 + plan/filter/fallback + フィード + CostEstimate + credential isolation + ローカル統計 JSONL** |
-| ルーティング | **L10 まで**（circuit 未。GET/HEAD fallback 済。POST 等は fallback 禁止） |
+| ルーティング | plan は動くが **request model 未使用**（L13 未）。GET/HEAD fallback 済。POST fallback 禁止。**circuit done (T-036)** |
 | フィード収集 | 未（静的ファイル読込は L8 済） |
-| Dashboard | 静的デモ（`/dashboard/`） |
-| 本番利用 | **不可** |
-| CI | **Actions あり**（test はファイル明示列挙） |
+| Dashboard | 静的デモ（`/dashboard/`）。公開カタログは L24 Pages 予定 |
+| 本番利用 | **不可**。公開フィードは L17 署名 + L18 DNS pin 前は不可 |
+| CI | **Actions あり**（test はファイル明示列挙 — L19 で硬化予定） |
 
 ## セキュリティ
 
@@ -36,20 +36,26 @@
 | **client Authorization の送信先** | **済** — `config.upstreamBaseUrl` の **exact origin 一致時のみ** client key を転送。別 origin は `providerApiKeys[providerId]` のみ（無ければ `credential_unavailable` で送信前 skip） |
 | **upstream request headers** | **済** — allowlist（`content-type` / `accept` 等）。`authorization` / `cookie` / `x-api-key` / `x-gekiyasu-token` / `proxy-authorization` は client からコピーしない |
 | **placeholder 置換** | **済** — loopback かつ configured upstream origin のみ。別 origin に global key を送らない |
-| **tenant / correlation headers** | **部分** — `openai-organization` / `openai-project` / `idempotency-key` は allowlist に入り **全 origin に転送され得る**（API key ではない。P0 ではない residual）。将来: configured upstream origin のみに限定 |
+| **tenant / correlation headers** | **済 (T-031)** — `openai-organization` / `openai-project` / `idempotency-key` は **configured upstream origin のみ**転送。foreign origin では drop |
 
 ## ルーティング
 
 | 項目 | 実装 |
 |---|---|
-| RoutePlan filter+rank | 済 |
+| RoutePlan filter+rank | 済（ただし **request 非連動** — 現状ほぼ `preferFree` 固定） |
+| **request model → offering 候補化** | **未（L13）** |
+| **upstreamModelId への body 書換** | **未（L13）** |
+| tools/vision/stream/private を request から hard filter | **未（L13）** |
+| apiCompat fail-closed（非 OpenAI 除外） | **未（L14）** |
+| allowsPrivateCode fail-closed | **未（L15）** — catalog が unknown を true 扱い |
 | Executor plan.primary | 済 |
-| Executor fallbacks | **済（GET/HEAD のみ）** — 408/429/5xx/timeout/network 等で次候補。**POST/PATCH/PUT/DELETE 等は fallback 禁止**（二重実行・二重課金防止）。circuit 未 |
+| Executor fallbacks | **済（GET/HEAD のみ）** — 408/429/5xx/timeout/network 等で次候補。**POST 等は fallback 禁止** |
+| Circuit breaker (T-036) | **済** — per-offering closed/open/half-open。server 寿命で共有。`GEKIYASU_CIRCUIT_FAILURES` / `GEKIYASU_CIRCUIT_OPEN_SECONDS` |
 | CostEstimate 最小 | **済**（input/output 等。L9） |
 | maxCostPerRequest | estimatedCostPerRequest のみ（$/M と混同しない） |
 | preferLowCachePrice | 死コードバグ修正。既定は inputPerMillion で安定ソート |
-| 静的フィード → catalog | **済**（L8。`GEKIYASU_FEED_FILE`） |
-| ローカル統計 (L10) | **済** — append-only JSONL（既定 `data/stats.jsonl`）。method/path/offering/attempts/status/latency/ok。本文・キーなし。`GEKIYASU_STATS_FILE=off` で無効 |
+| 静的フィード → catalog | **済**（L8。`GEKIYASU_FEED_FILE`）。feed host の自動 allowlist 追加あり → L17 で分離 |
+| ローカル統計 (L10) | **済** — append-only JSONL。本文・キーなし |
 
 ## 次（起票済み・台帳）
 
@@ -58,8 +64,8 @@
 | ID | 内容 | 状態 |
 |---|---|---|
 | **T-033** | IPv6 ULA / link-local / v4-mapped SSRF ブロック | **done** |
-| **T-031** | tenant headers origin-scope + endpoint credential map | todo（**推奨次**） |
-| **T-036** | circuit breaker | todo |
+| **T-031** | tenant headers origin-scope + endpoint credential map | **done** |
+| **T-036** | circuit breaker | **done** |
 | **T-034** | DNS rebinding / resolve-and-pin | todo（公開フィード前） |
 | **T-035** | feed 署名検証 (F-SEC-05) | todo（**公開フィード必須ゲート**） |
 | **T-037** | stats CLI / 集計 | todo |
@@ -75,12 +81,16 @@
 | POST fallback opt-in | idempotency + 明示 opt-in 後 |
 | redaction / audit | 境界・運用 |
 | deprecated 整理 | `assertSafeUpstreamBaseUrl` 等 |
-| CI test 明示列挙 | `package.json` test に新ファイル追加を忘れない |
+| CI test 明示列挙 | L19。`package.json` test に新ファイル追加を忘れない |
+| CORS actual response | L16。成功応答に CORS が付かない |
+| health が upstream URL 全文 | L20 |
+
+次セクションの段と起票案（T-044〜）: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md)。
 
 ## 外部監査メモ（2026-07-12）
 
-- **総評:** 設計とコードの整合は高い。F-SEC-09/10・SSRF redirect・header allowlist は文書どおり実装されている、と外部監査が確認。
-- **自己認識との一致:** 残課題リストと監査指摘はほぼ一致（健全）。
-- **スコープ結論:** 個人ローカル MVP では大きな欠陥なし。公開署名フィード前に IPv6 SSRF・署名・tenant header origin 限定を仕上げる。
+- **総評（午前）:** 設計とコードの整合は高い。credential isolation・SSRF redirect・header allowlist は文書どおり。個人 loopback MVP は条件付き可。
+- **総評（同日再監査 / talk.md）:** まだ「最安候補を選ぶ中継器」。**次は request-aware routing（L13）と公開フィード前ゲート（L17–L18）**。
+- **推奨順:** L13 model+upstreamModelId → L14 apiCompat → L15 private trust → L16 CORS → L17 署名 → L18 DNS pin → L19 CI → L20 health。
 
 **P0/P1 正本コミット:** `e2b3d14`。L10: `591b0b9`。`4bbc1fb` は未完成扱い。  

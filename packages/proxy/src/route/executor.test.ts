@@ -19,6 +19,7 @@ import {
   type AttemptFn,
   type AttemptResult,
 } from "./executor.js";
+import { createCircuitBreaker } from "./circuit.js";
 import { buildRoutePlan } from "./plan.js";
 
 function planFor(primary: string, fallbacks: string[] = []): RoutePlan {
@@ -50,6 +51,8 @@ function baseConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
     allowPlaceholderApiKeySwap: true,
     providerApiKeys: {},
     statsFile: undefined,
+    circuitFailureThreshold: 3,
+    circuitOpenSeconds: 300,
     ...overrides,
   };
 }
@@ -1159,5 +1162,163 @@ describe("response header hygiene after undici decompression", () => {
     assert.equal(res.resState.statusCode, 200);
     assert.equal(res.resState.headers.get("content-encoding"), undefined);
     assert.equal(JSON.parse(res.resState.body).ok, true);
+  });
+});
+
+describe("executeRoutePlan circuit breaker (T-036)", () => {
+  const catalog = new Map<string, OfferingTarget>([
+    ["first", { id: "first", providerId: "a", baseUrl: "https://a.example/v1" }],
+    ["second", { id: "second", providerId: "b", baseUrl: "https://b.example/v1" }],
+  ]);
+
+  it("skips a circuit-open primary and uses the fallback", async () => {
+    const circuit = createCircuitBreaker({ failureThreshold: 1, openSeconds: 300 });
+    circuit.recordFailure("first");
+
+    const tried: string[] = [];
+    const attempt: AttemptFn = async (target) => {
+      tried.push(target.id);
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response("{}", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      };
+    };
+
+    const res = createMockRes();
+    const req = createMockReq("GET", { authorization: "Bearer sk-test" });
+    const config = baseConfig({
+      upstreamApiKey: "sk-test",
+      providerApiKeys: { a: "k-a", b: "k-b" },
+    });
+
+    const result = await executeRoutePlan({
+      plan: { primary: "first", fallbacks: ["second"], reason: [], generatedAt: "" },
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/chat/completions",
+      circuit,
+      attempt,
+    });
+
+    assert.deepEqual(tried, ["second"]);
+    assert.equal(result.offeringId, "second");
+    assert.ok(result.attempts.some((a) => a.startsWith("first:circuit_open")));
+  });
+
+  it("does not skip an offering when the circuit is closed", async () => {
+    const circuit = createCircuitBreaker({ failureThreshold: 3, openSeconds: 300 });
+
+    const tried: string[] = [];
+    const attempt: AttemptFn = async (target) => {
+      tried.push(target.id);
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response("{}", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      };
+    };
+
+    const res = createMockRes();
+    const req = createMockReq("GET", { authorization: "Bearer sk-test" });
+    const config = baseConfig({
+      upstreamApiKey: "sk-test",
+      providerApiKeys: { a: "k-a", b: "k-b" },
+    });
+
+    const result = await executeRoutePlan({
+      plan: { primary: "first", fallbacks: ["second"], reason: [], generatedAt: "" },
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/chat/completions",
+      circuit,
+      attempt,
+    });
+
+    assert.deepEqual(tried, ["first"]);
+    assert.equal(result.offeringId, "first");
+    assert.deepEqual(result.attempts, ["first:ok"]);
+  });
+
+  it("records failures and opens the circuit so the next request skips", async () => {
+    const circuit = createCircuitBreaker({ failureThreshold: 2, openSeconds: 300 });
+    const catalogLocal = new Map<string, OfferingTarget>([
+      ["first", { id: "first", providerId: "a", baseUrl: "https://a.example/v1" }],
+      ["second", { id: "second", providerId: "b", baseUrl: "https://b.example/v1" }],
+    ]);
+
+    const failingAttempt: AttemptFn = async (target) => ({
+      kind: "retry",
+      offeringId: target.id,
+      code: "upstream_unreachable",
+      message: "down",
+    });
+
+    const res1 = createMockRes();
+    const req1 = createMockReq("GET", { authorization: "Bearer sk-test" });
+    const config = baseConfig({
+      upstreamApiKey: "sk-test",
+      providerApiKeys: { a: "k-a", b: "k-b" },
+    });
+
+    // Two GET failures on primary → threshold 2 opens circuit
+    await executeRoutePlan({
+      plan: { primary: "first", fallbacks: [], reason: [], generatedAt: "" },
+      catalog: catalogLocal,
+      req: req1,
+      res: res1,
+      config,
+      pathWithQuery: "/v1/models",
+      circuit,
+      attempt: failingAttempt,
+    });
+    const res2 = createMockRes();
+    await executeRoutePlan({
+      plan: { primary: "first", fallbacks: [], reason: [], generatedAt: "" },
+      catalog: catalogLocal,
+      req: createMockReq("GET", { authorization: "Bearer sk-test" }),
+      res: res2,
+      config,
+      pathWithQuery: "/v1/models",
+      circuit,
+      attempt: failingAttempt,
+    });
+    assert.equal(circuit.isOpen("first"), true);
+
+    const tried: string[] = [];
+    const res3 = createMockRes();
+    const result = await executeRoutePlan({
+      plan: { primary: "first", fallbacks: ["second"], reason: [], generatedAt: "" },
+      catalog: catalogLocal,
+      req: createMockReq("GET", { authorization: "Bearer sk-test" }),
+      res: res3,
+      config,
+      pathWithQuery: "/v1/chat/completions",
+      circuit,
+      attempt: async (target) => {
+        tried.push(target.id);
+        return {
+          kind: "ok",
+          offeringId: target.id,
+          response: new Response("{}", {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        };
+      },
+    });
+
+    assert.deepEqual(tried, ["second"]);
+    assert.ok(result.attempts.some((a) => a.startsWith("first:circuit_open")));
   });
 });

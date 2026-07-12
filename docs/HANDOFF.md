@@ -26,8 +26,8 @@
   - P0/P1 正本: `e2b3d14` · L11 curl: `d6326a9` 記録
 
 ### 現在のピン
-- **大枠 (ROADMAP_MACRO.md):** Phase 2 完了。Phase 3 進行中（fallback・L9・L10・L11 curl 済。circuit 未）
-- **ローカル (ROADMAP_LOCAL.md):** **L10 完了**
+- **大枠 (ROADMAP_MACRO.md):** Phase 2–3 ほぼ。**次は Phase 3c / L13 request-aware**
+- **ローカル (ROADMAP_LOCAL.md):** **L12 完了 + L21 circuit done。次 L13**
 - **中継先:** `http://127.0.0.1:16191/v1`
 - **静的 UI:** `http://127.0.0.1:16191/dashboard/` (認証なし・sample JSON のみ)
 
@@ -55,9 +55,10 @@
 - **Header allowlist:** cookie / x-api-key / proxy token 等を upstream に client 入力として転送しない
 
 ### 直近完了
-- L8 静的フィード、L9 CostEstimate
-- P0/P1 セキュリティ修正（**正本 `e2b3d14`**、docs `d4880d8`）— 外部再監査でも合格。`4bbc1fb` の問題は実質解消
-- 検証: unit（`upstream.test.ts` allowlist）+ executor の local HTTP server 実受信 header 検査あり。redirect またぎ `fetchUpstream` は未カバー
+- L8 静的フィード、L9 CostEstimate、L10 統計、L11 curl、L12 dashboard
+- T-031 tenant header origin-scope、T-033 IPv6 SSRF、**T-036 circuit breaker**
+- P0/P1 セキュリティ修正（**正本 `e2b3d14`**）
+- **2026-07-12 salvage:** 無料エージェント WIP を回収。`circuit` の壊れた setter・未配線 test・`attempt` 未渡しテストを修正。proxy typecheck + 103 tests green
 
 ### ローカル proxy 運用（2026-07-12 以降）
 - **常用起動:** リポジトリルート `ecosystem.config.cjs` + **pm2**（headless / `dist/index.js`）
@@ -84,16 +85,16 @@
 - 無効化: `GEKIYASU_STATS_FILE=off`
 - コード: `packages/proxy/src/stats/store.ts` + server 配線
 
-### 起票済みバックログ（2026-07-12 監査反映）
+### 起票済みバックログ（2026-07-12 監査反映 + salvage）
 
 | 優先 | ID | 内容 |
 |---|---|---|
-| **推奨次** | **T-031** / **T-036** | tenant headers · circuit breaker |
-| 境界 | ~~T-033~~ **done** | IPv6 ULA / link-local / v4-mapped SSRF |
+| **推奨次** | **T-044 / L13** | request-aware routing + upstreamModelId 書換 |
+| P1 横 | T-045 / T-046 / T-047 | apiCompat · private fail-closed · CORS |
 | 公開前ゲート | T-034 → T-035 | DNS pin → feed 署名 |
-| 後段 | T-037 / T-038 | stats CLI / IDE docs |
-| 収集層 | **T-040 done** / **T-039 todo** | [design/06](./design/06-model-identity-and-normalization.md) 契約メモ。Proxy と分離 |
+| 後段 | T-037 / T-038 / T-048–T-051 | stats CLI · IDE · CI · health · 縦貫通 · Pages |
+| 収集層 | **T-040 done** / **T-039 todo** | [design/06](./design/06-model-identity-and-normalization.md) |
 
 詳細: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) · [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)
 
-台帳: T-032 (L10) **done** · T-033 **done** · T-031/T-036 等 todo · T-040 **done**。
+台帳: T-031/T-033/T-036 **done** · 次本線 **T-044**。

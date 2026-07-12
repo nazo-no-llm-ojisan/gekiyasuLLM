@@ -17,6 +17,7 @@ import {
   resolveUpstreamUrl,
 } from "../upstream.js";
 import type { OfferingTarget } from "./catalog.js";
+import type { CircuitBreaker } from "./circuit.js";
 
 export type ExecutionContext = {
   plan: RoutePlan;
@@ -227,7 +228,9 @@ export async function defaultAttemptUpstream(
     };
   }
 
-  const headers = buildUpstreamHeaders(ctx.req, ctx.config);
+  const headers = buildUpstreamHeaders(ctx.req, ctx.config, {
+    targetBaseUrl: target.baseUrl,
+  });
   headers.set("authorization", ctx.auth);
   if (ctx.body && ctx.body.length > 0 && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
@@ -301,6 +304,8 @@ export type ExecutePlanInput = {
   config: ProxyConfig;
   pathWithQuery: string;
   attempt?: AttemptFn;
+  /** Optional circuit breaker; when provided, open offerings are skipped. */
+  circuit?: CircuitBreaker;
 };
 
 /**
@@ -379,8 +384,34 @@ export async function executeRoutePlan(
         continue;
       }
 
-      const auth = resolveAuthForAttempt(target, rawClientAuth, config);
       const hasMore = i < ids.length - 1;
+
+      // Circuit breaker: skip offerings that are currently open.
+      if (input.circuit && input.circuit.isOpen(id)) {
+        attemptLog.push(`${id}:circuit_open`);
+        lastRetry = {
+          kind: "retry",
+          offeringId: id,
+          code: "circuit_open",
+          message: `Offering ${id} is circuit-open (recent failures)`,
+        };
+        if (!hasMore) {
+          if (!res.headersSent) {
+            writeJson(res, 502, {
+              error: {
+                message: lastRetry.message,
+                type: "proxy_error",
+                code: lastRetry.code,
+                attempts: attemptLog,
+              },
+            });
+          }
+          return { offeringId: lastRetry.offeringId, attempts: attemptLog };
+        }
+        continue;
+      }
+
+      const auth = resolveAuthForAttempt(target, rawClientAuth, config);
 
       if (!auth) {
         // Pre-send skip: no upstream call was made, so walking to the next
@@ -421,6 +452,14 @@ export async function executeRoutePlan(
 
       const result = await attempt(target, ctx);
       attemptLog.push(`${id}:${result.kind === "ok" ? "ok" : result.code}`);
+
+      if (input.circuit) {
+        if (result.kind === "ok") {
+          input.circuit.recordSuccess(id);
+        } else {
+          input.circuit.recordFailure(id);
+        }
+      }
 
       if (result.kind === "ok") {
         res.setHeader("x-gekiyasu-offering", result.offeringId);

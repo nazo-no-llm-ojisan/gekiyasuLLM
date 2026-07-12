@@ -8,7 +8,7 @@
 |---|---|
 | [ROADMAP.md](./ROADMAP.md) | ロードマップ索引 |
 | [ROADMAP_MACRO.md](./ROADMAP_MACRO.md) | **大枠** Phase 0–7 と現在位置 |
-| [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) | **ローカル節** L0–L12 と現在位置・次の一手 |
+| [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) | **ローカル節** L0–L12 完了 + **L13〜**（request-aware / feed 信頼境界） |
 
 ## 開発の型
 
