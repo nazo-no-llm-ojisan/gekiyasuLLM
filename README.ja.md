@@ -25,7 +25,8 @@ npm install
 npm run dev
 ```
 
-エージェント向けルールは [AGENTS.md](./AGENTS.md)。Proxy 詳細は [packages/proxy/README.md](./packages/proxy/README.md)。
+エージェント向けルールは [AGENTS.md](./AGENTS.md)。Proxy 詳細は [packages/proxy/README.md](./packages/proxy/README.md)。  
+短い進捗テンプレ: [docs/USER_STATUS_TEMPLATE.md](./docs/USER_STATUS_TEMPLATE.md)。開発ループ: [docs/BRAINLESS_TDD.md](./docs/BRAINLESS_TDD.md)（赤→緑→コミット）。
 
 ## 注意（必ず読む）
 
