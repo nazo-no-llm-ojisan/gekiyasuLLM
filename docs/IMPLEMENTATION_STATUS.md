@@ -4,15 +4,15 @@
 
 **ピン:** [ROADMAP.md](./ROADMAP.md) · 失敗分類: [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)
 
-最終更新: 2026-07-12（L7 + CI glob 修正後と同期）
+最終更新: 2026-07-12（L8 静的フィード読込完了後と同期）
 
 ## 総評
 
 | 層 | 状態 |
 |---|---|
 | 設計 docs | 先行・厚い |
-| Proxy | **中継 + 境界 + plan filter/rank + executor fallback**（catalog はまだ実質1本） |
-| ルーティング | **L7 まで**（circuit 未。実候補複数はフィード後） |
+| Proxy | **中継 + 境界 + plan filter/rank + executor fallback + フィードロード** |
+| ルーティング | **L8 まで**（circuit 未。実候補複数はフィード後） |
 | フィード収集 | 未 |
 | Dashboard | 静的デモ（`/dashboard/`） |
 | 本番利用 | **不可** |
@@ -47,7 +47,7 @@
 ## 次
 
 1. **L9** CostEstimate（本線候補）  
-2. L11 実キー E2E（任意・手動）  
-3. L8 静的フィード（catalog を複数にする本命）  
+2. **L11** 実キー E2E（任意・手動）  
+3. **L10** ローカル統計  
 4. redaction / audit / DNS pin / circuit  
 

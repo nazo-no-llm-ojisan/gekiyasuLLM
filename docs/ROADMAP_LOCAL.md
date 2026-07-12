@@ -18,14 +18,14 @@ L4  RoutePlan スタブ + テスト    ████ 完了（sole offering）
 L5  Executor が plan.primary     ████ 完了（T-023）
 L6  複数候補 + hard filter       ████ 完了（T-027）
 L7  fallback 実行                ████ 完了（T-028; circuit は未）
-L8  静的フィード読込             ░░░░ 未（Phase 2）
+L8  静的フィード読込             ████ 完了（T-029; Phase 2）
 L9  CostEstimate 最小            ░░░░ 未
 L10 ローカル統計                 ░░░░ 未（Phase 3）
 L11 実キー E2E「IDE から1通」    ░░░░ 手動・未確認を想定
 L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard/）
 ```
 
-**ピン:** **L7 完了 → 次 L9 CostEstimate または L8 フィード または L11 E2E**
+**ピン:** **L8 完了 → 次 L9 CostEstimate または L11 E2E**
 
 ---
 
@@ -53,7 +53,7 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 | （parser 実験） | T-024 | todo（並列可・本線外でも可） |
 | ルート test + GHA | T-025 | **done**（CI glob 修正済） |
 | 失敗分類 docs | T-026 | **done** |
-| L8 フィード | 未採番 | Phase 2 |
+| L8 フィード | T-029 | **done** (Phase 2) |
 | L9–L10 コスト・統計 | 未採番 | 次本線候補 |
 
 ---
@@ -77,7 +77,7 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 - [ ] IDE/SDK からローカル Proxy 経由で completion 成功（実キー）← L11
 - [x] RoutePlan → Executor が primary に従う（コード+テスト）
 - [x] 失敗時 fallback ロジック（コード+ユニット。catalog 複数は L8 後に実効）
-- [ ] 静的フィード差し替えで候補が変わる ← L8
+- [x] 静的フィード差し替えで候補が変わる ← L8
 - [ ] ローカルに成功/失敗/目安コストが残る ← L9–L10
 
 全部チェック入ったら **大枠 Phase 1–3 完了** とみなし、[ROADMAP_MACRO.md](./ROADMAP_MACRO.md) のピンを Phase 4 手前に進める。
