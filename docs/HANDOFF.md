@@ -9,6 +9,7 @@
    - リポジトリの最新のピン状態（`docs/ROADMAP.md`、`docs/ROADMAP_LOCAL.md`、`docs/IMPLEMENTATION_STATUS.md`）と整合した情報を記述する。
 2. **情報の最小化とセキュリティ**
    - 秘密鍵、個人 API キー、本番環境の認証情報などは絶対に `docs/HANDOFF.md` を含むリポジトリ内に記述・コミットしない。
+   - マシン固有の運用メモ（pm2 resurrect 担当、OpenWebUI ポート等）は **gitignore の `docs/LOCAL_NOTES.md`** に書く（テンプレ: `docs/LOCAL_NOTES.example.md`）。秘密の値は `.env` のみ。
 3. **作業の明確化**
    - 現在のコミットハッシュ、完了したタスク、未完了のタスク、および次に着手すべき本線候補（T-0xx 含む）を明記する。
    - ユーザーとの合意事項や保留中の設計決定があれば記録する。
@@ -58,16 +59,23 @@
 - P0/P1 セキュリティ修正（**正本 `e2b3d14`**、docs `d4880d8`）— 外部再監査でも合格。`4bbc1fb` の問題は実質解消
 - 検証: unit（`upstream.test.ts` allowlist）+ executor の local HTTP server 実受信 header 検査あり。redirect またぎ `fetchUpstream` は未カバー
 
+### ローカル proxy 運用（2026-07-12 以降）
+- **常用起動:** リポジトリルート `ecosystem.config.cjs` + **pm2**（headless / `dist/index.js`）
+- **アプリ名:** `gekiyasu-proxy` · bind `127.0.0.1:16191`
+- コード変更後: `npm --prefix packages/proxy run build` → `pm2 restart gekiyasu-proxy`
+- **resurrect / ログイン後復旧:** ローカル運用者（詳細は `docs/LOCAL_NOTES.md`）
+- 公開手順: `packages/proxy/README.md`（pm2 節）
+
 ### L11 手動確認（2026-07-12）
-- **方式:** `packages/proxy/.env`（gitignore）を process env に注入 → `npm run dev` → curl  
+- **方式:** `packages/proxy/.env`（gitignore）を process env に注入 → 起動 → curl  
 - **キー・token・Authorization 実値はログ/git に出していない**  
 - **結果:**
   - `GET /health` → **200**（`proxyTokenRequired: true`）
   - `GET /v1/models` without token → **401**（proxy token 必須の確認）
-  - `GET /v1/models` + `X-Gekiyasu-Token` + `Bearer sk-local` → **200**（models_count>0, offering=`passthrough:default`）
-  - `POST /v1/chat/completions` 最小 1 回 → **200**（offering=`passthrough:default`, attempts=`…:ok`）
+  - `GET /v1/models` + proxy 認証 → **200**
+  - `POST /v1/chat/completions` 最小 1 回 → **200**
 - **起動先:** `http://127.0.0.1:16191`（loopback）  
-- **IDE 一通**は未実施（Base URL `http://127.0.0.1:16191/v1` + API key `sk-local` + 必要なら `X-Gekiyasu-Token`）
+- **IDE / OpenWebUI:** 他 IDE・OpenWebUI 疎通確認済（マシン詳細は `docs/LOCAL_NOTES.md`）
 
 ### L10 ローカル統計（実装済）
 - JSONL append: 既定 `{cwd}/data/stats.jsonl`（gitignore）
@@ -80,13 +88,12 @@
 
 | 優先 | ID | 内容 |
 |---|---|---|
-| **推奨次** | **T-033** | IPv6 private / link-local / v4-mapped SSRF |
-| 境界 | T-031 | tenant headers origin-scope + credential map |
-| Phase 3 | T-036 | circuit breaker |
+| **推奨次** | **T-031** / **T-036** | tenant headers · circuit breaker |
+| 境界 | ~~T-033~~ **done** | IPv6 ULA / link-local / v4-mapped SSRF |
 | 公開前ゲート | T-034 → T-035 | DNS pin → feed 署名 |
 | 後段 | T-037 / T-038 | stats CLI / IDE docs |
-| 収集層 | **T-040 done** / **T-039 todo** | [design/06](./design/06-model-identity-and-normalization.md) 契約メモ。私有観測ツール由来。Proxy と分離 |
+| 収集層 | **T-040 done** / **T-039 todo** | [design/06](./design/06-model-identity-and-normalization.md) 契約メモ。Proxy と分離 |
 
 詳細: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) · [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)
 
-台帳: T-032 (L10) **done**。T-033–T-038 todo。T-040 **done**（design/06）。
+台帳: T-032 (L10) **done** · T-033 **done** · T-031/T-036 等 todo · T-040 **done**。

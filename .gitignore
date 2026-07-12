@@ -10,6 +10,10 @@ id_ed25519
 feed-signing.key
 *.secret
 
+# Machine-local operator notes (no secrets; still not shared)
+# Template: docs/LOCAL_NOTES.example.md
+docs/LOCAL_NOTES.md
+
 # OS / editor
 .DS_Store
 Thumbs.db

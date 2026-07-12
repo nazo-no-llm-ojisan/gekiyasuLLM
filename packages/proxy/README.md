@@ -55,7 +55,8 @@ at once (port conflict).
 
 Terminal close is fine (daemon keeps running). **Windows logoff/reboot** does
 not auto-start unless you register startup (`pm2 startup` / Task Scheduler) and
-`pm2 save`.
+`pm2 save`. Machine-specific notes (who runs `pm2 resurrect`, client ports)
+belong in gitignored `docs/LOCAL_NOTES.md` — see `docs/LOCAL_NOTES.example.md`.
 
 ## Client
 
