@@ -1,9 +1,8 @@
 # 02 — 要件・アーキテクチャ・ルーティング・セキュリティ
 
 **文書**: gekiyasuLLM 設計 第2部  
-**版**: 0.3-draft  
-**取得・調査基準日**: 2026-07-12  
-**更新**: 2026-07-12 — GitHub 公開前提、表現の見直し
+**版**: 0.4-draft  
+**日付**: 2026-07-12
 
 関連: [01 企画・MVP](./01-product-mvp-and-business.md) · [03 スタック・ADR](./03-stack-roadmap-and-adrs.md)
 
@@ -311,6 +310,7 @@ interface Provenanced<T> {
 interface FeedDocument {
   schema_version: "1.0.0";
   feed_id: string;
+  feed_version: string;       // 例: "v1.0.15" — 訂正記録の対象版
   generated_at: string;
   expires_at?: string;
   publisher: { name: string; homepage: string };
@@ -319,6 +319,35 @@ interface FeedDocument {
   models: Model[];
   campaigns: Campaign[];
   observations?: ObservationSeries[];
+  /** 誤記・集計バグ等の訂正履歴。静かに消さない */
+  corrections?: CorrectionRecord[];
+}
+
+/** 利益相反。サイト表示だけでなくフィード必須 */
+interface CommercialRelationship {
+  sponsored: boolean;
+  affiliate: boolean;
+  /**
+   * 既定の編集ランキング（コスト・能力・可用性）への影響。
+   * 本番は "none" のみ。それ以外はルーターが除外または別レーンへ。
+   */
+  editorial_rank_influence: "none";
+  disclosure?: string;
+  disclosure_url?: string;
+  as_of?: string;
+}
+
+interface CorrectionRecord {
+  id: string;                 // 例: "COR-20260712-001"
+  impact_start: string;       // ISO-8601 UTC
+  impact_end: string;
+  feed_versions_affected: string[];
+  summary: string;
+  root_cause: string;
+  affected_paths: string[];   // 例: "models[id=x].pricing.input_per_mtok"
+  corrected_in_feed_version?: string;
+  corrected_at: string;
+  evidence_urls?: string[];
 }
 
 interface Provider {
@@ -332,11 +361,8 @@ interface Provider {
     data_retention_notes: Provenanced<string>;
     training_use_notes: Provenanced<string>;
   };
-  relationships?: {
-    sponsored?: boolean;
-    affiliate?: boolean;
-    disclosure?: string;
-  };
+  /** 必須。不明な商業関係の provider はフィードに載せない */
+  relationships: CommercialRelationship;
   endpoints: Endpoint[];
 }
 

@@ -1,9 +1,8 @@
 # 01 — 企画・MVP・事業
 
 **文書**: gekiyasuLLM 設計 第1部  
-**版**: 0.3-draft  
-**取得・調査基準日**: 2026-07-12  
-**更新**: 2026-07-12 — GitHub 公開前提、不適切表現の見直し
+**版**: 0.4-draft  
+**日付**: 2026-07-12
 
 ---
 
@@ -123,23 +122,30 @@ LLM API の選択情報（価格、キャッシュ価格、定額、無料枠、
 
 詳細は §17 も参照。
 
-### 3.6 広告と編集評価の分離
+### 3.6 広告と編集評価の分離（利益相反の機械可読化）
 
 - **編集データ**: `source: "official" | "observed" | "estimated" | "community"`
-- **商業関係**: `relationships.sponsored`, `relationships.affiliate` を独立フィールド
-- ランキング既定ソートは **スポンサー非依存**（コスト・能力・可用性のみ）
-- スポンサー枠は別セクション / 別フラグでのみ表示
-- 「おすすめ」文言は編集基準を公開し、スポンサー優先を禁止
+- **商業関係（フィード必須）**:
+  - `sponsored: boolean`
+  - `affiliate: boolean`
+  - `editorial_rank_influence: "none"`（既定ランキングへの影響は禁止）
+  - 任意: `disclosure`, `disclosure_url`, `as_of`
+- サイト表示だけでなく **フィード JSON にも載せる**（Proxy / 第三者が検査可能）
+- ランキング既定ソートは **商業フィールド非依存**（コスト・能力・可用性のみ）
+- スポンサー枠は別セクションのみ
+- 詳細: [04-licensing-coi-corrections.md](./04-licensing-coi-corrections.md)
 
-### 3.7 法務・表示・ステルスマーケ回避
+### 3.7 法務・表示・訂正・ライセンス
 
 - 価格・無料枠は **取得日時・情報源 URL** 必須
 - 「最安」「おすすめ」は時点・条件付きと明記し、保証と誤読されないようにする
 - アフィリエイトリンクは `rel` / 表記で明示
-- ステルスマーケティング（日本の景表法・ステマ規制意識）を避け、**有償関係は常に開示**
+- ステルスマーケティング（景表法意識）を避け、**有償関係は常に開示**
+- **訂正**: 誤情報を静かに消さない。影響期間・原因・フィード版を残す（[CORRECTIONS.md](../CORRECTIONS.md)）
 - プロバイダ利用規約に反する probe / スクレイピングは行わない
-- 本サービスは **LLM 出力の正確性・可用性を保証しない** 免責を表示
+- **LLM 出力・価格・可用性は保証しない** 免責
 - プライバシー: telemetry は opt-in、プロンプト本文は収集しない
+- **ライセンス**: コード・スキーマは Apache-2.0。名称・ロゴは商標ポリシー（[LICENSE](../../LICENSE), [TRADEMARKS.md](../../TRADEMARKS.md)）
 
 ### 3.8 名称・ドメイン評価
 
@@ -265,5 +271,6 @@ LLM API の選択情報（価格、キャッシュ価格、定額、無料枠、
 
 ## 次ドキュメント
 
-- 要件・アーキテクチャ・ルーティング・スキーマ・セキュリティ → [02-architecture-routing-and-security.md](./02-architecture-routing-and-security.md)
-- スタック・サービス・ロードマップ・ADR・実装作業単位 → [03-stack-roadmap-and-adrs.md](./03-stack-roadmap-and-adrs.md)
+- 要件・アーキ・スキーマ・セキュリティ → [02-architecture-routing-and-security.md](./02-architecture-routing-and-security.md)
+- スタック・ロードマップ・ADR → [03-stack-roadmap-and-adrs.md](./03-stack-roadmap-and-adrs.md)
+- ライセンス・COI・訂正 → [04-licensing-coi-corrections.md](./04-licensing-coi-corrections.md)

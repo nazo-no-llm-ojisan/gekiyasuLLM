@@ -14,9 +14,9 @@
 
 **Status:** design docs first; MVP implementation is welcome in this repo (Phases 1–3: local proxy, static feed, local stats). Not production-ready yet.
 
-**Disclaimer:** We do **not** guarantee prices, availability, quality, or security. Upstream choice and what you send (including private code) are **your responsibility**. Free tiers and campaigns change without notice. Sponsored / affiliate content must be disclosed and must not bias default ranking.
+**Disclaimer:** We do **not** guarantee prices, availability, quality, or security. Upstream choice and what you send (including private code) are **your responsibility**. Free tiers and campaigns change without notice. Sponsored / affiliate relationships are machine-readable in feeds (`sponsored`, `affiliate`, `editorial_rank_influence: "none"`) and must not bias default ranking. Corrections keep impact window, cause, and feed version ([docs/CORRECTIONS.md](./docs/CORRECTIONS.md)).
 
-**License:** TBD (MIT or Apache-2.0 candidates).
+**License:** [Apache-2.0](./LICENSE). Names/logos: [TRADEMARKS.md](./TRADEMARKS.md).
 
 ---
 
@@ -30,8 +30,8 @@
 
 **現状:** 設計ドキュメントが中心。このリポジトリで MVP 実装を進めてよい（Phase 1〜3: ローカル Proxy、静的フィード、ローカル統計）。まだ本番利用向けではありません。
 
-**注意:** 価格・可用性・品質・セキュリティは **保証しません**。上流の選定と送信内容（非公開コード含む）の責任は **利用者** にあります。無料枠・キャンペーンは予告なく変わります。スポンサー / 紹介は明示し、既定ランキングを歪めません。
+**注意:** 価格・可用性・品質・セキュリティは **保証しません**。上流の選定と送信内容（非公開コード含む）の責任は **利用者** にあります。無料枠・キャンペーンは予告なく変わります。スポンサー / 紹介はフィード上で機械可読に開示し、既定ランキングを歪めません。訂正は影響期間・原因・フィード版を残します（[docs/CORRECTIONS.md](./docs/CORRECTIONS.md)）。
 
-**ライセンス:** 未確定（MIT または Apache-2.0 を候補）。
+**ライセンス:** [Apache-2.0](./LICENSE)。名称・ロゴは [TRADEMARKS.md](./TRADEMARKS.md)。
 
 詳細は [README.ja.md](./README.ja.md) と [docs/design/](./docs/design/) を参照してください。

@@ -1,0 +1,13 @@
+gekiyasuLLM
+Copyright 2026 gekiyasuLLM contributors
+
+This product is licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license text.
+
+Trademarks and branding are described in TRADEMARKS.md and are not
+granted by the Apache License except as required for reasonable
+attribution (see Apache License Section 6).
+
+Feed corrections and conflict-of-interest policy:
+  docs/CORRECTIONS.md
+  docs/design/ (schema and ADR sections)

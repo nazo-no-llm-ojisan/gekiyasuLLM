@@ -11,18 +11,20 @@
 
 ## リポジトリの性格
 
-- **GitHub 公開前提**（最初から public 想定）。コミット内容は外部から読まれるものとして書く。
-- **企画専用ではない。** 設計ドキュメントと **個人向け MVP 実装を同一リポジトリに混在してよい。**
-- 現状の中心は `docs/design/` の設計書。実装が進んだらコードとドキュメントを並走して更新する。
-- 目安スコープは **Phase 1〜3（個人用プロキシ + 静的フィード + ローカル統計）** まで。Phase 4 以降（中央サイト本格化、月額、広告）は設計を先に揃えてから。
-- 実装は設計に沿った小さな作業単位で進めてよい。**商用課金の本番運用・有料契約・本番インフラ** はメンテナ承認が必要。
+- **GitHub 公開前提**（最初から public）。「信用して」ではなく **検査できる** 状態を維持する。
+- **ライセンス:** Apache-2.0（`LICENSE`）。名称は `TRADEMARKS.md`。
+- **企画専用ではない。** 設計と **個人向け MVP 実装を同一リポジトリに混在してよい。**
+- 現状の中心は `docs/design/`。実装とドキュメントを並走して更新する。
+- 目安スコープは **Phase 1〜3**。Phase 4 以降は設計を揃えてから。
+- **商用課金の本番運用・有料契約・本番インフラ** はメンテナ承認が必要。
 
 ## 最初に読むもの
 
-- 設計の索引とスコープ: `docs/design/README.md`
+- 設計の索引: `docs/design/README.md`
+- ライセンス・COI・訂正（早期固定）: `docs/design/04-licensing-coi-corrections.md`, `docs/CORRECTIONS.md`
 - 企画 / MVP / 事業: `docs/design/01-product-mvp-and-business.md`
-- アーキテクチャ / 要件 / ルーティング / スキーマ / セキュリティ: `docs/design/02-architecture-routing-and-security.md`
-- スタック / サービス / ロードマップ / ADR / 作業単位: `docs/design/03-stack-roadmap-and-adrs.md`
+- アーキテクチャ / スキーマ: `docs/design/02-architecture-routing-and-security.md`
+- スタック / ADR / 作業単位: `docs/design/03-stack-roadmap-and-adrs.md`
 
 実装に入るときは、上記の MVP 境界と ADR を破らないこと。
 
@@ -73,7 +75,8 @@
   - 中央 DB より静的フィード
   - rtk は任意（必須依存にしない）
   - 手元専用の未署名フィードは開発用に可。**配布・既定のリモートフィードは署名必須を目標**
-- スポンサー / affiliate フィールドは、編集上のランキング入力から分離する。
+- provider フィードには `sponsored`, `affiliate`, `editorial_rank_influence: "none"` を必須。既定ソートに商業フィールドを使わない。
+- 価格等の誤記を直すときは `docs/CORRECTIONS.md` に従い、影響期間・原因・フィード版を残す（黙って消さない）。
 - 設計と実装が食い違ったら、差分をドキュメントか ADR に残してから直す。
 
 ## リポジトリの衛生

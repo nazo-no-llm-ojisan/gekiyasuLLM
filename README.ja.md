@@ -25,17 +25,21 @@
 - 本プロジェクトは価格・可用性・品質・セキュリティを **保証しません**。記載値は時点付きの参考情報です
 - 上流プロバイダの選定とデータ送信の責任は **利用者** にあります（特に非公開コード・秘密情報）
 - 無料枠・キャンペーンは予告なく変わります。各サービスの利用規約を確認してください
-- スポンサー・紹介リンクがある場合は明示し、既定のランキングを歪めない方針です（設計書参照）
+- スポンサー・紹介はフィード上でも機械可読に開示し、既定ランキングを歪めない（`sponsored` / `affiliate` / `editorial_rank_influence`）
+- 誤情報の訂正は影響期間・原因・フィード版を残す（[docs/CORRECTIONS.md](./docs/CORRECTIONS.md)）
 
 ## ドキュメント
 
 | ファイル | 内容 |
 |---|---|
 | [AGENTS.md](./AGENTS.md) | コーディングエージェント向け指示 |
-| [docs/design/](./docs/design/) | 設計書（3分割・日本語） |
-| [01-product-mvp-and-business.md](./docs/design/01-product-mvp-and-business.md) | 企画・MVP・事業・3段階推奨 |
-| [02-architecture-routing-and-security.md](./docs/design/02-architecture-routing-and-security.md) | 要件・アーキテクチャ・ルーティング・スキーマ・セキュリティ |
-| [03-stack-roadmap-and-adrs.md](./docs/design/03-stack-roadmap-and-adrs.md) | スタック・サービス・ロードマップ・ADR・実装作業単位 |
+| [docs/design/](./docs/design/) | 設計書（日本語） |
+| [01-product-mvp-and-business.md](./docs/design/01-product-mvp-and-business.md) | 企画・MVP・事業 |
+| [02-architecture-routing-and-security.md](./docs/design/02-architecture-routing-and-security.md) | 要件・アーキ・スキーマ・セキュリティ |
+| [03-stack-roadmap-and-adrs.md](./docs/design/03-stack-roadmap-and-adrs.md) | スタック・ロードマップ・ADR |
+| [04-licensing-coi-corrections.md](./docs/design/04-licensing-coi-corrections.md) | ライセンス・COI・訂正 |
+| [CORRECTIONS.md](./docs/CORRECTIONS.md) | 訂正方針 |
+| [TRADEMARKS.md](./TRADEMARKS.md) | 名称・ブランド |
 
 ## 原則（要約）
 
@@ -47,4 +51,5 @@
 
 ## ライセンス
 
-未確定（設計段階）。実装公開時に MIT または Apache-2.0 を候補とする（[設計 03](./docs/design/03-stack-roadmap-and-adrs.md) の未確定事項参照）。
+- コード・スキーマ・ツール: **[Apache-2.0](./LICENSE)**
+- 名称・ロゴ: **[TRADEMARKS.md](./TRADEMARKS.md)**（Apache は商標権を原則付与しない）
