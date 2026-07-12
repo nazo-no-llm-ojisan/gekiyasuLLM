@@ -20,6 +20,7 @@ import type { OfferingTarget } from "./catalog.js";
 import type { CircuitBreaker } from "./circuit.js";
 import { rewriteModelForOffering } from "./body-rewrite.js";
 import { selectCandidatesForRequestedModel } from "./plan.js";
+import { corsHeadersFor as buildCorsHeaders } from "./cors.js";
 
 export type ExecutionContext = {
   plan: RoutePlan;
@@ -524,7 +525,13 @@ export async function executeRoutePlan(
         signal: ac.signal,
       };
 
-      const result = await attempt(target, ctx);
+      // T-047 / GLM 5.2 audit: the CORS allowlist policy must apply to
+  // streaming upstream responses too, not only to preflight and JSON
+  // error paths. Build the headers here so pipeResponse / pipeModelsResponse
+  // can merge them into writeHead().
+  const corsHeaders = buildCorsHeaders(req, config.corsAllowlist);
+
+  const result = await attempt(target, ctx);
       attemptLog.push(`${id}:${result.kind === "ok" ? "ok" : result.code}`);
 
       if (input.circuit) {
@@ -549,9 +556,9 @@ export async function executeRoutePlan(
         }
 
         if (isModelsListRequest(pathWithQuery)) {
-          await pipeModelsResponse(result.response, res);
+          await pipeModelsResponse(result.response, res, corsHeaders);
         } else {
-          await pipeResponse(result.response, res, ac);
+          await pipeResponse(result.response, res, ac, corsHeaders);
         }
         return { offeringId: result.offeringId, attempts: attemptLog };
       }
@@ -618,8 +625,9 @@ function isModelsListRequest(pathWithQuery: string): boolean {
 async function pipeModelsResponse(
   upstream: Response,
   res: ServerResponse,
+  corsHeaders: Record<string, string>,
 ): Promise<void> {
-  const headers = copyResponseHeaders(upstream);
+  const headers = { ...copyResponseHeaders(upstream), ...corsHeaders };
   const contentType = upstream.headers.get("content-type") ?? "";
   if (
     upstream.status !== 200 ||
@@ -649,8 +657,9 @@ async function pipeResponse(
   upstream: Response,
   res: ServerResponse,
   ac: AbortController,
+  corsHeaders: Record<string, string>,
 ): Promise<void> {
-  const outHeaders = copyResponseHeaders(upstream);
+  const outHeaders = { ...copyResponseHeaders(upstream), ...corsHeaders };
   res.writeHead(upstream.status, outHeaders);
 
   if (!upstream.body) {

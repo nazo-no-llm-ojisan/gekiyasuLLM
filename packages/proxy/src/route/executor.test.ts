@@ -1166,6 +1166,91 @@ describe("response header hygiene after undici decompression", () => {
   });
 });
 
+describe("CORS headers on streamed upstream responses (issue GLM-5.2 audit)", () => {
+  it("forwards CORS headers on pipeResponse for a 200 streaming response", async () => {
+    const catalog = new Map<string, OfferingTarget>([
+      ["only", { id: "only", providerId: "p1", baseUrl: "https://a.example/v1" }],
+    ]);
+    const plan: RoutePlan = {
+      primary: "only",
+      fallbacks: [],
+      reason: [],
+      generatedAt: "",
+    };
+    const attempt: AttemptFn = async () => ({
+      kind: "ok",
+      offeringId: "only",
+      response: new Response("chunk-1\nchunk-2\n", {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+    });
+    const res = createMockRes();
+    const req = createMockReq("POST", { origin: "http://allowed.example" });
+    const config = baseConfig({
+      providerApiKeys: { p1: "k" },
+      corsAllowlist: ["http://allowed.example"],
+    });
+    await executeRoutePlan({
+      plan,
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/chat/completions",
+      attempt,
+    });
+    // The T-047/issue #3 invariant: streaming responses for an allowlisted
+    // origin must carry Access-Control-Allow-Origin so the browser can read
+    // the body. CORS is configured in server.ts (allowlist-driven); the
+    // executor's pipeResponse path needs to merge those headers in.
+    assert.equal(
+      res.resState.headers.get("access-control-allow-origin"),
+      "http://allowed.example",
+    );
+    assert.equal(
+      res.resState.headers.get("access-control-allow-credentials"),
+      "true",
+    );
+  });
+
+  it("does not emit CORS headers for a non-allowlisted origin on pipeResponse", async () => {
+    const catalog = new Map<string, OfferingTarget>([
+      ["only", { id: "only", providerId: "p1", baseUrl: "https://a.example/v1" }],
+    ]);
+    const plan: RoutePlan = {
+      primary: "only",
+      fallbacks: [],
+      reason: [],
+      generatedAt: "",
+    };
+    const attempt: AttemptFn = async () => ({
+      kind: "ok",
+      offeringId: "only",
+      response: new Response("ok", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    });
+    const res = createMockRes();
+    const req = createMockReq("POST", { origin: "http://attacker.example" });
+    const config = baseConfig({ providerApiKeys: { p1: "k" } });
+    await executeRoutePlan({
+      plan,
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/chat/completions",
+      attempt,
+    });
+    assert.equal(
+      res.resState.headers.get("access-control-allow-origin"),
+      undefined,
+    );
+  });
+});
+
 describe("executeRoutePlan request-aware routing (T-044)", () => {
   const requestedModelOnly = (
     candidates: { id: string; baseUrl: string; providerId: string; modelId?: string; aliases?: string[]; upstreamModelId?: string }[],

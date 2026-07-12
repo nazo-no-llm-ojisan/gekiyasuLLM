@@ -16,6 +16,7 @@ import {
 } from "./stats/store.js";
 import { tryServeDashboard } from "./static-dashboard.js";
 import { readBody } from "./upstream.js";
+import { corsHeadersFor } from "./route/cors.js";
 
 export type RunningServer = {
   server: http.Server;
@@ -24,30 +25,12 @@ export type RunningServer = {
 };
 
 function buildCorsHeaders(allowlist: string[]): (req?: http.IncomingMessage) => Record<string, string> {
-  // T-047 / issue #3: fail-closed CORS. The proxy only emits permissive
-  // CORS headers when the request's Origin exactly matches an entry in
-  // `allowlist` (loaded from GEKIYASU_CORS_ALLOWLIST). The default is
-  // empty, which means no Access-Control-Allow-Origin / -Credentials /
-  // -Private-Network headers are emitted, even for preflight. `*` is not
-  // supported on purpose: any browser access must be explicit.
-  return (req) => {
-    const origin = req?.headers.origin;
-    const allowed = typeof origin === "string" && allowlist.includes(origin) ? origin : undefined;
-    if (!allowed) {
-      return {} as Record<string, string>;
-    }
-    return {
-      "access-control-allow-origin": allowed,
-      "access-control-allow-methods": "GET,POST,OPTIONS",
-      "access-control-allow-headers":
-        "authorization,content-type,x-gekiyasu-token,openai-organization,openai-project",
-      "access-control-expose-headers":
-        "x-gekiyasu-route-plan,x-gekiyasu-offering,x-gekiyasu-attempts,x-gekiyasu-fallback",
-      "access-control-allow-credentials": "true",
-      "access-control-allow-private-network": "true",
-      vary: "Origin",
-    } as Record<string, string>;
-  };
+  // T-047 / issue #3: fail-closed CORS. Shared with executor.ts via
+  // route/cors.ts so streaming upstream pipe paths get the same policy
+  // (GLM 5.2 audit). The default is empty, which means no
+  // Access-Control-Allow-Origin / -Credentials / -Private-Network headers
+  // are emitted, even for preflight. `*` is not supported on purpose.
+  return (req) => corsHeadersFor(req, allowlist);
 }
 
 function buildStatsStore(config: ProxyConfig): StatsStore {
