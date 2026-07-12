@@ -17,7 +17,28 @@ export type RouteCandidate = {
   vision?: boolean;
   streaming?: boolean;
   contextWindow?: number;
+  /**
+   * If undefined, trust is unknown. T-046 / T-044-prep:
+   * privateMode=true なら unknown は fail-closed で除外する。
+   * privateMode=false なら unknown でも許容（現状動作を維持）。
+   */
   allowsPrivateCode?: boolean;
+  /**
+   * Upstream API shape offered by this endpoint. Catalog populates this from
+   * the feed (or hard-codes "openai_chat" for the passthrough target).
+   * Used by T-045 to fail-closed on non-openai_chat in MVP.
+   */
+  apiCompat?: "openai_chat" | "openai_responses" | "anthropic_messages" | "gemini" | "other";
+  /**
+   * Logical model id (canonical, e.g. "provider-a/model-x"). Used by T-044
+   * for strict-match against `RequestFacts.requestedModel`. Free of any
+   * alias / upstream-specific naming. Catalog may also set `aliases`.
+   */
+  modelId?: string;
+  /** Optional alternate names for the same logical model (e.g. "gpt-4o-mini"). */
+  aliases?: string[];
+  /** What the upstream actually expects in the body `model` field. */
+  upstreamModelId?: string;
   free?: boolean;
   inputPerMillion?: number;
   /** Estimated USD for this request (same unit as HardConstraints.maxCostPerRequest). */
@@ -101,6 +122,7 @@ function hardRejectReason(
     return "min_context_window";
   }
   if (constraints.privateMode && c.allowsPrivateCode !== true) {
+    // Fail-closed: `undefined` (unknown trust) is treated the same as `false`.
     return "private_mode";
   }
   if (constraints.requireEditorialRankNone === true) {

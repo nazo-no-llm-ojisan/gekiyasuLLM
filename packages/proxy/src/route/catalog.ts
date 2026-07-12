@@ -7,6 +7,13 @@ import { hostFromBaseUrl } from "../security.js";
 /** Resolved destination for one Offering id (feed later; static map for now). */
 export type OfferingTarget = RouteCandidate & {
   baseUrl: string;
+  /** Logical model id (canonical). Catalog populates this from feed / passthrough. */
+  modelId?: string;
+  /** Optional alternate names for the same logical model. */
+  aliases?: string[];
+  /** Upstream API shape. Passthrough = openai_chat. Feed drives others via parseFeedJson. */
+  apiCompat?: "openai_chat" | "openai_responses" | "anthropic_messages" | "gemini" | "other";
+  /** What to actually write into the upstream `model` field. */
   upstreamModelId?: string;
 };
 
@@ -21,6 +28,8 @@ export function buildOfferingCatalog(
     id: PASSTHROUGH_OFFERING_ID,
     providerId: "local-config",
     baseUrl: config.upstreamBaseUrl,
+    modelId: "passthrough:default",
+    apiCompat: "openai_chat",
     tools: true,
     streaming: true,
     free: false,
@@ -63,6 +72,9 @@ export function buildOfferingCatalog(
         id: off.id,
         providerId: off.providerId,
         baseUrl: ep.baseUrl,
+        modelId: off.modelId,
+        aliases: off.aliases,
+        apiCompat: ep.apiCompat,
         upstreamModelId: off.upstreamModelId,
         tools: off.declaredCapabilities.tools ?? false,
         vision: off.declaredCapabilities.vision ?? false,

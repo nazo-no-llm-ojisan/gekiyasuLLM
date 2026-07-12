@@ -116,7 +116,7 @@
 | T-034 | proxy | **M3** DNS rebinding / resolve-and-pin | T-033 | packages/proxy/src/security*, upstream* | rebind-focused tests | resolved address re-checked vs private ranges; pin before connect | forbidden | todo（**M3** 公開必須） |
 | T-035 | proxy/schema | **M3** Feed signature verification (F-SEC-05) | T-029 | packages/schema/**, packages/proxy/** | verify signed feed fixture | unsigned/invalid rejected when required; feed host ≠ auto allowlist | proposed | todo（**M3** 公開必須） |
 | T-036 | proxy | **品質レーン** Circuit breaker | T-028 | packages/proxy/src/route/** | circuit open/half-open tests | N fails → skip offering for T seconds | forbidden | **done** |
-| T-037 | proxy | **品質レーン** Stats CLI / summary (no bodies) | T-032 | packages/proxy/src/stats/**, index* | summary test | `stats` or local summary without secrets | forbidden | todo |
+| T-037 | proxy | **品質レーン** Stats CLI / summary (no bodies) | T-032 | packages/proxy/src/stats/**, index* | summary test | `stats` or local summary without secrets | proposed（CLI サブコマンド追加。後方互換） | todo |
 | T-038 | docs/proxy | **品質レーン** IDE one-shot E2E note | T-032 | docs/L11*, ROADMAP* | — | ROADMAP IDE checkbox when user confirms | forbidden | todo |
 | T-039 | schema | **M2** model-id + developer normalize pure TS | - | packages/schema/src/** | model-id / developer unit tests | parse `:free` first; infra→family developer; no proxy coupling | proposed | todo（**M2**。設計 06） |
 | T-040 | docs | Design 06 model identity contract memo | - | docs/design/06* | — | 06 が索引・05 からリンク | forbidden | **done** |
@@ -124,11 +124,12 @@
 | T-042 | ci/release | **品質レーン** single-file binary release spike | T-025 | package.json, packages/proxy/**, .github/**, docs/** | release packaging smoke test | Win/macOS/Linux approach + checksum plan documented | proposed | todo |
 | T-043 | docs | **品質レーン** herding / self-reference NFR | - | docs/** | — | herding risk + local-routing mitigation documented | forbidden | todo |
 | T-044 | proxy | **M1** request-aware routing + upstreamModelId rewrite | T-030 | packages/proxy/src/** | plan/executor request-model tests | request model/alias selects offerings; body model = upstreamModelId | proposed | todo（**M1 本線**） |
-| T-045 | proxy | **M1** reject unsupported apiCompat in catalog | T-029 | packages/proxy/src/route/** | catalog apiCompat test | non-openai_chat (MVP) excluded fail-closed | forbidden | todo（**M1**。T-044 と並列可） |
-| T-046 | proxy | **M1** allowsPrivateCode fail-closed | - | packages/proxy/src/route/** | privateMode unknown trust test | missing trust ≠ allows private; privateMode only explicit true | forbidden | todo（**M1**） |
-| T-047 | proxy | **品質レーン** CORS actual responses + origin allowlist | - | packages/proxy/src/server*, executor* | CORS success-path test | success/error/stream same policy; default no open origin reflect | forbidden | todo |
+| T-044-prep | proxy | **M1** M1 prerequisites: RequestFacts, PreparedRequest, apiCompat, trust unknown | T-030 | packages/schema/src/route.ts, packages/proxy/src/route/** | request-facts / prepared-request / catalog apiCompat / fail-closed trust tests | see T-044-prep row below | proposed | doing（前提プロポーズ） |
+| T-045 | proxy | **M1** reject unsupported apiCompat in catalog | T-044-prep | packages/proxy/src/route/** | catalog apiCompat test | non-openai_chat (MVP) excluded fail-closed | forbidden | todo（**M1**。T-044 と並列可） |
+| T-046 | proxy | **M1** allowsPrivateCode fail-closed | T-044-prep | packages/proxy/src/route/** | privateMode unknown trust test | missing trust ≠ allows private; privateMode only explicit true | forbidden | todo（**M1**） |
+| T-047 | proxy | **品質レーン** CORS actual responses + origin allowlist | - | packages/proxy/src/server*, executor* | CORS success-path test | success/error/stream same policy; default no open origin reflect | proposed（env/config/API 動作変更。後方互換のみ） | todo |
 | T-048 | ci | **M3** test discovery or list-sync + proxy build in CI | T-025 | packages/proxy/package.json, .github/** | CI fails on missing test / runs glob | all `*.test.ts` run; `npm run build` in CI | forbidden | todo（**M3**） |
-| T-049 | proxy | **品質レーン** minimize unauthenticated /health | - | packages/proxy/src/server*, config*, security* | health leakage test | no full upstreamBaseUrl without token; reject query/fragment in base URL | forbidden | todo |
+| T-049 | proxy | **品質レーン** minimize unauthenticated /health | - | packages/proxy/src/server*, config*, security* | health leakage test | no full upstreamBaseUrl without token; reject query/fragment in base URL | proposed（/health response contract 縮小。後方互換なし） | todo |
 | T-050 | proxy/fixtures | **M2** vertical slice 2–3 OpenAI-compatible providers | T-044 | packages/proxy/**, fixtures/**, docs/** | vertical slice fixture or manual note | same logical model: price→offering→plan→rewrite for ≥2 providers | proposed | todo（**M2**。要 M1） |
 | T-051 | docs/site | **M2** GitHub Pages min catalog from same feed | T-029 | docs/**, 将来 site/**, fixtures/feeds/** | — | static pages from feed JSON + evidence; not signed production feed; no central relay | proposed | todo（**M2**） |
 
@@ -136,7 +137,38 @@
 
 | M | 完了条件（要約） | タスク |
 |---|---|---|
-| **M1** 正しく振り分ける | fixture 同一論理モデル → 適合最安 Offering → 正しい upstreamModelId | T-044, T-045, T-046 |
+| **M1** 正しく振り分ける | fixture 同一論理モデル → 適合最安 Offering → 正しい upstreamModelId | T-044-prep, T-044, T-045, T-046 |
+
+#### T-044-prep（M1 前提プロポーズ・直列で確定）
+
+M1 本線に入る前に **契約だけ** 確定する 1 コミット。実装は本体 T-044 に残し、ここでは 4 つだけ足す:
+
+1. **`RequestFacts`**（`packages/schema/src/route.ts` 新規エクスポート）
+   ```ts
+   export type RequestFacts = {
+     requestedModel?: string;   // client body の model、または X-Gekiyasu-Model 等の正規化後
+     streaming?: boolean;
+     requiresTools?: boolean;
+     requiresVision?: boolean;
+   };
+   ```
+2. **`PreparedRequest`**（`executor.ts` `ExecutePlanInput` 拡張・後方互換）
+   ```ts
+   export type PreparedRequest = { body?: Buffer; facts: RequestFacts };
+   ```
+   - `preparedBody` 未指定時は executor が従来通り `readBody()` する（既存テストを壊さない）。
+3. **`OfferingTarget.apiCompat`** を `catalog.ts` で保持（`passthrough:default` は `"openai_chat"`、feed の endpoint から `parseFeedJson` 経由で伝搬）。
+4. **`trust unknown` fail-closed**: `RouteCandidate.allowsPrivateCode` が `undefined` の場合、`privateMode=true` で除外。`privateMode=false` 時は除外しない（現状動作）。
+
+**境界（厳守）**:
+- `plan.ts` は HTTP / body / request ヘッダを一切読まない純粋関数のまま。`RequestFacts → HardConstraints` の変換は **server.ts（または新規 `request-facts.ts`）** で 1 回だけ行う。
+- body は **1 回だけ読み、所有権は server → executor へ明示的に渡す**。`PreparedRequest.body` を渡せば executor は再読しない。
+- `rewriteModelForOffering(body, target)` は純粋関数として別ファイルに置き、attempt ごとに元 Buffer から書き換える（元 body の破壊的使い回しはしない）。
+- モデル同一性は **厳密一致** のみ（`requestedModel == logical modelId` または `aliases`）。`developer|family|version` の高度化は T-039 へ残す。
+
+**done_when**:
+- `npm run typecheck` 緑、`npm test` 緑（既存全テスト無変更で通る）
+- `RequestFacts` / `PreparedRequest` を使うテストは T-044 本体で書く（ここでは型の追加 + 既存挙動の維持のみ）
 | **M2** データ縦貫通 | 公式由来の同一 feed を Pages と Proxy が共有 | T-039, T-024, T-050, T-051 |
 | **M3** 安全な自動公開 | 自動更新公開 feed を Proxy が安全に取得・ルーティング | T-035, T-034, T-048 |
 | **品質レーン** | 本線を進めない並列 | T-047, T-049, T-037, T-038, T-042, T-036 done, … |

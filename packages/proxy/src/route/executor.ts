@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import type { RoutePlan } from "@gekiyasu/schema";
+import type { RequestFacts, RoutePlan } from "@gekiyasu/schema";
 import type { ProxyConfig } from "../config.js";
 import { normalizeModelsResponseJson } from "../models-response.js";
 import {
@@ -296,6 +296,16 @@ export async function defaultAttemptUpstream(
   }
 }
 
+/**
+ * Body + facts pre-extracted by the request-handling layer (server.ts or
+ * request-facts.ts). Body is **owned by the caller** here; executor will
+ * NOT re-read from `req` when `prepared.body` is provided. T-044-prep.
+ */
+export type PreparedRequest = {
+  body?: Buffer;
+  facts: RequestFacts;
+};
+
 export type ExecutePlanInput = {
   plan: RoutePlan;
   catalog: Map<string, OfferingTarget>;
@@ -306,6 +316,13 @@ export type ExecutePlanInput = {
   attempt?: AttemptFn;
   /** Optional circuit breaker; when provided, open offerings are skipped. */
   circuit?: CircuitBreaker;
+  /**
+   * Optional pre-extracted request. When provided, executor uses
+   * `prepared.body` (if any) and `prepared.facts` instead of reading the
+   * body itself. Backward compatible: omit to keep legacy readBody()
+   * behavior.
+   */
+  prepared?: PreparedRequest;
 };
 
 /**
@@ -338,7 +355,10 @@ export async function executeRoutePlan(
 
   const method = req.method ?? "GET";
   let body: Buffer | undefined;
-  if (method !== "GET" && method !== "HEAD") {
+  if (input.prepared?.body !== undefined) {
+    // Caller already buffered the body; do not re-read.
+    body = input.prepared.body;
+  } else if (method !== "GET" && method !== "HEAD") {
     try {
       body = await readBody(req, config.maxBodyBytes);
     } catch (err) {
