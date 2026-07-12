@@ -4,6 +4,7 @@
  */
 
 import { timingSafeEqual } from "node:crypto";
+import { BlockList, isIPv4, isIPv6 } from "node:net";
 
 export const PLACEHOLDER_BEARERS = new Set([
   "Bearer local",
@@ -14,6 +15,15 @@ export const PLACEHOLDER_BEARERS = new Set([
 /** Header for authenticating to the local proxy (not the upstream LLM). */
 export const PROXY_TOKEN_HEADER = "x-gekiyasu-token";
 
+/** ULA fc00::/7 and link-local fe80::/10 (T-033). */
+const PRIVATE_IPV6 = new BlockList();
+PRIVATE_IPV6.addSubnet("fc00::", 7, "ipv6");
+PRIVATE_IPV6.addSubnet("fe80::", 10, "ipv6");
+
+/** IPv4-mapped IPv6 (::ffff:0:0/96). Do not match bare `:ffff:` inside other addresses. */
+const IPV4_MAPPED = new BlockList();
+IPV4_MAPPED.addSubnet("::ffff:0:0", 96, "ipv6");
+
 export function isLoopbackHost(host: string): boolean {
   const h = host.trim().toLowerCase();
   return (
@@ -22,6 +32,20 @@ export function isLoopbackHost(host: string): boolean {
     h === "::1" ||
     h === "[::1]"
   );
+}
+
+/**
+ * Strip brackets / zone id for IP classification.
+ * URL.hostname is usually unbracketed; callers may still pass zone ids.
+ */
+function normalizeIpHostname(hostname: string): string {
+  let h = hostname.trim().toLowerCase();
+  if (h.startsWith("[") && h.endsWith("]")) {
+    h = h.slice(1, -1);
+  }
+  const zone = h.indexOf("%");
+  if (zone >= 0) h = h.slice(0, zone);
+  return h;
 }
 
 /** Block obvious non-public targets (SSRF). Loopback is handled separately. */
@@ -37,6 +61,54 @@ export function isPrivateOrLinkLocalIpv4(hostname: string): boolean {
   if (a === 172 && b >= 16 && b <= 31) return true;
   if (a === 192 && b === 168) return true;
   if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+  return false;
+}
+
+/**
+ * Extract embedded IPv4 from IPv4-mapped IPv6 (::ffff:a.b.c.d or ::ffff:xxxx:yyyy).
+ * Only addresses in ::ffff:0:0/96 (not ULA endings like fdff:…:ffff:ffff).
+ */
+export function ipv4FromMappedIpv6(hostname: string): string | undefined {
+  const host = normalizeIpHostname(hostname);
+  if (!isIPv6(host) || !IPV4_MAPPED.check(host, "ipv6")) return undefined;
+
+  // Dotted form: ::ffff:10.0.0.1
+  const dotted = /:ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(host);
+  if (dotted && isIPv4(dotted[1]!)) return dotted[1];
+
+  // Hex form: ::ffff:a00:1 → 10.0.0.1
+  const hex = /:ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i.exec(host);
+  if (hex) {
+    const hi = Number.parseInt(hex[1]!, 16);
+    const lo = Number.parseInt(hex[2]!, 16);
+    if (!Number.isFinite(hi) || !Number.isFinite(lo)) return undefined;
+    return `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
+  }
+
+  return undefined;
+}
+
+/**
+ * IPv6 SSRF ranges (T-033): ULA fc00::/7, link-local fe80::/10,
+ * and IPv4-mapped addresses whose embedded v4 is private/link-local.
+ */
+export function isPrivateOrLinkLocalIpv6(hostname: string): boolean {
+  const host = normalizeIpHostname(hostname);
+  if (!isIPv6(host)) return false;
+
+  const mappedV4 = ipv4FromMappedIpv6(host);
+  if (mappedV4 !== undefined) {
+    return isPrivateOrLinkLocalIpv4(mappedV4);
+  }
+
+  return PRIVATE_IPV6.check(host, "ipv6");
+}
+
+/** v4 or v6 non-public literal (loopback still decided by isLoopbackHost). */
+export function isPrivateOrLinkLocalIp(hostname: string): boolean {
+  const host = normalizeIpHostname(hostname);
+  if (isIPv4(host)) return isPrivateOrLinkLocalIpv4(host);
+  if (isIPv6(host)) return isPrivateOrLinkLocalIpv6(host);
   return false;
 }
 
@@ -210,7 +282,7 @@ export function assertSafeUpstreamUrl(
     );
   }
 
-  if (!loopback && isPrivateOrLinkLocalIpv4(host)) {
+  if (!loopback && isPrivateOrLinkLocalIp(host)) {
     throw new Error(
       `Upstream host "${host}" is a private/link-local address and is blocked`,
     );

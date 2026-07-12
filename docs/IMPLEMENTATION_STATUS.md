@@ -4,7 +4,7 @@
 
 **ピン:** [ROADMAP.md](./ROADMAP.md) · 失敗分類: [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)
 
-最終更新: 2026-07-12（L10 ローカル統計 JSONL 後と同期）
+最終更新: 2026-07-12（T-033 IPv6 SSRF 後）
 
 ## 総評
 
@@ -25,7 +25,7 @@
 | F-SEC-01 キー保管 | 部分（env / Bearer / `providerApiKeys`。キーチェーン・暗号化ファイルは未） |
 | F-SEC-02 redaction | 未 |
 | F-SEC-03 private path | 未 |
-| F-SEC-04 allowlist | 上流 host + redirect 再検査 + 私有IPv4 |
+| F-SEC-04 allowlist | 上流 host + redirect 再検査 + 私有IPv4 + **IPv6 ULA/link-local/v4-mapped 私有** (T-033) |
 | F-SEC-05 feed 署名 | 未 |
 | F-SEC-08 自動実行しない | 済 |
 | `/v1/v1` join | 済 `joinUpstreamUrl` |
@@ -57,8 +57,8 @@
 
 | ID | 内容 | 状態 |
 |---|---|---|
-| **T-033** | IPv6 ULA / link-local / v4-mapped SSRF ブロック | todo（**推奨次**） |
-| **T-031** | tenant headers origin-scope + endpoint credential map | todo |
+| **T-033** | IPv6 ULA / link-local / v4-mapped SSRF ブロック | **done** |
+| **T-031** | tenant headers origin-scope + endpoint credential map | todo（**推奨次**） |
 | **T-036** | circuit breaker | todo |
 | **T-034** | DNS rebinding / resolve-and-pin | todo（公開フィード前） |
 | **T-035** | feed 署名検証 (F-SEC-05) | todo（**公開フィード必須ゲート**） |

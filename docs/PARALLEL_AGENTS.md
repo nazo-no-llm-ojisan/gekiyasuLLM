@@ -112,7 +112,7 @@
 | T-030 | proxy | P0 credential isolation + P1 no POST fallback | T-028 | packages/proxy/src/** | executor + upstream header tests | client key only on configured origin; POST never fallbacks | forbidden | **done** |
 | T-031 | proxy | Origin-scope tenant headers + endpoint credential map | T-030 | packages/proxy/src/** | header origin-scope tests | org/project/idempotency only on configured origin; keys by origin/endpoint | forbidden | todo（境界強化・P0ではない） |
 | T-032 | proxy | L10 local request stats JSONL | T-028 | packages/proxy/src/stats/**, server*, config* | store.test.ts | append metadata-only events; no bodies/keys | forbidden | **done** |
-| T-033 | proxy | Block IPv6 ULA / link-local / v4-mapped in SSRF filter | T-020 | packages/proxy/src/security* | security.test.ts IPv6 cases | fc00::/7 fe80::/10 ::ffff:10.x rejected | forbidden | todo（監査残・推奨次） |
+| T-033 | proxy | Block IPv6 ULA / link-local / v4-mapped in SSRF filter | T-020 | packages/proxy/src/security* | security.test.ts IPv6 cases | fc00::/7 fe80::/10 ::ffff:10.x rejected | forbidden | **done** |
 | T-034 | proxy | DNS rebinding guard / resolve-and-pin | T-033 | packages/proxy/src/security*, upstream* | rebind-focused tests | resolved address re-checked vs private ranges | forbidden | todo（公開フィード前） |
 | T-035 | proxy/schema | Feed signature verification (F-SEC-05) | T-029 | packages/schema/**, packages/proxy/** | verify signed feed fixture | unsigned/invalid feed rejected when required | proposed | todo（**公開フィード必須ゲート**） |
 | T-036 | proxy | Circuit breaker on offering failures | T-028 | packages/proxy/src/route/** | circuit open/half-open tests | N fails → skip offering for T seconds | forbidden | todo（Phase 3 残り） |
@@ -127,8 +127,8 @@
 #### バックログ注記（2026-07-12 外部監査）
 
 - **ローカル MVP では大きな欠陥なし**（F-SEC-09/10 等は合格済み）。
-- **公開署名フィード配信の前**に T-033 → T-034 → T-035 をゲートとする。
-- T-031 は tenant 識別子漏洩の residual（API key ではない）。T-033 と並列可。
+- **公開署名フィード配信の前**に ~~T-033~~ → T-034 → T-035 をゲートとする（T-033 done）。
+- T-031 は tenant 識別子漏洩の residual（API key ではない）。T-036 と並列可。
 - T-036 は Phase 3 製品価値（落ちたら次＋一時回避）。T-037/T-038 は運用・UX。
 - **T-039/T-040:** メンテナ私有の multi-router 観測経験を収集層に載せる。**Proxy 本線とパス分離。** 私有 raw は持ち込まない。契約メモは design/06（T-040 done）。
 - **T-041:** T-039 の pure TS matcher を既定にしつつ、同定ルールの一部だけを Lua hook（候補: wasmoon）で差し替えられるか評価する。9割は JSON/YAML データ、1割だけ DSL の想定。最初から Lua 前提にしない。

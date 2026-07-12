@@ -9,7 +9,9 @@ import {
   describeAuthShape,
   extractProxyToken,
   isLoopbackHost,
+  isPrivateOrLinkLocalIp,
   isPrivateOrLinkLocalIpv4,
+  isPrivateOrLinkLocalIpv6,
 } from "./security.js";
 
 describe("isLoopbackHost", () => {
@@ -29,6 +31,40 @@ describe("isPrivateOrLinkLocalIpv4", () => {
     assert.equal(isPrivateOrLinkLocalIpv4("192.168.0.1"), true);
     assert.equal(isPrivateOrLinkLocalIpv4("169.254.169.254"), true);
     assert.equal(isPrivateOrLinkLocalIpv4("8.8.8.8"), false);
+  });
+});
+
+describe("isPrivateOrLinkLocalIpv6 (T-033)", () => {
+  it("flags ULA fc00::/7", () => {
+    assert.equal(isPrivateOrLinkLocalIpv6("fc00::1"), true);
+    assert.equal(isPrivateOrLinkLocalIpv6("fd12:3456:789a::1"), true);
+    // Must not mis-parse trailing :ffff:ffff as IPv4-mapped
+    assert.equal(isPrivateOrLinkLocalIpv6("fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), true);
+  });
+
+  it("flags link-local fe80::/10", () => {
+    assert.equal(isPrivateOrLinkLocalIpv6("fe80::1"), true);
+    assert.equal(isPrivateOrLinkLocalIpv6("febf::1"), true);
+    assert.equal(isPrivateOrLinkLocalIpv6("fe80::1%eth0"), true);
+  });
+
+  it("flags IPv4-mapped private addresses", () => {
+    assert.equal(isPrivateOrLinkLocalIpv6("::ffff:10.0.0.1"), true);
+    assert.equal(isPrivateOrLinkLocalIpv6("::ffff:192.168.1.1"), true);
+    assert.equal(isPrivateOrLinkLocalIpv6("::ffff:169.254.169.254"), true);
+    assert.equal(isPrivateOrLinkLocalIpv6("::ffff:a00:1"), true); // 10.0.0.1
+  });
+
+  it("does not flag public IPv6 or public IPv4-mapped", () => {
+    assert.equal(isPrivateOrLinkLocalIpv6("2001:4860:4860::8888"), false);
+    assert.equal(isPrivateOrLinkLocalIpv6("::ffff:8.8.8.8"), false);
+    assert.equal(isPrivateOrLinkLocalIpv6("not-an-ip"), false);
+  });
+
+  it("isPrivateOrLinkLocalIp covers v4 and v6", () => {
+    assert.equal(isPrivateOrLinkLocalIp("10.0.0.1"), true);
+    assert.equal(isPrivateOrLinkLocalIp("fc00::1"), true);
+    assert.equal(isPrivateOrLinkLocalIp("8.8.8.8"), false);
   });
 });
 
@@ -58,8 +94,44 @@ describe("assertSafeUpstreamUrl / allowlist", () => {
     );
   });
 
+  it("rejects IPv6 ULA even when allowlisted (T-033)", () => {
+    assert.throws(
+      () =>
+        assertSafeUpstreamUrl("https://[fc00::1]/v1", {
+          allowedHosts: ["fc00::1"],
+        }),
+      /private|link-local|blocked/i,
+    );
+  });
+
+  it("rejects IPv6 link-local even when allowlisted (T-033)", () => {
+    assert.throws(
+      () =>
+        assertSafeUpstreamUrl("https://[fe80::1]/v1", {
+          allowedHosts: ["fe80::1"],
+        }),
+      /private|link-local|blocked/i,
+    );
+  });
+
+  it("rejects IPv4-mapped private even when allowlisted (T-033)", () => {
+    assert.throws(
+      () =>
+        assertSafeUpstreamUrl("https://[::ffff:10.1.2.3]/v1", {
+          allowedHosts: ["::ffff:10.1.2.3"],
+        }),
+      /private|link-local|blocked/i,
+    );
+  });
+
   it("allows http loopback", () => {
     assertSafeUpstreamUrl("http://127.0.0.1:8080/v1", {
+      allowedHosts: ["api.openai.com"],
+    });
+  });
+
+  it("allows http IPv6 loopback", () => {
+    assertSafeUpstreamUrl("http://[::1]:8080/v1", {
       allowedHosts: ["api.openai.com"],
     });
   });

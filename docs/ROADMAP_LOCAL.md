@@ -25,7 +25,7 @@ L11 実キー E2E「IDE から1通」    ████ 最小 curl 確認済（20
 L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard/）
 ```
 
-**ピン:** **L10 完了。** 次の起票済みバックログは下表（推奨: **T-033 IPv6 SSRF**）。
+**ピン:** **L10 完了。T-033 IPv6 SSRF done。** 次の起票済みバックログは下表（推奨: **T-031 tenant headers** または **T-036 circuit**）。
 
 ---
 
@@ -35,8 +35,8 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 
 | ID | 内容 | 優先・ゲート | 状態 |
 |---|---|---|---|
-| **T-033** | IPv6 ULA / link-local / v4-mapped を SSRF でブロック | **推奨次**（小さく赤緑可） | todo |
-| **T-031** | tenant headers origin-scope + endpoint credential map | 境界強化・P0 ではない。T-033 と並列可 | todo |
+| **T-033** | IPv6 ULA / link-local / v4-mapped を SSRF でブロック | 小さく赤緑 | **done** |
+| **T-031** | tenant headers origin-scope + endpoint credential map | 境界強化・P0 ではない。**推奨次**候補 | todo |
 | **T-036** | circuit breaker | Phase 3 残り | todo |
 | **T-034** | DNS rebinding / resolve-and-pin | **公開フィード前** | todo |
 | **T-035** | フィード署名検証 (F-SEC-05) | **公開署名フィード必須ゲート** | todo |
@@ -51,7 +51,7 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 
 ```text
 推奨順（迷ったら）:
-  T-033 IPv6 SSRF
+  ~~T-033 IPv6 SSRF~~ done
   → T-031 tenant header origin-scope（任意並列）
   → T-036 circuit
   → （公開フィードを始める決断）→ T-034 DNS pin → T-035 署名
@@ -92,7 +92,7 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 | L10 ローカル統計 | T-032 | **done**（JSONL `data/stats.jsonl`） |
 | credential isolation + POST no-fallback | T-030 | **done**（正本 `e2b3d14`） |
 | origin-scope tenant headers + key map | T-031 | todo（起票済） |
-| IPv6 SSRF 拡張 | T-033 | todo（起票済・推奨次） |
+| IPv6 SSRF 拡張 | T-033 | **done** |
 | DNS rebinding | T-034 | todo（公開フィード前） |
 | feed 署名 | T-035 | todo（公開フィード必須ゲート） |
 | circuit breaker | T-036 | todo（Phase 3） |
@@ -112,8 +112,8 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 3. ~~L9 CostEstimate（input/output だけ）~~ done
 4. ~~L11 実キー E2E（curl 最小）~~ done
 5. ~~L10 ローカル統計~~ done（JSONL。CLI/SQLite は後段可）
-6. T-033 IPv6 SSRF  ← いま推奨
-7. T-031 / T-036 …
+6. ~~T-033 IPv6 SSRF~~ done
+7. T-031 / T-036 …  ← いま推奨
 8. 公開フィード前: T-034 → T-035
 ```
 
