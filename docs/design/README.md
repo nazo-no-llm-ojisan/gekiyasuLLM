@@ -47,3 +47,4 @@
 - メッセージは「信用して」ではなく **自分で検査できる**
 - ユーザ向け短い報告: [../USER_STATUS_TEMPLATE.md](../USER_STATUS_TEMPLATE.md)
 - 脳レスTDD: [../BRAINLESS_TDD.md](../BRAINLESS_TDD.md)
+- 並列エージェント: [../PARALLEL_AGENTS.md](../PARALLEL_AGENTS.md)

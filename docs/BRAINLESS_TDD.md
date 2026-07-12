@@ -19,6 +19,12 @@
 
 チャットは使い捨て。**正本はリポジトリ。**
 
+### 複数エージェント
+
+- **設計・契約変更は直列**（`contract_changes: proposed`）
+- **契約済みの赤1本は並列可**（path 非重複・depends_on 明確）
+- 台帳・所有権: [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)
+
 ---
 
 ## ルール（破らない）

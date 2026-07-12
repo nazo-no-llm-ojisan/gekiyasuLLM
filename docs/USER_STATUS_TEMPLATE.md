@@ -50,7 +50,8 @@
 - 迷ったら「中継が通るか」に戻る
 - 一度に一つのことだけ
 - 「賢く」しない。動いたらコミット
-- **脳レスTDD:** 赤 → 緑 → コミット（詳細: [BRAINLESS_TDD.md](./BRAINLESS_TDD.md)）
+- **脳レスTDD:** 赤 → 緑 → コミット（[BRAINLESS_TDD.md](./BRAINLESS_TDD.md)）
+- **並列:** 設計は直列・契約済みは並列（[PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)）。自分の T-0xx 以外と path を重ねない
 
 ---
 
