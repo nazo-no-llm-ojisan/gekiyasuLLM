@@ -16,10 +16,11 @@
 
 | 地図 | 位置 |
 |---|---|
-| 大枠 | **Phase 2 完了 → Phase 3 進行中**（fallback・CostEstimate・統計 JSONL・L11 curl 済。circuit 未） |
-| ローカル | **L10 完了**（次: circuit / IDE 任意 / T-031） |
+| 大枠 | **Phase 2 完了 → Phase 3 進行中**（fallback・CostEstimate・統計・L11 curl 済。circuit 未） |
+| ローカル | **L10 完了** → バックログ起票済（推奨次 **T-033 IPv6 SSRF**） |
 
-中継・plan/filter/fallback（GET）・静的フィード・CostEstimate・credential isolation・ローカル統計 JSONL あり。POST 自動 fallback はしない。
+中継・plan/filter/fallback（GET）・静的フィード・CostEstimate・credential isolation・ローカル統計 JSONL あり。POST 自動 fallback はしない。  
+起票一覧: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md)「起票済みバックログ」· 台帳 [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md) T-031–T-038。
 
 ---
 

@@ -25,7 +25,33 @@ L11 実キー E2E「IDE から1通」    ████ 最小 curl 確認済（20
 L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard/）
 ```
 
-**ピン:** **L10 完了 → 次は Phase 3 残り（circuit / IDE 任意）または本線外 T-031**
+**ピン:** **L10 完了。** 次の起票済みバックログは下表（推奨: **T-033 IPv6 SSRF**）。
+
+---
+
+## 起票済みバックログ（L12 以降・監査残）
+
+外部監査（2026-07-12）と自己認識の一致分。台帳詳細は [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)。
+
+| ID | 内容 | 優先・ゲート | 状態 |
+|---|---|---|---|
+| **T-033** | IPv6 ULA / link-local / v4-mapped を SSRF でブロック | **推奨次**（小さく赤緑可） | todo |
+| **T-031** | tenant headers origin-scope + endpoint credential map | 境界強化・P0 ではない。T-033 と並列可 | todo |
+| **T-036** | circuit breaker | Phase 3 残り | todo |
+| **T-034** | DNS rebinding / resolve-and-pin | **公開フィード前** | todo |
+| **T-035** | フィード署名検証 (F-SEC-05) | **公開署名フィード必須ゲート** | todo |
+| **T-037** | stats CLI / 集計（本文なし） | 後段 | todo |
+| **T-038** | IDE 一通（利用者が確認したら docs 更新） | 任意 | todo |
+| T-024 | pricing parser 実験 | 本線外・並列可 | todo |
+
+```text
+推奨順（迷ったら）:
+  T-033 IPv6 SSRF
+  → T-031 tenant header origin-scope（任意並列）
+  → T-036 circuit
+  → （公開フィードを始める決断）→ T-034 DNS pin → T-035 署名
+  → T-037 stats CLI / T-038 IDE メモ
+```
 
 ---
 
@@ -58,7 +84,13 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 | L11 実キー E2E | 手順 [L11_MANUAL_E2E.md](./L11_MANUAL_E2E.md) | **curl 最小合格**（2026-07-12）。IDE は利用者設定。キーは `packages/proxy/.env`（gitignore） |
 | L10 ローカル統計 | T-032 | **done**（JSONL `data/stats.jsonl`） |
 | credential isolation + POST no-fallback | T-030 | **done**（正本 `e2b3d14`） |
-| origin-scope tenant headers + key map | T-031 | todo（本線外） |
+| origin-scope tenant headers + key map | T-031 | todo（起票済） |
+| IPv6 SSRF 拡張 | T-033 | todo（起票済・推奨次） |
+| DNS rebinding | T-034 | todo（公開フィード前） |
+| feed 署名 | T-035 | todo（公開フィード必須ゲート） |
+| circuit breaker | T-036 | todo（Phase 3） |
+| stats CLI | T-037 | todo |
+| IDE 一通 docs | T-038 | todo（利用者任意） |
 
 ---
 
@@ -70,9 +102,11 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 3. ~~L9 CostEstimate（input/output だけ）~~ done
 4. ~~L11 実キー E2E（curl 最小）~~ done
 5. ~~L10 ローカル統計~~ done（JSONL。CLI/SQLite は後段可）
+6. T-033 IPv6 SSRF  ← いま推奨
+7. T-031 / T-036 …
+8. 公開フィード前: T-034 → T-035
 ```
 
-次の任意: IDE 一通、circuit breaker、T-031。  
 L11 手順: [L11_MANUAL_E2E.md](./L11_MANUAL_E2E.md)。credential isolation **done**（T-030）。
 
 ---

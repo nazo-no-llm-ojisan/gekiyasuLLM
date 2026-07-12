@@ -23,8 +23,8 @@ Phase 6 月額 ░░░░░░░░░░░░░ 任意・未着手
 Phase 7 広告・法人 ░░░░░░░░░░░░ 任意・未着手
 ```
 
-**一言:** 静的フィード・GET/HEAD fallback・CostEstimate・credential isolation・ローカル統計 JSONL・L11 curl まで到達。  
-**まだ:** circuit breaker、IDE 一通（任意）、stats CLI/UI。POST 自動 fallback はしない。
+**一言:** 静的フィード・GET/HEAD fallback·CostEstimate・credential isolation・ローカル統計 JSONL・L11 curl まで到達。  
+**まだ（起票済）:** T-033 IPv6 SSRF、T-031 tenant headers、T-036 circuit、公開前 T-034 DNS pin / T-035 署名、T-037 stats CLI、T-038 IDE。POST 自動 fallback はしない。
 
 ---
 
@@ -35,7 +35,8 @@ Phase 7 広告・法人 ░░░░░░░░░░░░ 任意・未着手
 | **0** | 調査・設計 | 何を作るか・何をしないかが文書化されている | **完了** |
 | **1** | 個人用ローカル Proxy | IDE からローカル経由で LLM が使える | **完了** |
 | **2** | 静的ルーティングフィード | 一覧を差し替えて経路が変わる | **完了** |
-| **3** | health / 統計 / fallback | 落ちたら次へ、自分の利用が見える | **進行中**（fallback・L9・L10・L11 curl 済。circuit 未） |
+| **3** | health / 統計 / fallback | 落ちたら次へ、自分の利用が見える | **進行中**（fallback・L9·L10·L11 curl 済。T-036 circuit 未） |
+| **3b** | 境界 hardening（監査残） | 公開フィード前に潰す | **起票** T-033 IPv6 · T-031 headers · T-034 DNS · T-035 署名 |
 | **4** | 中央集計・日次 | サイト・RSS・可用性ヘッドライン | 未（ローカル 1–3 のあと） |
 | **5** | OSS として使いやすい | 他人が README どおり install できる | 部分（Apache-2.0・public） |
 | **6** | 月額情報（任意） | 鮮度の高いフィード等 | 未・任意 |

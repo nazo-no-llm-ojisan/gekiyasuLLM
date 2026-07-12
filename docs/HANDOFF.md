@@ -76,13 +76,16 @@
 - 無効化: `GEKIYASU_STATS_FILE=off`
 - コード: `packages/proxy/src/stats/store.ts` + server 配線
 
-### 次の本線候補
-1. **IDE から接続**（任意）  
-2. **circuit breaker**（Phase 3 残り）  
-3. stats の CLI 集計 / estimated cost 紐付け（後段）
+### 起票済みバックログ（2026-07-12 監査反映）
 
-### 将来（本線外・P0 ではない）
-- T-031 origin-scope tenant headers + endpoint credential map
-- redirect またぎ `fetchUpstream` integration coverage
+| 優先 | ID | 内容 |
+|---|---|---|
+| **推奨次** | **T-033** | IPv6 private / link-local / v4-mapped SSRF |
+| 境界 | T-031 | tenant headers origin-scope + credential map |
+| Phase 3 | T-036 | circuit breaker |
+| 公開前ゲート | T-034 → T-035 | DNS pin → feed 署名 |
+| 後段 | T-037 / T-038 | stats CLI / IDE docs |
 
-台帳: T-032 (L10) **done**。
+詳細: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) · [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)
+
+台帳: T-032 (L10) **done**。T-033–T-038 **todo 起票済**。

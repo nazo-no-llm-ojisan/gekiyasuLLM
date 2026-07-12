@@ -51,23 +51,26 @@
 | 静的フィード → catalog | **済**（L8。`GEKIYASU_FEED_FILE`） |
 | ローカル統計 (L10) | **済** — append-only JSONL（既定 `data/stats.jsonl`）。method/path/offering/attempts/status/latency/ok。本文・キーなし。`GEKIYASU_STATS_FILE=off` で無効 |
 
-## 次（本線）
+## 次（起票済み・台帳）
 
-1. IDE 一通（任意）— [L11_MANUAL_E2E.md](./L11_MANUAL_E2E.md)  
-2. circuit breaker / stats CLI・集計 UI（後段）
+正本のチケット表: [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md) · ローカル表示: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md)「起票済みバックログ」。
 
-## 将来タスク（本線外・境界強化）
+| ID | 内容 | 状態 |
+|---|---|---|
+| **T-033** | IPv6 ULA / link-local / v4-mapped SSRF ブロック | todo（**推奨次**） |
+| **T-031** | tenant headers origin-scope + endpoint credential map | todo |
+| **T-036** | circuit breaker | todo |
+| **T-034** | DNS rebinding / resolve-and-pin | todo（公開フィード前） |
+| **T-035** | feed 署名検証 (F-SEC-05) | todo（**公開フィード必須ゲート**） |
+| **T-037** | stats CLI / 集計 | todo |
+| **T-038** | IDE 一通 docs | todo（利用者任意） |
 
-| 項目 | メモ |
+| 項目（未採番・メモ） | メモ |
 |---|---|
-| **origin-scoped headers + credential mapping** | (1) `openai-organization` / `openai-project` / `idempotency-key` を **configured upstream origin にだけ**転送し、feed-driven 別 origin には送らない。(2) `providerApiKeys` を endpoint/origin 単位 mapping へ移行。同一パッケージで扱うとよい。**今すぐの P0 ではない**。`idempotency-key` は POST fallback 未実装の現段階では必須ではない |
-| **IPv6 private / link-local SSRF** | `isPrivateOrLinkLocalIpv4` は IPv4 のみ。`fc00::/7`・`fe80::/10`・IPv4-mapped IPv6 等は未ブロック。allowlist 依存。公開フィード段階前に拡張推奨（外部監査 2026-07-12） |
-| **DNS rebinding / pin** | ホスト名 allowlist のみ。解決先が内網 IP になるケースは未防御。設計脅威モデルには記載済・実装未 |
-| **feed 署名検証 (F-SEC-05)** | 静的ファイル読込のみ。公開署名フィード配信の **必須ゲート** |
-| POST fallback opt-in | idempotency サポート + ユーザー明示 opt-in 設計後に再検討 |
-| redaction / audit / circuit | 境界・運用の続き |
+| POST fallback opt-in | idempotency + 明示 opt-in 後 |
+| redaction / audit | 境界・運用 |
 | deprecated 整理 | `assertSafeUpstreamBaseUrl` 等 |
-| CI test 明示列挙 | `package.json` の test スクリプトに新ファイルを忘れず追加 |
+| CI test 明示列挙 | `package.json` test に新ファイル追加を忘れない |
 
 ## 外部監査メモ（2026-07-12）
 

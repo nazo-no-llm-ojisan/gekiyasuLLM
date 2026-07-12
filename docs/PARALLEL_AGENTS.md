@@ -110,8 +110,21 @@
 | T-028 | proxy | Executor walks plan.fallbacks on failure | T-023,T-027 | packages/proxy/src/route/**, upstream* | executor fallback test | 1 fail→2nd green | forbidden | **done** |
 | T-029 | proxy/schema | Static feed loading (L8) | - | packages/schema/**, packages/proxy/**, fixtures/** | feed loading test | load static JSON feed to catalog | proposed | **done** |
 | T-030 | proxy | P0 credential isolation + P1 no POST fallback | T-028 | packages/proxy/src/** | executor + upstream header tests | client key only on configured origin; POST never fallbacks | forbidden | **done** |
-| T-031 | proxy | Origin-scope tenant headers + endpoint credential map | T-030 | packages/proxy/src/** | header origin-scope tests | org/project/idempotency only on configured origin; keys by origin/endpoint | forbidden | todo（本線外・P0ではない） |
+| T-031 | proxy | Origin-scope tenant headers + endpoint credential map | T-030 | packages/proxy/src/** | header origin-scope tests | org/project/idempotency only on configured origin; keys by origin/endpoint | forbidden | todo（境界強化・P0ではない） |
 | T-032 | proxy | L10 local request stats JSONL | T-028 | packages/proxy/src/stats/**, server*, config* | store.test.ts | append metadata-only events; no bodies/keys | forbidden | **done** |
+| T-033 | proxy | Block IPv6 ULA / link-local / v4-mapped in SSRF filter | T-020 | packages/proxy/src/security* | security.test.ts IPv6 cases | fc00::/7 fe80::/10 ::ffff:10.x rejected | forbidden | todo（監査残・推奨次） |
+| T-034 | proxy | DNS rebinding guard / resolve-and-pin | T-033 | packages/proxy/src/security*, upstream* | rebind-focused tests | resolved address re-checked vs private ranges | forbidden | todo（公開フィード前） |
+| T-035 | proxy/schema | Feed signature verification (F-SEC-05) | T-029 | packages/schema/**, packages/proxy/** | verify signed feed fixture | unsigned/invalid feed rejected when required | proposed | todo（**公開フィード必須ゲート**） |
+| T-036 | proxy | Circuit breaker on offering failures | T-028 | packages/proxy/src/route/** | circuit open/half-open tests | N fails → skip offering for T seconds | forbidden | todo（Phase 3 残り） |
+| T-037 | proxy | Stats CLI / summary endpoint (no bodies) | T-032 | packages/proxy/src/stats/**, index* | summary test | `stats` or local summary without secrets | forbidden | todo（後段） |
+| T-038 | docs/proxy | IDE one-shot E2E note after user success | T-032 | docs/L11*, ROADMAP* | — | ROADMAP L11 IDE checkbox when user confirms | forbidden | todo（利用者任意） |
+
+#### バックログ注記（2026-07-12 外部監査）
+
+- **ローカル MVP では大きな欠陥なし**（F-SEC-09/10 等は合格済み）。
+- **公開署名フィード配信の前**に T-033 → T-034 → T-035 をゲートとする。
+- T-031 は tenant 識別子漏洩の residual（API key ではない）。T-033 と並列可。
+- T-036 は Phase 3 製品価値（落ちたら次＋一時回避）。T-037/T-038 は運用・UX。
 
 契約を触りたくなったら **新 id で `contract_changes: proposed`** を1本だけ立て、マージ後に実装タスクを並列化。
 
