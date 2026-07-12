@@ -8,6 +8,8 @@ export type * from "./upstream.js";
 export type * from "./source.js";
 export { parseOfferingJson } from "./parse-offering.js";
 export type { ParsedOffering } from "./parse-offering.js";
+export { parseFeedJson } from "./feed.js";
+export type { GekiyasuFeed } from "./feed.js";
 
 /** Fixed default listen port for gekiyasuLLMProxy (project-wide). */
 export const DEFAULT_PROXY_PORT = 16191 as const;
