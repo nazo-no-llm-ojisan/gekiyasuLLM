@@ -7,6 +7,7 @@ import {
 import { createCircuitBreaker } from "./route/circuit.js";
 import { describeExecution, executeRoutePlan } from "./route/executor.js";
 import { buildRoutePlan } from "./route/plan.js";
+import { extractRequestFacts } from "./route/request-facts.js";
 import { checkProxyToken, describeAuthShape } from "./security.js";
 import {
   createJsonlStatsStore,
@@ -14,6 +15,7 @@ import {
   type StatsStore,
 } from "./stats/store.js";
 import { tryServeDashboard } from "./static-dashboard.js";
+import { readBody } from "./upstream.js";
 
 export type RunningServer = {
   server: http.Server;
@@ -200,6 +202,42 @@ export function createServer(config: ProxyConfig): http.Server {
 
       res.setHeader("x-gekiyasu-route-plan", describeExecution({ plan }));
 
+      // T-044 / issue #2: buffer the body once in the request layer and
+      // pass it through to the executor as `PreparedRequest`. The executor
+      // will not re-read from `req` (executor.prepared.body is checked
+      // before readBody). Body ownership is here, not inside the executor.
+      let body: Buffer | undefined;
+      if (method !== "GET" && method !== "HEAD") {
+        try {
+          body = await readBody(req, config.maxBodyBytes);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          const code =
+            err instanceof Error && "code" in err
+              ? String((err as { code?: string }).code)
+              : "body_error";
+          sendJson(res, code === "body_too_large" ? 413 : 400, {
+            error: { message, type: "invalid_request_error", code },
+          }, req);
+          await recordRouteStat(stats, {
+            method,
+            path,
+            startedMs,
+            attempts: [],
+            status: code === "body_too_large" ? 413 : 400,
+            errorCode: code,
+          });
+          return;
+        }
+      }
+      const contentType = req.headers["content-type"];
+      const facts = extractRequestFacts({
+        method,
+        path,
+        contentType: typeof contentType === "string" ? contentType : undefined,
+        body,
+      });
+
       try {
         const result = await executeRoutePlan({
           plan,
@@ -209,6 +247,7 @@ export function createServer(config: ProxyConfig): http.Server {
           config,
           pathWithQuery,
           circuit,
+          prepared: { body, facts },
         });
         await recordRouteStat(stats, {
           method,
