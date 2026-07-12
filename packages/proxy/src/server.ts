@@ -1,6 +1,11 @@
 import http from "node:http";
 import type { ProxyConfig } from "./config.js";
+import { buildRoutePlan } from "./route/plan.js";
+import { describeExecution } from "./route/executor.js";
 import { proxyRequest } from "./upstream.js";
+
+/** MVP: one synthetic offering until feed-driven routing exists. */
+const MVP_OFFERING_ID = "passthrough:default";
 
 export type RunningServer = {
   server: http.Server;
@@ -37,6 +42,9 @@ export function createServer(config: ProxyConfig): http.Server {
       path === "/v1/responses"
     ) {
       const pathWithQuery = path + url.search;
+      // Selection (plan) is separate from execution (HTTP). Plan is logged for now.
+      const plan = buildRoutePlan({ soleOfferingId: MVP_OFFERING_ID });
+      res.setHeader("x-gekiyasu-route-plan", describeExecution({ plan }));
       try {
         await proxyRequest(req, res, config, pathWithQuery);
       } catch (err) {

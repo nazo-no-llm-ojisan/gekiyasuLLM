@@ -1,6 +1,6 @@
 # gekiyasuLLM 設計文書
 
-**版:** 0.4-draft  
+**版:** 0.5-draft  
 **日付:** 2026-07-12  
 
 **前提:** 中央は原則としてユーザーの LLM リクエストを中継しない。ルーティング実行は利用者 PC 上のローカル Proxy が担う。
@@ -31,6 +31,7 @@
 | [02-architecture-routing-and-security.md](./02-architecture-routing-and-security.md) | 要件・アーキ・ルーティング・スキーマ・セキュリティ |
 | [03-stack-roadmap-and-adrs.md](./03-stack-roadmap-and-adrs.md) | スタック・ロードマップ・ADR |
 | [04-licensing-coi-corrections.md](./04-licensing-coi-corrections.md) | **ライセンス・COI・訂正（早期固定）** |
+| [05-adapters-normalization-routing.md](./05-adapters-normalization-routing.md) | **アダプタ境界・Evidence・Offering・RoutePlan** |
 
 ## 仮称
 

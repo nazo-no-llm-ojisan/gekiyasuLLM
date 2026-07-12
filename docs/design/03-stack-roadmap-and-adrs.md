@@ -249,6 +249,36 @@ GitHub 公開リポ（ソース + フィード JSON）
 - **採用**: 影響期間・原因・フィード版を残す訂正履歴（`docs/CORRECTIONS.md` + フィード `corrections[]`）
 - **却下**: 誤記を黙って上書き削除
 
+### ADR-016: 情報源 Fetcher と Parser の分離
+
+- **採用**: `Fetcher → RawSnapshot → Parser → NormalizedRecord`
+- **却下**: 取得と解釈の同一クラス同居（DOM 変更で全滅する）
+
+### ADR-017: Evidence + TrackedValue 必須
+
+- **採用**: raw / normalized / conversion / evidence / parserVersion を追跡
+- **却下**: 正規化後の数値だけ残す
+
+### ADR-018: Offering をルーティング主キーに
+
+- **採用**: Model / Provider / Endpoint / Offering / Campaign を分離。ルーターは Offering ID を選ぶ
+- **却下**: モデル名文字列のみを主キー
+
+### ADR-019: RoutePlan と Executor の分離
+
+- **採用**: Filter → Scorer → RoutePlan → Executor
+- **却下**: ルーター内で直接 HTTP（単体テスト困難）
+
+### ADR-020: OpenAI 互換は Adapter の一つ
+
+- **採用**: UpstreamAdapter 群。内部共通型は vendor 中立
+- **却下**: 「すべてを OpenAI 型に丸める」を共通モデルにする
+
+### ADR-021: declared vs observed capabilities
+
+- **採用**: 公称と実測を別フィールド。上書きしない
+- **却下**: 実測で公称を消す
+
 ---
 
 ## 20. 未確定事項
@@ -278,15 +308,16 @@ GitHub 公開リポ（ソース + フィード JSON）
 
 ### 作業単位 A — リポジトリ骨格（実装開始時）
 
-- monorepo（推奨: `packages/proxy`, `packages/schema`）または `proxy/` 単体
-- ライセンス、`.editorconfig`（AGENTS.md は既存）
-- `packages/schema` に JSON Schema + Zod
+- monorepo（`packages/proxy`, `packages/schema`）— **着手済み**
+- ライセンス、AGENTS.md — **済み**
+- `packages/schema` に domain 型（Evidence / Offering / RoutePlan 等）— **済み**（Zod/JSON Schema は後続）
 
 ### 作業単位 B — プロキシ骨格
 
-- `127.0.0.1:16191` で `serve`
-- `/v1/models`、`/v1/chat/completions` の上流 1 本透過（ルーティングなし）
-- ストリーム透過テスト
+- `127.0.0.1:16191` で `serve` — **済み**
+- `/v1/models`、`/v1/chat/completions` の上流 1 本透過 — **済み**
+- RoutePlan スタブ + ヘッダ — **済み**（本 ranking は未）
+- ストリーム透過 — **実装済み（実キーでの手動確認推奨）**
 
 ### 作業単位 C — 設定と複数プロバイダ
 

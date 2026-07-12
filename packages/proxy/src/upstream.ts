@@ -1,3 +1,8 @@
+/**
+ * OpenAI-compatible UpstreamAdapter (MVP).
+ * Will move under upstream/openai-compatible.ts; keep vendor-neutral
+ * InternalChatRequest types in @gekiyasu/schema — do not treat OpenAI as the only shape.
+ */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { ProxyConfig } from "./config.js";
 

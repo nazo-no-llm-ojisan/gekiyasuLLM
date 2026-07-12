@@ -21,9 +21,11 @@
 ## 最初に読むもの
 
 - 設計の索引: `docs/design/README.md`
-- ライセンス・COI・訂正（早期固定）: `docs/design/04-licensing-coi-corrections.md`, `docs/CORRECTIONS.md`
+- ライセンス・COI・訂正: `docs/design/04-licensing-coi-corrections.md`, `docs/CORRECTIONS.md`
+- アダプタ境界・Evidence / Offering / RoutePlan: `docs/design/05-adapters-normalization-routing.md`
+- 型の正: `packages/schema`
 - 企画 / MVP / 事業: `docs/design/01-product-mvp-and-business.md`
-- アーキテクチャ / スキーマ: `docs/design/02-architecture-routing-and-security.md`
+- アーキテクチャ: `docs/design/02-architecture-routing-and-security.md`
 - スタック / ADR / 作業単位: `docs/design/03-stack-roadmap-and-adrs.md`
 
 実装に入るときは、上記の MVP 境界と ADR を破らないこと。
@@ -77,6 +79,9 @@
   - 手元専用の未署名フィードは開発用に可。**配布・既定のリモートフィードは署名必須を目標**
 - provider フィードには `sponsored`, `affiliate`, `editorial_rank_influence: "none"` を必須。既定ソートに商業フィールドを使わない。
 - 価格等の誤記を直すときは `docs/CORRECTIONS.md` に従い、影響期間・原因・フィード版を残す（黙って消さない）。
+- 新規の収集・正規化は **Fetcher と Parser を分ける**。Evidence / Offering / RoutePlan 概念を壊さない（`packages/schema`, 設計 05）。
+- ルーティングは **RoutePlan 生成と Executor を分離**。直接 HTTP だけの巨大関数に戻さない。
+- OpenAI 互換は UpstreamAdapter の一つ。内部共通型を OpenAI 専用にしない。
 - 設計と実装が食い違ったら、差分をドキュメントか ADR に残してから直す。
 
 ## リポジトリの衛生

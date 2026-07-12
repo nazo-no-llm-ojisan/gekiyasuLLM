@@ -1,10 +1,15 @@
 /**
  * Local proxy defaults.
- * Port 16191 is fixed project-wide (see docs / README).
+ * Port 16191 is fixed project-wide (@gekiyasu/schema + docs).
  */
 
-export const DEFAULT_HOST = "127.0.0.1";
-export const DEFAULT_PORT = 16191;
+import {
+  DEFAULT_PROXY_HOST,
+  DEFAULT_PROXY_PORT,
+} from "@gekiyasu/schema";
+
+export const DEFAULT_HOST = DEFAULT_PROXY_HOST;
+export const DEFAULT_PORT = DEFAULT_PROXY_PORT;
 export const DEFAULT_UPSTREAM_BASE_URL = "https://api.openai.com/v1";
 
 export type ProxyConfig = {
