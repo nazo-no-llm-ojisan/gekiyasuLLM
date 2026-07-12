@@ -42,7 +42,9 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 | **T-035** | フィード署名検証 (F-SEC-05) | **公開署名フィード必須ゲート** | todo |
 | **T-037** | stats CLI / 集計（本文なし） | 後段 | todo |
 | **T-038** | IDE 一通（利用者が確認したら docs 更新） | 任意 | todo |
-| T-024 | pricing parser 実験 | 本線外・並列可 | todo |
+| **T-040** | design/06 モデル同定・正規化契約 | 収集層の境界固定 | **done** |
+| **T-039** | model-id / developer pure TS（schema） | 収集層の次の赤緑。Proxy と分離 | todo |
+| T-024 | pricing parser 実験 | 本線外・並列可（06/T-039 と合流可） | todo |
 
 ```text
 推奨順（迷ったら）:
@@ -51,6 +53,7 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
   → T-036 circuit
   → （公開フィードを始める決断）→ T-034 DNS pin → T-035 署名
   → T-037 stats CLI / T-038 IDE メモ
+  収集層（Proxy と別）: T-040 done → T-039 pure TS
 ```
 
 ---
