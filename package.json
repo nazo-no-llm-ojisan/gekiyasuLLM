@@ -6,9 +6,10 @@
   "license": "Apache-2.0",
   "scripts": {
     "build:schema": "npm --prefix packages/schema run build",
+    "test:scripts": "node --test scripts/start-proxy-windows.test.cjs",
     "test:schema": "npm --prefix packages/schema run build && npm --prefix packages/schema run test --if-present",
     "test:proxy": "npm --prefix packages/proxy test",
-    "test": "npm run test:schema && npm run test:proxy"
+    "test": "npm run test:schema && npm run test:proxy && npm run test:scripts"
   },
   "engines": {
     "node": ">=20"

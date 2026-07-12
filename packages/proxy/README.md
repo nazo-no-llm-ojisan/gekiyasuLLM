@@ -22,6 +22,18 @@ set OPENAI_API_KEY=sk-...   # Windows PowerShell: $env:OPENAI_API_KEY="sk-..."
 npm run dev
 ```
 
+Windows users can also start the proxy from the repository root with the helper
+script below. It loads `packages\proxy\.env` into the proxy process without
+printing secret values.
+
+```bat
+scripts\start-proxy-windows.cmd
+```
+
+```powershell
+.\scripts\start-proxy-windows.ps1
+```
+
 ## Client
 
 Point any OpenAI-compatible client at:
