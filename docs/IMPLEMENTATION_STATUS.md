@@ -3,7 +3,9 @@
 監査指摘: 設計表の「MVP ○」と実コードが乖離していた。  
 **○ = 設計上の目標 / 実装 = いまのコード** をここに書く。チャットよりこのファイルが正。
 
-最終更新: 2026-07-12（トークン＋allowlist）
+最終更新: 2026-07-12（トークン＋allowlist / 失敗分類表）
+
+失敗分類（probe / proxy error）: **[FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)**（型正本 `ProbeFailureClass`）
 
 ## 総評
 

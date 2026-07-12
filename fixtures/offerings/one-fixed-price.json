@@ -1,0 +1,57 @@
+{
+  "id": "example:gpt-mini:fixed",
+  "modelId": "example/gpt-mini",
+  "providerId": "example",
+  "endpointId": "example:api",
+  "upstreamModelId": "gpt-mini",
+  "marketingName": "Example GPT Mini (fixed)",
+  "declaredCapabilities": {
+    "streaming": true,
+    "tools": false
+  },
+  "status": "active",
+  "relationships": {
+    "sponsored": false,
+    "affiliate": false,
+    "editorial_rank_influence": "none"
+  },
+  "pricing": {
+    "currency": {
+      "raw": "USD",
+      "normalized": "USD",
+      "evidence": {
+        "sourceUrl": "https://example.com/pricing",
+        "retrievedAt": "2026-07-12T00:00:00.000Z",
+        "sourceType": "manual",
+        "confidence": "confirmed"
+      }
+    },
+    "asOf": "2026-07-12",
+    "inputPerMillion": {
+      "raw": "$0.15 / 1M tokens",
+      "normalized": 0.15,
+      "evidence": {
+        "sourceUrl": "https://example.com/pricing",
+        "retrievedAt": "2026-07-12T00:00:00.000Z",
+        "sourceType": "manual",
+        "confidence": "confirmed"
+      }
+    },
+    "outputPerMillion": {
+      "raw": "$0.60 / 1M tokens",
+      "normalized": 0.6,
+      "evidence": {
+        "sourceUrl": "https://example.com/pricing",
+        "retrievedAt": "2026-07-12T00:00:00.000Z",
+        "sourceType": "manual",
+        "confidence": "confirmed"
+      }
+    },
+    "normalized": {
+      "currency": "USD",
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.6,
+      "asOf": "2026-07-12"
+    }
+  }
+}

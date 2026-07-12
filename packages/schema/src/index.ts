@@ -6,6 +6,8 @@ export type * from "./route.js";
 export type * from "./probe.js";
 export type * from "./upstream.js";
 export type * from "./source.js";
+export { parseOfferingJson } from "./parse-offering.js";
+export type { ParsedOffering } from "./parse-offering.js";
 
 /** Fixed default listen port for gekiyasuLLMProxy (project-wide). */
 export const DEFAULT_PROXY_PORT = 16191 as const;

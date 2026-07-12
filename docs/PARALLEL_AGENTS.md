@@ -53,7 +53,7 @@
 |---|---|
 | canonical types | `packages/schema` |
 | public interfaces | schema + proxy の export / CLI env |
-| error taxonomy | probe 失敗分類・proxy error `code`（IMPLEMENTATION_STATUS / schema） |
+| error taxonomy | [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)（型正本: `packages/schema` `ProbeFailureClass`） |
 | fixture format | `fixtures/README.md` |
 | package ownership | 下表 |
 | dependency direction | `proxy` → `schema` のみ。schema は他 package に依存しない |
@@ -100,12 +100,12 @@
 | id | area | title | depends_on | owned_paths | expected_red_test | done_when | contract_changes | status |
 |---|---|---|---|---|---|---|---|---|
 | T-020 | proxy | security token + allowlist | - | packages/proxy/** | security.test.ts | npm test green | forbidden | **done** |
-| T-021 | schema | Offering parses one fixed-price fixture | - | packages/schema/**, fixtures/** | offering fixture parse | 1 test green | forbidden | todo |
-| T-022 | proxy | RoutePlan selects sole eligible offering | - | packages/proxy/src/route/** | plan test | 1 test green | forbidden | todo |
+| T-021 | schema | Offering parses one fixed-price fixture | - | packages/schema/**, fixtures/** | parse-offering.test.ts | 1 test green | forbidden | **done** |
+| T-022 | proxy | RoutePlan selects sole eligible offering | - | packages/proxy/src/route/** | plan.test.ts | 1 test green | forbidden | **done** |
 | T-023 | proxy | Executor uses plan.primary for upstream | T-022 | packages/proxy/src/route/**, upstream* | executor test | 1 test green | forbidden | todo |
 | T-024 | parser | Pricing parser reads one saved HTML fixture | - | fixtures/**, 将来 packages/collectors/** | parser test | 1 test green | forbidden | todo |
-| T-025 | ci | npm test runs schema and proxy | T-020 | package.json / 将来 .github | CI or root script | both packages test | forbidden | todo |
-| T-026 | docs | failure taxonomy table as canonical | - | docs/** | - | table in IMPLEMENTATION_STATUS or design | forbidden | todo |
+| T-025 | ci | npm test runs schema and proxy | T-020 | package.json / 将来 .github | root `npm test` | both packages test | forbidden | **done** |
+| T-026 | docs | failure taxonomy table as canonical | - | docs/** | FAILURE_TAXONOMY.md | table canonical | forbidden | **done** |
 
 契約を触りたくなったら **新 id で `contract_changes: proposed`** を1本だけ立て、マージ後に実装タスクを並列化。
 

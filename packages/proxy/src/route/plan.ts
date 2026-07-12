@@ -2,17 +2,26 @@ import type { HardConstraints, RoutePlan, SoftPreferences } from "@gekiyasu/sche
 
 /**
  * CandidateFilter → CandidateScorer → RoutePlan (no HTTP).
- * MVP: single fixed offering; real scoring lands later.
+ * MVP: caller supplies the sole already-eligible offering id (hard-filter stub).
+ * Result: primary = that id, fallbacks = [] (no ranked alternatives yet).
  */
 export type PlanInput = {
-  /** Temporary: single passthrough offering id until feed-driven routing exists */
+  /**
+   * Sole eligible offering id after hard constraints (filter stub).
+   * Until feed-driven routing exists, this is passthrough selection.
+   */
   soleOfferingId: string;
   constraints?: HardConstraints;
   preferences?: SoftPreferences;
 };
 
 export function buildRoutePlan(input: PlanInput): RoutePlan {
-  const reason: string[] = ["mvp_passthrough=true", `offering=${input.soleOfferingId}`];
+  // Sole eligible offering → primary; no fallbacks until multi-candidate ranking exists.
+  const primary = input.soleOfferingId;
+  const reason: string[] = [
+    "eligible_sole=true",
+    `offering=${primary}`,
+  ];
   if (input.constraints?.privateMode) {
     reason.push("private_mode=true");
   }
@@ -21,7 +30,7 @@ export function buildRoutePlan(input: PlanInput): RoutePlan {
   }
 
   return {
-    primary: input.soleOfferingId,
+    primary,
     fallbacks: [],
     reason,
     generatedAt: new Date().toISOString(),
