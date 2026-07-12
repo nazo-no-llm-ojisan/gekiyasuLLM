@@ -56,20 +56,22 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 | L8 フィード | T-029 | **done** (Phase 2) |
 | L9 コスト見積もり | T-029 | **done** |
 | L10 ローカル統計 | 未採番 | 次本線候補 |
+| credential isolation + POST no-fallback | T-030 | **done** |
 
 ---
 
 ## 推奨順（迷ったらこれ）
 
 ```text
-1. ~~L7 fallback 実行~~ done
-2. ~~L9     CostEstimate（input/output だけ）~~ done
-3. L11    実キー E2E（任意）
-4. L8     静的フィード pull
-5. L10    ローカル統計
+1. ~~L7 fallback 実行~~ done（GET/HEAD。POST 等は fallback 禁止 = P1）
+2. ~~L8 静的フィード~~ done
+3. ~~L9 CostEstimate（input/output だけ）~~ done
+4. L10    ローカル統計
+5. L11    実キー E2E（任意・手動）
 ```
 
-スクレイピング（T-024 本格）は **L8 の後でもよい**。fixture 遊びはいつでも並列可。
+スクレイピング（T-024 本格）は後回しでよい。fixture 遊びはいつでも並列可。  
+credential isolation（client key を configured upstream origin に閉じる）は L7/L8 後のセキュリティ fix として **done**（T-030）。
 
 ---
 

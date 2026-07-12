@@ -32,9 +32,9 @@
 | F-RT-02 | capability 制約（tools/vision/json） | ○ |
 | F-RT-03 | コスト推定（入力/出力/キャッシュ/定額） | ○ |
 | F-RT-04 | 予算制限（日/月） | ○ |
-| F-RT-05 | timeout / retry / fallback | ○（実装: timeout 済・retry/fallback 未） |
+| F-RT-05 | timeout / retry / fallback | ○（実装: timeout 済。**GET/HEAD** は 408/429/5xx/network で fallback 済。**POST 等非冪等は fallback 禁止**。circuit 未） |
 | F-RT-06 | circuit breaker | ○（実装: 未） |
-| F-RT-07 | rate limit 尊重（429 時 backoff） | ○（実装: 未・ヘッダ透過のみ） |
+| F-RT-07 | rate limit 尊重（429 時 backoff） | ○（実装: GET は fallback。POST は 429 を透過し再試行しない。専用 backoff 未） |
 | F-RT-08 | prompt caching 価格考慮 | △ |
 | F-RT-09 | token estimation（tiktoken 系 / 近似） | ○ 近似可 |
 
@@ -44,14 +44,16 @@
 
 | ID | 要件 | MVP目標 | 実装（2026-07-12） |
 |---|---|---|---|
-| F-SEC-01 | API key は OS キーチェーン or 環境変数 or ローカル暗号化ファイル | ○ | 部分（env/Bearer） |
+| F-SEC-01 | API key は OS キーチェーン or 環境変数 or ローカル暗号化ファイル | ○ | 部分（env / Bearer / `providerApiKeys`。キーチェーン・暗号化ファイルは未） |
 | F-SEC-02 | secret redaction（ログ・telemetry） | ○ ログ | 未 |
 | F-SEC-03 | private repository / path policy | ○ 簡易 | 未 |
-| F-SEC-04 | provider allowlist / denylist | ○ | 部分（upstream URL） |
+| F-SEC-04 | provider allowlist / denylist | ○ | 部分（upstream URL + host allowlist） |
 | F-SEC-05 | feed signature verification | 公開時 ○ | 未 |
 | F-SEC-06 | telemetry opt-in | 後続（既定 off） | 未（送信なし） |
 | F-SEC-07 | local audit log | ○ | 未 |
 | F-SEC-08 | 生成コマンド/パッチの自動実行をしない | ○ 設計原則 | 済 |
+| F-SEC-09 | client credential を別 origin に転送しない | ○ | **済**（configured `upstreamBaseUrl` origin のみ client Authorization。header allowlist） |
+| F-SEC-10 | 非冪等 method の自動 fallback 禁止 | ○ | **済**（POST 等。将来 idempotency+opt-in で再検討） |
 
 ### 5.4 運用・UX
 
@@ -195,9 +197,16 @@
 
 **Step C — 実行**
 
-- primary 失敗（timeout / 5xx / 空応答 / 形式不正）→ 次候補
-- 429 → backoff 後同候補 or 次（設定）
-- circuit: 連続 N 失敗で open、T 秒後 half-open
+- **GET/HEAD（冪等）:** primary 失敗（timeout / 5xx / 408 / 429 / network）→ 次候補
+- **POST/PATCH/PUT/DELETE 等（非冪等）:** 自動 fallback **しない**（二重実行・二重課金防止）。upstream の HTTP 応答は透過。timeout/network は proxy error で終了
+- 429 → GET は次候補。POST は透過のみ（専用 backoff は未）
+- circuit: 連続 N 失敗で open、T 秒後 half-open（**実装未**）
+
+**認証の実行時ルール（実装済）**
+
+- client `Authorization` を upstream に載せてよいのは、target origin が設定の `upstreamBaseUrl` の **exact origin** と一致するときだけ
+- 別 origin の offering は Proxy 所有の `providerApiKeys[providerId]` のみ。無ければ送信前 `credential_unavailable`
+- primary と fallback が同一 origin でも、configured upstream と異なれば client key を流用しない
 
 ### 9.3 コスト推定（MVP）
 
@@ -467,7 +476,9 @@ circuit_breaker:
 | 脅威 | 影響 | 対策 |
 |---|---|---|
 | private code / prompt の保存漏洩 | 高 | 中央非中継、telemetry 本文禁止、private_mode |
-| API key 漏洩 | 高 | ローカルのみ、ログ redaction、`127.0.0.1` 既定 |
+| API key 漏洩 | 高 | ローカルのみ、ログ redaction、`127.0.0.1` 既定、client key を configured upstream origin に閉じる、header allowlist（cookie/x-api-key 非転送）、cross-origin redirect で敏感ヘッダ削除 |
+| 別 provider への鍵誤送 | 高 | origin 厳密一致 + provider 単位 local key。primary/fallback 同 origin でも configured upstream 外なら client key 禁止 |
+| 非冪等の二重課金 | 高 | POST 等は自動 fallback 禁止（実装済） |
 | 悪意あるレスポンス | 中〜高 | 自動実行しない、tool 結果の検証はクライアント責任を明記 |
 | tool call 改変（中間者プロバイダ） | 高 | 高信頼 allowlist、レスポンス integrity ログ |
 | モデル偽装 | 中 | 観測・ヒューリスティック警告、決定はユーザー |

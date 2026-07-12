@@ -16,12 +16,13 @@
 
 | 地図 | 位置 |
 |---|---|
-| **大枠** | Phase 1 進行中（0 完了）。2 以降はローカル後 → [docs/ROADMAP_MACRO.md](./docs/ROADMAP_MACRO.md) |
+| **大枠** | Phase 2 完了 → Phase 3 進行中 → [docs/ROADMAP_MACRO.md](./docs/ROADMAP_MACRO.md) |
 | **ローカル** | **L9 完了 → 次 L10 / L11** → [docs/ROADMAP_LOCAL.md](./docs/ROADMAP_LOCAL.md) |
 
 - 既定ポート **`16191`**（`http://127.0.0.1:16191/v1`）
-- 中継・plan/filter/fallback の骨格あり。catalog はまだ実質1本。フィード未
-- 索引: [docs/ROADMAP.md](./docs/ROADMAP.md) · docs 一覧: [docs/README.md](./docs/README.md)
+- 中継・plan/filter/rank・**GET/HEAD fallback**・静的フィード catalog・最小 CostEstimate あり
+- client API key は configured upstream origin のみへ転送（別 origin は `providerApiKeys`）。**POST は自動 fallback しない**
+- 索引: [docs/ROADMAP.md](./docs/ROADMAP.md) · ギャップ表: [docs/IMPLEMENTATION_STATUS.md](./docs/IMPLEMENTATION_STATUS.md) · docs 一覧: [docs/README.md](./docs/README.md)
 
 ```bash
 cd packages/proxy

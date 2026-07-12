@@ -31,12 +31,14 @@ OpenAI 風 `{ error: { message, type, code } }`。`type` は多く `proxy_error`
 | code | いつ |
 |---|---|
 | `missing_proxy_token` / `invalid_proxy_token` | プロキシ層トークン |
-| `missing_api_key` | 上流鍵なし |
+| `missing_api_key` | 上流鍵なし（どの provider key も client auth もない） |
+| `credential_unavailable` | 当該 offering 用の鍵が無い（別 origin で client key も使えない）。**送信前 skip**。GET/HEAD は次候補へ、POST も「未送信」なら次候補の鍵があれば試行可 |
 | `upstream_not_allowed` | allowlist / 私有 IP 拒否 |
 | `upstream_timeout` | 上流タイムアウト |
 | `upstream_unreachable` | 上流到達不能 |
 | `not_found` | 未知パス |
 | `internal_error` | 予期せぬ内部エラー |
+| `http_*`（attempt log） | GET/HEAD で upstream が 408/429/5xx 等 → fallback 候補。POST では status を client へ透過し fallback しない |
 
 ## 設計 docs との対応（旧 → 正本）
 

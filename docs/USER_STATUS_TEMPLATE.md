@@ -15,7 +15,7 @@
 
 ## いま（超短）
 
-**大枠ピン:** （例: Phase 1 進行中 — [ROADMAP_MACRO.md](./ROADMAP_MACRO.md)）  
+**大枠ピン:** （例: Phase 3 進行中 — [ROADMAP_MACRO.md](./ROADMAP_MACRO.md)）  
 **ローカルピン:** （例: L4 完了→次 L5 — [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md)）  
 
 **できてる:** （例: 中継箱 `127.0.0.1:16191`）  
