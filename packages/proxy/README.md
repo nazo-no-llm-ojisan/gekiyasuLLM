@@ -114,7 +114,7 @@ Checklist: [docs/L11_MANUAL_E2E.md](../../docs/L11_MANUAL_E2E.md) (`/health` →
 | Client `Authorization` | Forwarded **only** when the target offering origin equals the exact origin of `GEKIYASU_UPSTREAM_BASE_URL` / `upstreamBaseUrl`. |
 | Other feed origins | Never reuse the client key. Use proxy-owned `providerApiKeys[providerId]` only; otherwise skip with `credential_unavailable` (no upstream call). |
 | Placeholder keys (`Bearer local` / `gekiyasu` / `sk-local`) | Swapped to the configured upstream key **only** on loopback bind **and** configured upstream origin. |
-| Upstream request headers | **Allowlist** (`content-type`, `accept`, `accept-language`, `user-agent`). Also currently forwards `openai-organization` / `openai-project` / `idempotency-key` to **any** offering origin (not API keys; future: configured upstream origin only — see docs IMPLEMENTATION_STATUS). Never copy client `authorization`, `cookie`, `x-api-key`, `x-gekiyasu-token`, `proxy-authorization`. |
+| Upstream request headers | **Allowlist** (`content-type`, `accept`, `accept-language`, `user-agent`). Tenant headers `openai-organization` / `openai-project` / `idempotency-key` are forwarded **only** when the target offering origin equals the exact origin of `GEKIYASU_UPSTREAM_BASE_URL` (T-031). Never copy client `authorization`, `cookie`, `x-api-key`, `x-gekiyasu-token`, `proxy-authorization`. |
 | Fallback | **GET/HEAD:** on 408/429/5xx/timeout/network → try next offering. **POST/PATCH/PUT/DELETE:** never auto-fallback (avoids double charge). Upstream error status/body is passed through when available. |
 
 ## Env

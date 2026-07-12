@@ -5,8 +5,11 @@
  * offering for `openSeconds`. After the window it goes half-open: the next
  * attempt probes. Success closes it; failure re-opens.
  *
- * This is a pure in-memory store (no persistence). It protects the request
- * path without changing routing selection logic.
+ * This is a pure in-memory store (no persistence). State is held on the
+ * single `CircuitBreaker` instance kept alive by the running proxy process;
+ * process restart resets every offering to closed (no carry-over across
+ * restarts, feed reloads, or pm2 restarts). It protects the request path
+ * without changing routing selection logic.
  */
 
 export type CircuitConfig = {

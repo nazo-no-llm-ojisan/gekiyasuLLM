@@ -76,6 +76,16 @@ const HOP_BY_HOP = new Set([
   "content-encoding",
 ]);
 
+/**
+ * Pick the `Authorization` value to send upstream.
+ *
+ * NOTE: This does **not** consult the target offering origin. The caller
+ * (single-upstream `proxyRequest` for `upstreamBaseUrl`, or `executor.ts`
+ * `resolveAuthForAttempt` for route plans) is responsible for origin-scope:
+ * client `Authorization` is only forwarded when the target origin matches
+ * `config.upstreamBaseUrl`; other origins must use proxy-owned
+ * `providerApiKeys[providerId]` (or skip with `credential_unavailable`).
+ */
 export function pickAuthHeader(
   req: IncomingMessage,
   config: ProxyConfig,

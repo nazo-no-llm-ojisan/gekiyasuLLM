@@ -5,8 +5,8 @@
   "headline": "Demo: passthrough default · 2 sample offerings",
   "local": {
     "proxy_default": "http://127.0.0.1:16191/v1",
-    "phase": "Phase 1",
-    "local_pin": "L9 done → next L10 or L11 E2E"
+    "phase": "Phase 3",
+    "local_pin": "L12 done · mainline M1 (T-044 request-aware routing) → M2 → M3"
   },
   "offerings": [
     {
