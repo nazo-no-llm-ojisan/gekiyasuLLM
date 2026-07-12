@@ -1,0 +1,164 @@
+{
+  "feed_version": "0.1.0",
+  "as_of": "2026-07-12T00:00:00Z",
+  "endpoints": [
+    {
+      "id": "provider-a:api",
+      "providerId": "provider-a",
+      "baseUrl": "https://api.provider-a.example/v1",
+      "apiCompat": "openai_chat"
+    },
+    {
+      "id": "provider-b:api",
+      "providerId": "provider-b",
+      "baseUrl": "https://api.provider-b.example/v1",
+      "apiCompat": "openai_chat"
+    }
+  ],
+  "providers": [
+    {
+      "id": "provider-a",
+      "displayName": "Provider A (Safe)",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "trust": {
+        "allowsPrivateCode": {
+          "value": true,
+          "evidence": {
+            "sourceUrl": "https://provider-a.example/privacy",
+            "retrievedAt": "2026-07-12T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        }
+      }
+    },
+    {
+      "id": "provider-b",
+      "displayName": "Provider B (Aggregator)",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "trust": {
+        "allowsPrivateCode": {
+          "value": false,
+          "evidence": {
+            "sourceUrl": "https://provider-b.example/terms",
+            "retrievedAt": "2026-07-12T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        }
+      }
+    }
+  ],
+  "offerings": [
+    {
+      "id": "provider-a:model-x:fixed",
+      "modelId": "provider-a/model-x",
+      "providerId": "provider-a",
+      "endpointId": "provider-a:api",
+      "upstreamModelId": "model-x",
+      "marketingName": "Model X Standard",
+      "declaredCapabilities": {
+        "streaming": true,
+        "tools": true
+      },
+      "status": "active",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "pricing": {
+        "currency": {
+          "raw": "USD",
+          "normalized": "USD",
+          "evidence": {
+            "sourceUrl": "https://provider-a.example/pricing",
+            "retrievedAt": "2026-07-12T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        },
+        "asOf": "2026-07-12",
+        "inputPerMillion": {
+          "raw": "$0.10 / 1M",
+          "normalized": 0.1,
+          "evidence": {
+            "sourceUrl": "https://provider-a.example/pricing",
+            "retrievedAt": "2026-07-12T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        },
+        "outputPerMillion": {
+          "raw": "$0.30 / 1M",
+          "normalized": 0.3,
+          "evidence": {
+            "sourceUrl": "https://provider-a.example/pricing",
+            "retrievedAt": "2026-07-12T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        }
+      }
+    },
+    {
+      "id": "provider-b:model-x:free",
+      "modelId": "provider-b/model-x-free",
+      "providerId": "provider-b",
+      "endpointId": "provider-b:api",
+      "upstreamModelId": "model-x-free",
+      "marketingName": "Model X Free Promotion",
+      "declaredCapabilities": {
+        "streaming": true,
+        "tools": false
+      },
+      "status": "active",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "pricing": {
+        "currency": {
+          "raw": "USD",
+          "normalized": "USD",
+          "evidence": {
+            "sourceUrl": "https://provider-b.example/promo",
+            "retrievedAt": "2026-07-12T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        },
+        "asOf": "2026-07-12",
+        "inputPerMillion": {
+          "raw": "$0.00",
+          "normalized": 0.0,
+          "evidence": {
+            "sourceUrl": "https://provider-b.example/promo",
+            "retrievedAt": "2026-07-12T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        },
+        "outputPerMillion": {
+          "raw": "$0.00",
+          "normalized": 0.0,
+          "evidence": {
+            "sourceUrl": "https://provider-b.example/promo",
+            "retrievedAt": "2026-07-12T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        }
+      }
+    }
+  ]
+}
