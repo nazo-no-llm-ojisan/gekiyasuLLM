@@ -52,6 +52,120 @@ export function resolvePrimaryTarget(
   return resolveTarget(plan.primary, catalog);
 }
 
+import { PLACEHOLDER_BEARERS } from "../security.js";
+
+export function getOrigin(urlStr: string): string {
+  try {
+    const url = new URL(urlStr);
+    return url.origin;
+  } catch {
+    return urlStr;
+  }
+}
+
+export function isProxyToken(auth: string): boolean {
+  return auth.startsWith("Bearer gekiyasu-proxy:");
+}
+
+export function isPlaceholderApiKey(auth: string): boolean {
+  return PLACEHOLDER_BEARERS.has(auth);
+}
+
+export function resolveAuthForAttempt(
+  offering: OfferingTarget,
+  clientAuth: string | undefined,
+  config: ProxyConfig,
+  isPrimary: boolean,
+  primaryOrigin?: string,
+): string | undefined {
+  const providerId = offering.providerId;
+  const localProviderKey = config.providerApiKeys?.[providerId];
+
+  const targetOrigin = getOrigin(offering.baseUrl);
+  const defaultUpstreamOrigin = getOrigin(config.upstreamBaseUrl);
+
+  // 1. Primary (初回試行)
+  if (isPrimary) {
+    if (clientAuth && !isProxyToken(clientAuth)) {
+      if (targetOrigin === defaultUpstreamOrigin) {
+        if (config.allowPlaceholderApiKeySwap && isPlaceholderApiKey(clientAuth)) {
+          const resolvedKey = localProviderKey || config.upstreamApiKey;
+          return resolvedKey ? `Bearer ${resolvedKey}` : undefined;
+        }
+        return clientAuth;
+      }
+      const resolvedKey = localProviderKey;
+      return resolvedKey ? `Bearer ${resolvedKey}` : undefined;
+    }
+    const resolvedKey =
+      targetOrigin === defaultUpstreamOrigin
+        ? (localProviderKey || config.upstreamApiKey)
+        : localProviderKey;
+    return resolvedKey ? `Bearer ${resolvedKey}` : undefined;
+  }
+
+  // 2. Fallback (再試行)
+  // primary と exact origin が一致する場合のみ、クライアントのキーの流用を安全とする
+  if (
+    primaryOrigin &&
+    targetOrigin === primaryOrigin &&
+    clientAuth &&
+    !isProxyToken(clientAuth)
+  ) {
+    if (
+      targetOrigin === defaultUpstreamOrigin &&
+      config.allowPlaceholderApiKeySwap &&
+      isPlaceholderApiKey(clientAuth)
+    ) {
+      const resolvedKey = localProviderKey || config.upstreamApiKey;
+      return resolvedKey ? `Bearer ${resolvedKey}` : undefined;
+    }
+    return clientAuth;
+  }
+
+  if (localProviderKey) {
+    return `Bearer ${localProviderKey}`;
+  }
+
+  return undefined;
+}
+
+export function shouldFallbackForAttempt(
+  method: string,
+  result: AttemptResult,
+): boolean {
+  // POST リクエストは二重実行・二重課金を避けるため一切 fallback しない
+  if (method !== "GET" && method !== "HEAD") {
+    return false;
+  }
+
+  if (result.kind !== "retry") {
+    return false;
+  }
+
+  if (
+    result.code === "upstream_unreachable" ||
+    result.code === "upstream_not_allowed" ||
+    result.code === "unknown_offering" ||
+    result.code === "credential_unavailable"
+  ) {
+    return true;
+  }
+
+  const status = result.status;
+  if (!status) return true; // ネットワークエラーなど
+
+  if (status === 408 || status === 429) {
+    return true;
+  }
+
+  if (status >= 500 && status <= 599) {
+    return true;
+  }
+
+  return false;
+}
+
 /** Whether this HTTP status should try the next fallback. */
 export function shouldFallbackHttpStatus(status: number): boolean {
   return status === 408 || status === 429 || (status >= 500 && status <= 599);
@@ -128,7 +242,8 @@ export async function defaultAttemptUpstream(
       allowedHosts: ctx.config.allowedUpstreamHosts,
     });
 
-    if (shouldFallbackHttpStatus(response.status)) {
+    const isIdempotent = ctx.method === "GET" || ctx.method === "HEAD";
+    if (isIdempotent && shouldFallbackHttpStatus(response.status)) {
       // Consume body so connection can close before next attempt
       try {
         await response.arrayBuffer();
@@ -198,12 +313,17 @@ export async function executeRoutePlan(
   const attempt = input.attempt ?? defaultAttemptUpstream;
   const { req, res, config, pathWithQuery, plan, catalog } = input;
 
-  const auth = pickAuthHeader(req, config);
-  if (!auth) {
+  const rawClientAuth = req.headers.authorization;
+  const hasAnyKey =
+    (rawClientAuth && rawClientAuth.length > 0) ||
+    config.upstreamApiKey ||
+    Object.keys(config.providerApiKeys).length > 0;
+
+  if (!hasAnyKey) {
     writeJson(res, 401, {
       error: {
         message:
-          "No upstream API key. Set OPENAI_API_KEY / GEKIYASU_UPSTREAM_API_KEY, or send Authorization: Bearer <key>.",
+          "No upstream API key available. Set GEKIYASU_UPSTREAM_API_KEY, provider keys, or send Authorization header.",
         type: "invalid_request_error",
         code: "missing_api_key",
       },
@@ -239,18 +359,9 @@ export async function executeRoutePlan(
   req.on("aborted", onClientGone);
   res.on("close", onClientGone);
 
-  const ctx: AttemptContext = {
-    req,
-    config,
-    pathWithQuery,
-    auth,
-    method,
-    body,
-    signal: ac.signal,
-  };
-
   try {
     let lastRetry: AttemptRetry | undefined;
+    let primaryOrigin: string | undefined;
 
     for (let i = 0; i < ids.length; i++) {
       const id = ids[i]!;
@@ -269,12 +380,68 @@ export async function executeRoutePlan(
         continue;
       }
 
+      const isPrimary = i === 0;
+      if (isPrimary) {
+        primaryOrigin = getOrigin(target.baseUrl);
+      }
+
+      const auth = resolveAuthForAttempt(
+        target,
+        rawClientAuth,
+        config,
+        isPrimary,
+        primaryOrigin,
+      );
+
+      const hasMore = i < ids.length - 1;
+
+      if (!auth) {
+        attemptLog.push(`${id}:credential_unavailable`);
+        lastRetry = {
+          kind: "retry",
+          offeringId: id,
+          code: "credential_unavailable",
+          message: `No API key available for provider ${target.providerId}`,
+        };
+
+        if (!hasMore) {
+          if (!res.headersSent) {
+            writeJson(res, 401, {
+              error: {
+                message: lastRetry.message,
+                type: "proxy_error",
+                code: lastRetry.code,
+                attempts: attemptLog,
+              },
+            });
+          }
+          return { offeringId: lastRetry.offeringId, attempts: attemptLog };
+        }
+        continue;
+      }
+
+      const ctx: AttemptContext = {
+        req,
+        config,
+        pathWithQuery,
+        auth,
+        method,
+        body,
+        signal: ac.signal,
+      };
+
       const result = await attempt(target, ctx);
       attemptLog.push(`${id}:${result.kind === "ok" ? "ok" : result.code}`);
 
       if (result.kind === "ok") {
         res.setHeader("x-gekiyasu-offering", result.offeringId);
         res.setHeader("x-gekiyasu-attempts", attemptLog.join(","));
+
+        // POSTかつ400以上のエラーの時は、fallbackがスキップされたことを示す独自ヘッダを追加
+        if (method !== "GET" && method !== "HEAD" && result.response.status >= 400) {
+          res.setHeader("x-gekiyasu-fallback", "skipped-non-idempotent");
+        }
+
         await pipeResponse(result.response, res, ac);
         return { offeringId: result.offeringId, attempts: attemptLog };
       }
@@ -295,10 +462,13 @@ export async function executeRoutePlan(
 
       // retry
       lastRetry = result;
-      const hasMore = i < ids.length - 1;
-      if (!hasMore) {
+
+      const canFallback = shouldFallbackForAttempt(method, result);
+      if (!canFallback || !hasMore) {
         if (!res.headersSent) {
-          writeJson(res, lastRetry.status && lastRetry.status >= 500 ? 502 : 502, {
+          const responseStatus =
+            lastRetry.status && lastRetry.status >= 400 ? lastRetry.status : 502;
+          writeJson(res, responseStatus, {
             error: {
               message: lastRetry.message,
               type: "proxy_error",
