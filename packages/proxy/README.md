@@ -34,6 +34,22 @@ scripts\start-proxy-windows.cmd
 .\scripts\start-proxy-windows.ps1
 ```
 
+### pm2 (recommended for everyday local use)
+
+Requires global `pm2`. From the **repository root**:
+
+```bash
+pm2 start ecosystem.config.cjs
+pm2 logs gekiyasu-proxy
+pm2 restart gekiyasu-proxy
+pm2 stop gekiyasu-proxy
+```
+
+The ecosystem file loads `packages/proxy/.env` into the process environment
+(without committing secrets). Default name: **`gekiyasu-proxy`** on
+`127.0.0.1:16191`. Do not run both pm2 and `scripts\start-proxy-windows.cmd`
+at once (port conflict).
+
 ## Client
 
 Point any OpenAI-compatible client at:
