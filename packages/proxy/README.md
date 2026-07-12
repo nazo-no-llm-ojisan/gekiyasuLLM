@@ -36,19 +36,26 @@ scripts\start-proxy-windows.cmd
 
 ### pm2 (recommended for everyday local use)
 
-Requires global `pm2`. From the **repository root**:
+Requires global `pm2`. Runs **headless** via the pm2 daemon (`windowsHide`,
+no console window; production `dist/`, not `tsx`). From the **repository root**:
 
 ```bash
+npm --prefix packages/proxy run build
 pm2 start ecosystem.config.cjs
 pm2 logs gekiyasu-proxy
-pm2 restart gekiyasu-proxy
+pm2 restart gekiyasu-proxy   # after code change + rebuild
 pm2 stop gekiyasu-proxy
+pm2 save                     # remember process list for pm2 resurrect
 ```
 
 The ecosystem file loads `packages/proxy/.env` into the process environment
 (without committing secrets). Default name: **`gekiyasu-proxy`** on
 `127.0.0.1:16191`. Do not run both pm2 and `scripts\start-proxy-windows.cmd`
 at once (port conflict).
+
+Terminal close is fine (daemon keeps running). **Windows logoff/reboot** does
+not auto-start unless you register startup (`pm2 startup` / Task Scheduler) and
+`pm2 save`.
 
 ## Client
 
