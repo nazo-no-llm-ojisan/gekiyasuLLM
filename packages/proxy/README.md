@@ -117,6 +117,26 @@ Checklist: [docs/L11_MANUAL_E2E.md](../../docs/L11_MANUAL_E2E.md) (`/health` →
 | Upstream request headers | **Allowlist** (`content-type`, `accept`, `accept-language`, `user-agent`). Tenant headers `openai-organization` / `openai-project` / `idempotency-key` are forwarded **only** when the target offering origin equals the exact origin of `GEKIYASU_UPSTREAM_BASE_URL` (T-031). Never copy client `authorization`, `cookie`, `x-api-key`, `x-gekiyasu-token`, `proxy-authorization`. |
 | Fallback | **GET/HEAD:** on 408/429/5xx/timeout/network → try next offering. **POST/PATCH/PUT/DELETE:** never auto-fallback (avoids double charge). Upstream error status/body is passed through when available. |
 
+## Response handling & client compatibility
+
+The proxy is a **transparent pass-through** for upstream bodies. A few guarantees worth knowing when something looks broken only in one client (e.g. `curl` is fine but a desktop client shows "Network Problem"):
+
+- **`content-encoding` is always stripped** before forwarding. Node `fetch` (undici) auto-decompresses the body, but the original `Content-Encoding` header can leak through. Leaving it on the wire makes strict clients (aiohttp, certain Java HTTP libs) re-attempt decompression and fail with `Can not decode content-encoding: brotli (br). Please install \`Brotli\`` — visible as "Network Problem" in OpenWebUI. (`copyResponseHeaders` in `executor.ts` and `HOP_BY_HOP` in `upstream.ts`.)
+- **`content-length` is dropped** (undici may have rewritten the body after decompression; the header would lie).
+- **Hop-by-hop headers** (`connection`, `keep-alive`, `transfer-encoding`, `upgrade`, `te`, `trailers`, `host`) are never forwarded.
+- **`/v1/models` responses are normalized** to OpenAI's `object: list` + per-item `object: model` + `owned_by` shape so non-OpenAI providers are accepted by OpenWebUI and similar clients.
+
+### Client-side symptom → likely cause
+
+| Symptom in one client only | Likely cause | First check |
+|---|---|---|
+| Works in `curl` / fails in IDE / desktop client | stale `Content-Encoding` on a rewritten body | `curl -D - ...` and look for `content-encoding:`. If present after a fix is claimed, file an issue with the exact response headers. |
+| `client disconnected` / `SERVER_CONNECTION_ERROR` immediately | proxy token missing or `Authorization` shape rejected | proxy log: `authShape` and `proxy_token_rejected`. `Authorization: Bearer gekiyasu-proxy:<token>` is the most portable form for one-key clients. |
+| Streaming cuts mid-response | client abort + upstream abort plumbing; or non-OpenAI `apiCompat` rejected (T-045) | confirm the offering's `apiCompat` is `openai_chat`; check `x-gekiyasu-attempts` for fallback codes. |
+| Model always 200 OK but wrong content | `requestedModel` resolved to a foreign offering (T-044 fail-closed) | `x-gekiyasu-offering` and `x-gekiyasu-route-plan`; feed `modelId` / `aliases` alignment. |
+
+When debugging a new "works in curl, fails in client X" report, **do not start with auth** — check the response headers first.
+
 ## Env
 
 | Variable | Default | Meaning |

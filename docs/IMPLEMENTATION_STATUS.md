@@ -37,6 +37,9 @@
 | **upstream request headers** | **済** — allowlist（`content-type` / `accept` 等）。`authorization` / `cookie` / `x-api-key` / `x-gekiyasu-token` / `proxy-authorization` は client からコピーしない |
 | **placeholder 置換** | **済** — loopback かつ configured upstream origin のみ。別 origin に global key を送らない |
 | **tenant / correlation headers** | **済 (T-031)** — `openai-organization` / `openai-project` / `idempotency-key` は **configured upstream origin のみ**転送。foreign origin では drop |
+| **`Content-Encoding` リーク防止** | **済 (issue #1)** — `copyResponseHeaders`（`executor.ts`）と `HOP_BY_HOP`（`upstream.ts`）で `content-encoding` を必ず strip。undici が自動展開した本文に元の `Content-Encoding: br` が残る問題を根治。ストリーム / 書換経路ともに同じ規則。回帰テスト: `response header hygiene after undici decompression` |
+| **`Content-Length` strip** | **済** — undici 展開後の本体長は wire の `Content-Length` と一致しないため、hop-by-hop として落とす |
+| **`/v1/models` 形正規化** | **済** — `normalizeModelsResponseJson` で `{object:"list", data:[…{object:"model", owned_by}…]}` に揃える。`owned_by` 欠落時は `provider` フォールバック → `upstream` |
 
 ## ルーティング
 
@@ -84,6 +87,7 @@
 | CI test 明示列挙 | **M3 / T-048** |
 | CORS actual response | **品質レーン T-047** |
 | health が upstream URL 全文 | **品質レーン T-049** |
+| `Accept-Encoding: identity` で上流圧縮を禁止 | **未採用**（issue #1 検討）。上流が br/gzip/zstd で返してきても proxy 側で strip する前提（`copyResponseHeaders` + `HOP_BY_HOP`）で根治済み。`identity` を強制すると (a) 巨大 `/v1/models` で帯域が増える、(b) 一部 upstream は `Accept-Encoding: identity` を尊重せず依然 br を返す、(c) proxy 層で再度展開する必要はない。再開しない。`curl` で `Accept-Encoding: identity` を渡すのは個人診断用としては有用。 |
 
 本線: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) **M1–M3** · 台帳 [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)。
 
