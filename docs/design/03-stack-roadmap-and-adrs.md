@@ -79,6 +79,7 @@
 | Proxy 統計 | **SQLite** | ゼロ運用 |
 | 設定 | **TOML/YAML + Zod** | 検証容易 |
 | フィード | **JSON + JSON Schema + Ed25519 署名** | 検証可能 |
+| 配布 | 初期 Node 実行 → 後段で Node SEA / `@yao-pkg/pkg` 評価 | Win/macOS/Linux の単一実行ファイルと checksum 付き release |
 | 中央静的 | **GitHub repo + Actions + Cloudflare Pages** | ほぼ $0 |
 | 収集バッチ | Actions 内 **TS or Python** | 用途で分割可 |
 | サイト | **静的 SSG**（Astro/Next static） | 安価 |
@@ -286,6 +287,20 @@ GitHub 公開リポ（ソース + フィード JSON）
 
 - **採用**: 公称と実測を別フィールド。上書きしない
 - **却下**: 実測で公称を消す
+
+### ADR-022: モデル同定ルールの拡張は薄く・撤退可能にする
+
+- **採用候補**: T-039 の pure TypeScript matcher を既定とし、必要な場合だけ Lua hook（候補: wasmoon）を薄く評価する
+- **理由**: エイリアス表、infra provider、derivative pattern、閾値などの日常更新は JSON/YAML データで足りる。matcher 級のアルゴリズム全体を設定言語に押し込むと、設定ファイルが実質コードになり保守が難しい
+- **条件**: Lua hook は同定ロジックを差し替える小さな拡張点に限定する。使わなければ外せるよう、入力/出力シグネチャを TS 実装と揃える
+- **却下**: 最初から全 matcher を Lua 等に寄せる、または Node `vm` で任意 JS を設定として実行する
+
+### ADR-023: 単一実行ファイル配布は後段の配布成熟タスクとする
+
+- **採用候補**: Node 公式 SEA と `@yao-pkg/pkg` を比較し、GitHub Releases に OS 別 artifact と checksum を載せる
+- **理由**: NFR-05（移植性）と NFR-09（供給連鎖）に合う。利用者が Node を用意せず試せる
+- **条件**: まず素の proxy で検証する。wasmoon 等を採用する場合は `.wasm` アセット同梱を別途確認する
+- **却下**: MVP 本線を配布方式の検討で止める
 
 ---
 

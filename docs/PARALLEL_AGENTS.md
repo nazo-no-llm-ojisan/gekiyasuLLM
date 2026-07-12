@@ -120,6 +120,9 @@
 | T-038 | docs/proxy | IDE one-shot E2E note after user success | T-032 | docs/L11*, ROADMAP* | — | ROADMAP L11 IDE checkbox when user confirms | forbidden | todo（利用者任意） |
 | T-039 | schema | Port model-id + developer normalize pure TS | - | packages/schema/src/** | model-id / developer unit tests | parse `:free` first; infra→family developer; no proxy coupling | proposed | todo（収集層。設計 06 参照） |
 | T-040 | docs | Design 06 model identity contract memo | - | docs/design/06* | — | 06 が索引・05 からリンク | forbidden | **done** |
+| T-041 | schema | Evaluate thin Lua hook for model identity rules | T-039 | packages/schema/src/**, docs/design/06* | hook contract test or spike note | built-in TS matcher remains default; optional Lua hook can be removed without data migration | proposed | todo（wasmoon 等の評価。薄く・撤退可能に） |
+| T-042 | ci/release | Single-file binary release spike | T-025 | package.json, packages/proxy/**, .github/**, docs/** | release packaging smoke test | Win/macOS/Linux artifact approach documented; checksum plan noted | proposed | todo（SEA/pkg 評価。Lua/WASM 同梱は別確認） |
+| T-043 | docs | NFR: influence on measured availability | - | docs/** | — | herding / self-reference risk and local-routing mitigation are documented | forbidden | todo（思想・NFR。実装タスクではない） |
 
 #### バックログ注記（2026-07-12 外部監査）
 
@@ -128,6 +131,9 @@
 - T-031 は tenant 識別子漏洩の residual（API key ではない）。T-033 と並列可。
 - T-036 は Phase 3 製品価値（落ちたら次＋一時回避）。T-037/T-038 は運用・UX。
 - **T-039/T-040:** メンテナ私有の multi-router 観測経験を収集層に載せる。**Proxy 本線とパス分離。** 私有 raw は持ち込まない。契約メモは design/06（T-040 done）。
+- **T-041:** T-039 の pure TS matcher を既定にしつつ、同定ルールの一部だけを Lua hook（候補: wasmoon）で差し替えられるか評価する。9割は JSON/YAML データ、1割だけ DSL の想定。最初から Lua 前提にしない。
+- **T-042:** 配布成熟タスク。Node 公式 SEA と `@yao-pkg/pkg` を比較し、まず素の proxy で単一実行ファイル化できるかを確認する。Lua/WASM を採る場合は `.wasm` アセット同梱を追加検証する。
+- **T-043:** 実装ではなく NFR/思想。公開ヘッドラインやランキングが traffic を動かし、観測対象の可用性を変える自己参照ループ（herding）を明文化する。ローカル実行と説明可能なランクが抑制装置。
 
 契約を触りたくなったら **新 id で `contract_changes: proposed`** を1本だけ立て、マージ後に実装タスクを並列化。
 

@@ -44,6 +44,9 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 | **T-038** | IDE 一通（利用者が確認したら docs 更新） | 任意 | todo |
 | **T-040** | design/06 モデル同定・正規化契約 | 収集層の境界固定 | **done** |
 | **T-039** | model-id / developer pure TS（schema） | 収集層の次の赤緑。Proxy と分離 | todo |
+| **T-041** | model identity Lua hook 評価 | T-039 後。pure TS 既定、薄い wasmoon hook は撤退可能に評価 | todo |
+| **T-042** | 単一実行ファイル / Releases | 配布成熟。SEA/pkg と checksum 付き artifact の検討 | todo |
+| **T-043** | 観測対象への反作用 NFR | herding / 自己参照ループを設計上の注意として明文化 | todo |
 | T-024 | pricing parser 実験 | 本線外・並列可（06/T-039 と合流可） | todo |
 
 ```text
@@ -53,7 +56,8 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
   → T-036 circuit
   → （公開フィードを始める決断）→ T-034 DNS pin → T-035 署名
   → T-037 stats CLI / T-038 IDE メモ
-  収集層（Proxy と別）: T-040 done → T-039 pure TS
+  収集層（Proxy と別）: T-040 done → T-039 pure TS → T-041 Lua hook 評価
+  配布/NFR: T-042 単一バイナリ、T-043 herding NFR
 ```
 
 ---
@@ -94,6 +98,9 @@ L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard
 | circuit breaker | T-036 | todo（Phase 3） |
 | stats CLI | T-037 | todo |
 | IDE 一通 docs | T-038 | todo（利用者任意） |
+| model identity Lua hook 評価 | T-041 | todo（T-039 後。薄く・撤退可能に） |
+| 単一実行ファイル / Releases | T-042 | todo（配布成熟。wasmoon 採用時は WASM 同梱確認） |
+| 観測対象への反作用 NFR | T-043 | todo（docs のみ） |
 
 ---
 

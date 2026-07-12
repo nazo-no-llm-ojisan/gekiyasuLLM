@@ -153,11 +153,18 @@ gekiyasu に載せるなら **ローカル専用・gitignore**。公開フィー
 |---|---|
 | **今** | 本メモのみ（契約）。Proxy 本線（T-033 等）と並列で触らない |
 | **次（任意）** | `packages/schema` に pure 関数 + 単体テスト（パース・developer・cache 式） |
+| **次の評価** | pure TS matcher を既定にしたまま、wasmoon 等による薄い Lua hook を T-041 として評価（使わなければ外せる） |
 | **フィード本格化** | collectors: Fetcher/Parser、アノマリー → フィード生成。T-024 周辺と合流可 |
 | **公開フィード前** | 署名 T-035。収集成果の改ざん耐性 |
 
 台帳: 実装着手時は `T-039`（model-id / developer normalize pure TS）等を立てる。  
 **contract_changes:** 公開型を増やすなら `proposed`。
+
+### 5.1 Lua hook 評価（任意・薄く）
+
+同定ロジックはまず pure TypeScript で持つ。日常更新は aliases / infra providers / derivative patterns / thresholds などの JSON/YAML データを編集する。Lua hook は、データ更新だけでは足りない判定を試すための小さな拡張点として評価する。
+
+候補は `wasmoon`。ただし hook は入力（raw model records + rule data）と出力（canonical key / flags / reasons）を固定し、TS 実装と差し替え可能にする。最初から全 matcher を Lua 化しない。公開フィードや Proxy hot path へ混ぜる前に、オフライン収集層でのみ検証する。
 
 ---
 

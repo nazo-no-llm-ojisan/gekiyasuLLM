@@ -66,6 +66,9 @@
 | **T-038** | IDE 一通 docs | todo（利用者任意） |
 | **T-040** | design/06 モデル同定・正規化契約 | **done** |
 | **T-039** | model-id / developer pure TS | todo（収集。Proxy 非混入） |
+| **T-041** | model identity Lua hook 評価 | todo（T-039 後。pure TS 既定、wasmoon 等は薄く評価） |
+| **T-042** | 単一実行ファイル / Releases | todo（SEA/pkg、checksum、WASM 同梱は採用時確認） |
+| **T-043** | 観測対象への反作用 NFR | todo（docs。herding / 自己参照リスク） |
 
 | 項目（未採番・メモ） | メモ |
 |---|---|
