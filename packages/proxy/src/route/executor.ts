@@ -3,6 +3,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { RoutePlan } from "@gekiyasu/schema";
 import type { ProxyConfig } from "../config.js";
+import { normalizeModelsResponseJson } from "../models-response.js";
 import { isProxyAuthorization, PLACEHOLDER_BEARERS } from "../security.js";
 import {
   buildUpstreamHeaders,
@@ -422,7 +423,11 @@ export async function executeRoutePlan(
           res.setHeader("x-gekiyasu-fallback", "skipped-non-idempotent");
         }
 
-        await pipeResponse(result.response, res, ac);
+        if (isModelsListRequest(pathWithQuery)) {
+          await pipeModelsResponse(result.response, res);
+        } else {
+          await pipeResponse(result.response, res, ac);
+        }
         return { offeringId: result.offeringId, attempts: attemptLog };
       }
 
@@ -480,24 +485,47 @@ export async function executeRoutePlan(
   }
 }
 
+function isModelsListRequest(pathWithQuery: string): boolean {
+  const path = pathWithQuery.split("?")[0] ?? pathWithQuery;
+  return path === "/v1/models";
+}
+
+async function pipeModelsResponse(
+  upstream: Response,
+  res: ServerResponse,
+): Promise<void> {
+  const headers = copyResponseHeaders(upstream);
+  const contentType = upstream.headers.get("content-type") ?? "";
+  if (
+    upstream.status !== 200 ||
+    !contentType.toLowerCase().includes("application/json")
+  ) {
+    res.writeHead(upstream.status, headers);
+    res.end(await upstream.text());
+    return;
+  }
+
+  let body: unknown;
+  try {
+    body = JSON.parse(await upstream.text());
+  } catch {
+    res.writeHead(upstream.status, headers);
+    res.end("");
+    return;
+  }
+
+  delete headers["content-length"];
+  headers["content-type"] = "application/json";
+  res.writeHead(upstream.status, headers);
+  res.end(JSON.stringify(normalizeModelsResponseJson(body)));
+}
+
 async function pipeResponse(
   upstream: Response,
   res: ServerResponse,
   ac: AbortController,
 ): Promise<void> {
-  const outHeaders: Record<string, string> = {};
-  upstream.headers.forEach((value, key) => {
-    const lower = key.toLowerCase();
-    if (
-      lower === "connection" ||
-      lower === "keep-alive" ||
-      lower === "transfer-encoding" ||
-      lower === "content-length"
-    ) {
-      return;
-    }
-    outHeaders[key] = value;
-  });
+  const outHeaders = copyResponseHeaders(upstream);
   res.writeHead(upstream.status, outHeaders);
 
   if (!upstream.body) {
@@ -520,6 +548,23 @@ async function pipeResponse(
       res.destroy(err instanceof Error ? err : undefined);
     }
   }
+}
+
+function copyResponseHeaders(upstream: Response): Record<string, string> {
+  const outHeaders: Record<string, string> = {};
+  upstream.headers.forEach((value, key) => {
+    const lower = key.toLowerCase();
+    if (
+      lower === "connection" ||
+      lower === "keep-alive" ||
+      lower === "transfer-encoding" ||
+      lower === "content-length"
+    ) {
+      return;
+    }
+    outHeaders[key] = value;
+  });
+  return outHeaders;
 }
 
 function writeJson(
