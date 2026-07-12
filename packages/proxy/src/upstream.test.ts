@@ -25,6 +25,7 @@ const baseConfig = {
   upstreamTimeoutMs: 5000,
   allowPlaceholderApiKeySwap: true,
   providerApiKeys: {},
+  statsFile: undefined,
 } satisfies ProxyConfig;
 
 describe("buildUpstreamHeaders", () => {

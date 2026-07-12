@@ -3,6 +3,7 @@
  * Port 16191 is fixed project-wide (@gekiyasu/schema + docs).
  */
 
+import { join } from "node:path";
 import {
   DEFAULT_PROXY_HOST,
   DEFAULT_PROXY_PORT,
@@ -56,6 +57,13 @@ export type ProxyConfig = {
    * (e.g. by base URL origin or offering id) instead of providerId alone.
    */
   providerApiKeys: Record<string, string>;
+  /**
+   * Append-only JSONL path for local request stats (L10).
+   * Metadata only — no prompts/bodies/keys.
+   * `undefined` disables recording. Default: `{cwd}/data/stats.jsonl`.
+   * Set GEKIYASU_STATS_FILE=off to disable.
+   */
+  statsFile: string | undefined;
 };
 
 function env(name: string): string | undefined {
@@ -71,6 +79,24 @@ function envInt(name: string, fallback: number): number {
     throw new Error(`Invalid ${name}: ${raw}`);
   }
   return n;
+}
+
+/** Resolve stats file path; undefined means disabled. */
+export function resolveStatsFile(
+  override: string | undefined,
+  envValue: string | undefined,
+  cwd: string = process.cwd(),
+): string | undefined {
+  if (override !== undefined) {
+    return override.length > 0 ? override : undefined;
+  }
+  if (envValue === "off" || envValue === "false" || envValue === "0") {
+    return undefined;
+  }
+  if (envValue && envValue.length > 0) {
+    return envValue;
+  }
+  return join(cwd, "data", "stats.jsonl");
 }
 
 function loadProviderApiKeys(): Record<string, string> {
@@ -149,5 +175,9 @@ export function loadConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
       overrides.allowPlaceholderApiKeySwap ?? isLoopbackHost(host),
     feedFile: overrides.feedFile ?? env("GEKIYASU_FEED_FILE"),
     providerApiKeys: overrides.providerApiKeys ?? loadProviderApiKeys(),
+    statsFile: resolveStatsFile(
+      overrides.statsFile,
+      env("GEKIYASU_STATS_FILE"),
+    ),
   };
 }

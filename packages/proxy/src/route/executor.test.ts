@@ -49,6 +49,7 @@ function baseConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
     upstreamTimeoutMs: 5000,
     allowPlaceholderApiKeySwap: true,
     providerApiKeys: {},
+    statsFile: undefined,
     ...overrides,
   };
 }

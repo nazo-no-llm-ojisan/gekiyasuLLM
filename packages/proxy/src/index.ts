@@ -71,6 +71,11 @@ async function main(): Promise<void> {
     );
   }
   console.log(`  Upstream allowlist: ${config.allowedUpstreamHosts.join(", ")}`);
+  if (config.statsFile) {
+    console.log(`  Local stats (JSONL): ${config.statsFile}`);
+  } else {
+    console.log("  Local stats: disabled");
+  }
   if (!config.upstreamApiKey) {
     console.log(
       "  Note: no OPENAI_API_KEY in env; clients must send Authorization: Bearer <key>",

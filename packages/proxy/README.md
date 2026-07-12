@@ -70,6 +70,7 @@ Checklist: [docs/L11_MANUAL_E2E.md](../../docs/L11_MANUAL_E2E.md) (`/health` →
 | `GEKIYASU_PROXY_TOKEN` | — | If set, `/v1/*` requires `X-Gekiyasu-Token` (or `Authorization: Bearer gekiyasu-proxy:<token>`). `/health` stays open. |
 | `GEKIYASU_MAX_BODY_BYTES` | 20MiB | Max buffered request body |
 | `GEKIYASU_UPSTREAM_TIMEOUT_MS` | 120000 | Upstream fetch timeout |
+| `GEKIYASU_STATS_FILE` | `{cwd}/data/stats.jsonl` | Local request stats JSONL (metadata only). Set `off` to disable |
 
 Every upstream fetch (including feed `base_url`) is checked with the allowlist + https/loopback rules. Private/link-local IPs are blocked (except loopback http for local tests).
 

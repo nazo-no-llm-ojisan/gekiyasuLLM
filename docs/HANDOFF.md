@@ -21,13 +21,12 @@
 - **パス:** `C:\dev\project\gekiyasuLLM`
 - **Remote:** `https://github.com/nazo-no-llm-ojisan/gekiyasuLLM.git`
 - **ブランチ:** `main` (公開前提)
-- **最新同期コミット:** `3f8b968`（L11 ピン・手動 E2E 手順）
-  - P0/P1 正本: `e2b3d14` · residual 記録: `ba402f1`
-  - 直前の疑義コミット `4bbc1fb` は CI failure の未完成状態。follow-up で修正済み。
+- **最新同期コミット:** L10 実装後に更新
+  - P0/P1 正本: `e2b3d14` · L11 curl: `d6326a9` 記録
 
 ### 現在のピン
-- **大枠 (ROADMAP_MACRO.md):** Phase 2 完了。Phase 3 進行中（fallback 骨格・CostEstimate 済。統計・E2E 未）
-- **ローカル (ROADMAP_LOCAL.md):** **L9 完了 → 次 L11（実キー手動 E2E・推奨）→ その後 L10（統計）**
+- **大枠 (ROADMAP_MACRO.md):** Phase 2 完了。Phase 3 進行中（fallback・L9・L10・L11 curl 済。circuit 未）
+- **ローカル (ROADMAP_LOCAL.md):** **L10 完了**
 - **中継先:** `http://127.0.0.1:16191/v1`
 - **静的 UI:** `http://127.0.0.1:16191/dashboard/` (認証なし・sample JSON のみ)
 
@@ -70,14 +69,20 @@
 - **起動先:** `http://127.0.0.1:16191`（loopback）  
 - **IDE 一通**は未実施（Base URL `http://127.0.0.1:16191/v1` + API key `sk-local` + 必要なら `X-Gekiyasu-Token`）
 
+### L10 ローカル統計（実装済）
+- JSONL append: 既定 `{cwd}/data/stats.jsonl`（gitignore）
+- 記録: ts, method, path（query 除去）, offeringId, attempts, status, latencyMs, ok, errorCode?
+- **非記録:** プロンプト、応答本文、API キー、Authorization
+- 無効化: `GEKIYASU_STATS_FILE=off`
+- コード: `packages/proxy/src/stats/store.ts` + server 配線
+
 ### 次の本線候補
-1. **IDE から L11 接続**（任意）— 利用者が IDE の base URL を proxy に向ける  
-2. **L10 ローカル統計** — offering / attempts / status / latency / estimate を記録（本文・キーは残さない）
+1. **IDE から接続**（任意）  
+2. **circuit breaker**（Phase 3 残り）  
+3. stats の CLI 集計 / estimated cost 紐付け（後段）
 
 ### 将来（本線外・P0 ではない）
-- tenant/correlation headers（`openai-organization` / `openai-project` / `idempotency-key`）を configured upstream origin のみに限定
-- `providerApiKeys` → endpoint/origin 単位 credential mapping（上と同一タスク束がよい）
-- 詳細: [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)「将来タスク」
+- T-031 origin-scope tenant headers + endpoint credential map
 - redirect またぎ `fetchUpstream` integration coverage
 
-台帳 `docs/PARALLEL_AGENTS.md` は `T-030` まで **done**、`T-031` は本線外 todo。本線は L11 手動 → L10。
+台帳: T-032 (L10) **done**。

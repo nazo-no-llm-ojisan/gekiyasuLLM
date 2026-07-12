@@ -13,7 +13,7 @@
     "dev": "tsx src/index.ts serve",
     "start": "node dist/index.js serve",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/security.test.ts src/url-join.test.ts src/upstream.test.ts src/route/plan.test.ts src/route/executor.test.ts src/route/catalog.test.ts src/cost/estimator.test.ts"
+    "test": "tsx --test src/security.test.ts src/url-join.test.ts src/upstream.test.ts src/route/plan.test.ts src/route/executor.test.ts src/route/catalog.test.ts src/cost/estimator.test.ts src/stats/store.test.ts"
   },
   "engines": {
     "node": ">=20"

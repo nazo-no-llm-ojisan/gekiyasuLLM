@@ -4,15 +4,15 @@
 
 **ピン:** [ROADMAP.md](./ROADMAP.md) · 失敗分類: [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)
 
-最終更新: 2026-07-12（P0 credential isolation / P1 non-idempotent fallback 後と同期）
+最終更新: 2026-07-12（L10 ローカル統計 JSONL 後と同期）
 
 ## 総評
 
 | 層 | 状態 |
 |---|---|
 | 設計 docs | 先行・厚い |
-| Proxy | **中継 + 境界 + plan filter/rank + executor fallback + 静的フィード + CostEstimate 最小 + credential isolation** |
-| ルーティング | **L9 まで**（circuit 未。GET/HEAD fallback 済。POST 等は fallback 禁止） |
+| Proxy | **中継 + 境界 + plan/filter/fallback + フィード + CostEstimate + credential isolation + ローカル統計 JSONL** |
+| ルーティング | **L10 まで**（circuit 未。GET/HEAD fallback 済。POST 等は fallback 禁止） |
 | フィード収集 | 未（静的ファイル読込は L8 済） |
 | Dashboard | 静的デモ（`/dashboard/`） |
 | 本番利用 | **不可** |
@@ -49,11 +49,12 @@
 | maxCostPerRequest | estimatedCostPerRequest のみ（$/M と混同しない） |
 | preferLowCachePrice | 死コードバグ修正。既定は inputPerMillion で安定ソート |
 | 静的フィード → catalog | **済**（L8。`GEKIYASU_FEED_FILE`） |
+| ローカル統計 (L10) | **済** — append-only JSONL（既定 `data/stats.jsonl`）。method/path/offering/attempts/status/latency/ok。本文・キーなし。`GEKIYASU_STATS_FILE=off` で無効 |
 
 ## 次（本線）
 
-1. **L11** 実キー E2E — curl 最小は **2026-07-12 合格**（`.env` 注入・キー非公開）。IDE 一通は利用者任意。手順 [L11_MANUAL_E2E.md](./L11_MANUAL_E2E.md)  
-2. **L10** ローカル統計 — 次の本線候補
+1. IDE 一通（任意）— [L11_MANUAL_E2E.md](./L11_MANUAL_E2E.md)  
+2. circuit breaker / stats CLI・集計 UI（後段）
 
 ## 将来タスク（本線外・境界強化）
 

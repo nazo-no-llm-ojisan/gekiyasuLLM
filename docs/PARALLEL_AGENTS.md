@@ -111,6 +111,7 @@
 | T-029 | proxy/schema | Static feed loading (L8) | - | packages/schema/**, packages/proxy/**, fixtures/** | feed loading test | load static JSON feed to catalog | proposed | **done** |
 | T-030 | proxy | P0 credential isolation + P1 no POST fallback | T-028 | packages/proxy/src/** | executor + upstream header tests | client key only on configured origin; POST never fallbacks | forbidden | **done** |
 | T-031 | proxy | Origin-scope tenant headers + endpoint credential map | T-030 | packages/proxy/src/** | header origin-scope tests | org/project/idempotency only on configured origin; keys by origin/endpoint | forbidden | todo（本線外・P0ではない） |
+| T-032 | proxy | L10 local request stats JSONL | T-028 | packages/proxy/src/stats/**, server*, config* | store.test.ts | append metadata-only events; no bodies/keys | forbidden | **done** |
 
 契約を触りたくなったら **新 id で `contract_changes: proposed`** を1本だけ立て、マージ後に実装タスクを並列化。
 

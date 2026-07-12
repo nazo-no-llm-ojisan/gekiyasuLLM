@@ -7,6 +7,11 @@ import {
 import { describeExecution, executeRoutePlan } from "./route/executor.js";
 import { buildRoutePlan } from "./route/plan.js";
 import { checkProxyToken } from "./security.js";
+import {
+  createJsonlStatsStore,
+  createNullStatsStore,
+  type StatsStore,
+} from "./stats/store.js";
 import { tryServeDashboard } from "./static-dashboard.js";
 
 export type RunningServer = {
@@ -24,8 +29,44 @@ function sendJson(
   res.end(JSON.stringify(body));
 }
 
+function buildStatsStore(config: ProxyConfig): StatsStore {
+  if (!config.statsFile) return createNullStatsStore();
+  return createJsonlStatsStore(config.statsFile);
+}
+
+async function recordRouteStat(
+  stats: StatsStore,
+  input: {
+    method: string;
+    path: string;
+    startedMs: number;
+    offeringId?: string;
+    attempts: string[];
+    status: number;
+    errorCode?: string;
+  },
+): Promise<void> {
+  const status = input.status > 0 ? input.status : 0;
+  try {
+    await stats.record({
+      ts: new Date().toISOString(),
+      method: input.method,
+      path: input.path,
+      offeringId: input.offeringId,
+      attempts: input.attempts,
+      status,
+      latencyMs: Math.max(0, Date.now() - input.startedMs),
+      ok: status >= 200 && status < 400,
+      errorCode: input.errorCode,
+    });
+  } catch {
+    // Stats must never break the request path
+  }
+}
+
 export function createServer(config: ProxyConfig): http.Server {
   const catalog = buildOfferingCatalog(config);
+  const stats = buildStatsStore(config);
 
   return http.createServer(async (req, res) => {
     const host = req.headers.host ?? `${config.host}:${config.port}`;
@@ -38,6 +79,7 @@ export function createServer(config: ProxyConfig): http.Server {
         service: "gekiyasuLLMProxy",
         upstream: config.upstreamBaseUrl,
         proxyTokenRequired: Boolean(config.proxyToken),
+        statsEnabled: Boolean(config.statsFile),
       });
       return;
     }
@@ -71,6 +113,8 @@ export function createServer(config: ProxyConfig): http.Server {
       }
 
       const pathWithQuery = path + url.search;
+      const startedMs = Date.now();
+      const method = req.method ?? "GET";
 
       let plan;
       try {
@@ -87,6 +131,14 @@ export function createServer(config: ProxyConfig): http.Server {
             code: "no_eligible_offering",
           },
         });
+        await recordRouteStat(stats, {
+          method,
+          path,
+          startedMs,
+          attempts: [],
+          status: 503,
+          errorCode: "no_eligible_offering",
+        });
         return;
       }
 
@@ -101,8 +153,14 @@ export function createServer(config: ProxyConfig): http.Server {
           config,
           pathWithQuery,
         });
-        // offering / attempts headers set inside executor when possible
-        void result;
+        await recordRouteStat(stats, {
+          method,
+          path,
+          startedMs,
+          offeringId: result.offeringId,
+          attempts: result.attempts,
+          status: res.statusCode,
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (!res.headersSent) {
@@ -110,6 +168,14 @@ export function createServer(config: ProxyConfig): http.Server {
             error: { message, type: "proxy_error", code: "internal_error" },
           });
         }
+        await recordRouteStat(stats, {
+          method,
+          path,
+          startedMs,
+          attempts: [],
+          status: res.statusCode || 500,
+          errorCode: "internal_error",
+        });
       }
       return;
     }
