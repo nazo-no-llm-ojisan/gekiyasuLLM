@@ -7,6 +7,7 @@ import {
 import { describeExecution, executeRoutePlan } from "./route/executor.js";
 import { buildRoutePlan } from "./route/plan.js";
 import { checkProxyToken } from "./security.js";
+import { tryServeDashboard } from "./static-dashboard.js";
 
 export type RunningServer = {
   server: http.Server;
@@ -38,6 +39,11 @@ export function createServer(config: ProxyConfig): http.Server {
         upstream: config.upstreamBaseUrl,
         proxyTokenRequired: Boolean(config.proxyToken),
       });
+      return;
+    }
+
+    // Static dashboard (no proxy token; local demo UI only)
+    if (tryServeDashboard(req, res, path)) {
       return;
     }
 

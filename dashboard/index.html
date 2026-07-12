@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>gekiyasuLLM — static dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>gekiyasuLLM</h1>
+      <p id="headline">Loading…</p>
+      <p id="feed-meta" class="muted"></p>
+    </header>
+
+    <main id="app">
+      <div class="banner">
+        <strong>Static demo.</strong>
+        No login. No upstream calls. No real-time prices.
+        Data is <code>dashboard/data/sample-feed.json</code> only.
+        Sorting ignores sponsored boost (COI labels only).
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Local proxy (default)</h2>
+          <div class="value" id="proxy-url">—</div>
+        </div>
+        <div class="card">
+          <h2>Roadmap pin (static text)</h2>
+          <div class="value big" id="phase-pin">—</div>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Offering</th>
+            <th>Provider</th>
+            <th>Status</th>
+            <th>Price (label)</th>
+            <th>Context</th>
+          </tr>
+        </thead>
+        <tbody id="offerings-body"></tbody>
+      </table>
+
+      <footer>
+        Docs:
+        <a href="../docs/ROADMAP.md">ROADMAP</a>
+        ·
+        <a href="../docs/ROADMAP_LOCAL.md">LOCAL</a>
+        ·
+        Serve: open this folder with any static server, or
+        <code>npm run dev</code> in <code>packages/proxy</code> then
+        <code>http://127.0.0.1:16191/dashboard/</code>
+      </footer>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

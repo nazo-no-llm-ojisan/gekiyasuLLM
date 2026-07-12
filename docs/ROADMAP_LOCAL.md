@@ -22,10 +22,11 @@ L8  静的フィード読込             ░░░░ 未（Phase 2）
 L9  CostEstimate 最小            ░░░░ 未
 L10 ローカル統計                 ░░░░ 未（Phase 3）
 L11 実キー E2E「IDE から1通」    ░░░░ 手動・未確認を想定
+L12 静的 dashboard UI            ████ 完了（dashboard/ + /dashboard/）
 ```
 
-**ピン:** **L5 完了 → 次は L6（複数候補 + hard filter）または L11 実キー E2E**  
-中継は plan.primary → catalog → upstream。L11 は実キーの手動確認。
+**ピン:** **L5 完了・L12 静的 UI あり → 次は L6（複数候補）または L11 実キー E2E**  
+中継は plan.primary → catalog → upstream。Dashboard は sample JSON のみ（認証なし）。
 
 ---
 

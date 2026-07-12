@@ -27,6 +27,7 @@
 cd packages/proxy
 npm install
 npm run dev
+# dashboard: http://127.0.0.1:16191/dashboard/
 ```
 
 [AGENTS.md](./AGENTS.md) · [packages/proxy/README.md](./packages/proxy/README.md) · [USER_STATUS_TEMPLATE](./docs/USER_STATUS_TEMPLATE.md) · [BRAINLESS_TDD](./docs/BRAINLESS_TDD.md)

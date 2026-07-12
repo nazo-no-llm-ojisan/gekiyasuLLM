@@ -53,6 +53,7 @@ async function main(): Promise<void> {
   console.log(`  OpenAI base URL for clients: ${running.url}/v1`);
   console.log(`  Upstream: ${config.upstreamBaseUrl}`);
   console.log(`  Health: ${running.url}/health`);
+  console.log(`  Dashboard (static): ${running.url}/dashboard/`);
   if (config.proxyToken) {
     console.log("  Proxy token: required (X-Gekiyasu-Token)");
   } else {

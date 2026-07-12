@@ -33,10 +33,11 @@
 | [design/README.md](./design/README.md) | 設計 01–05 の索引 |
 | design/01 … 05 | 企画・要件・ADR・ライセンス・アダプタ境界 |
 
-## コード
+## コード・UI
 
 | 場所 | 内容 |
 |---|---|
 | `packages/proxy` | ローカル Proxy（`:16191`） |
 | `packages/schema` | 共有型 |
 | `fixtures/` | テスト用スナップショット |
+| `dashboard/` | **ほぼ静的** UI（認証なし・上流なし）。`http://127.0.0.1:16191/dashboard/` |
