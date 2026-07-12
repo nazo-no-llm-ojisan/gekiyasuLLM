@@ -367,6 +367,14 @@ describe("resolveAuthForAttempt", () => {
       "Bearer real-global",
     );
   });
+
+  it("uses upstreamApiKey when Authorization carries only the proxy token", () => {
+    const config = baseConfig({ upstreamApiKey: "real-global" });
+    assert.equal(
+      resolveAuthForAttempt(configured, "Bearer gekiyasu-proxy:proxy-token", config),
+      "Bearer real-global",
+    );
+  });
 });
 
 describe("executeRoutePlan fallback", () => {

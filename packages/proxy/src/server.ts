@@ -103,7 +103,7 @@ export function createServer(config: ProxyConfig): http.Server {
           error: {
             message:
               tokenCheck.code === "missing_proxy_token"
-                ? "Missing proxy token. Send header X-Gekiyasu-Token (or Authorization: Bearer gekiyasu-proxy:<token>)."
+                ? "Missing proxy token. Send X-Gekiyasu-Token, or use API key gekiyasu-proxy:<token>."
                 : "Invalid proxy token.",
             type: "invalid_request_error",
             code: tokenCheck.code,
