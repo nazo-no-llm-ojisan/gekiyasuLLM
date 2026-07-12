@@ -1,0 +1,64 @@
+{
+  "feed_version": "demo-0.1",
+  "generated_at": "2026-07-12T00:00:00Z",
+  "note": "Static demo data only. Not live prices. Not production.",
+  "headline": "Demo: passthrough default · 2 sample offerings",
+  "local": {
+    "proxy_default": "http://127.0.0.1:16191/v1",
+    "phase": "Phase 1",
+    "local_pin": "L5 done → next L6 (multi-candidate)"
+  },
+  "offerings": [
+    {
+      "id": "passthrough:default",
+      "marketingName": "Configured upstream (passthrough)",
+      "providerId": "local-config",
+      "status": "active",
+      "priceLabel": "per your API key / provider",
+      "inputPerMillion": null,
+      "outputPerMillion": null,
+      "currency": "USD",
+      "free": false,
+      "tools": true,
+      "contextWindow": null,
+      "sponsored": false,
+      "affiliate": false,
+      "editorial_rank_influence": "none",
+      "trustNote": "Uses GEKIYASU_UPSTREAM_BASE_URL"
+    },
+    {
+      "id": "demo:official/example-model",
+      "marketingName": "Example Official Model",
+      "providerId": "example-official",
+      "status": "active",
+      "priceLabel": "$0.15 / $0.60 per 1M tok",
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.6,
+      "currency": "USD",
+      "free": false,
+      "tools": true,
+      "contextWindow": 128000,
+      "sponsored": false,
+      "affiliate": false,
+      "editorial_rank_influence": "none",
+      "trustNote": "Fixture-shaped demo"
+    },
+    {
+      "id": "demo:gateway/cheap-free",
+      "marketingName": "Example Free Campaign",
+      "providerId": "example-gateway",
+      "status": "degraded",
+      "priceLabel": "Free (demo)",
+      "inputPerMillion": 0,
+      "outputPerMillion": 0,
+      "currency": "USD",
+      "free": true,
+      "tools": false,
+      "contextWindow": 32000,
+      "sponsored": true,
+      "affiliate": true,
+      "editorial_rank_influence": "none",
+      "trustNote": "Sponsored row is labeled; does not affect sort"
+    }
+  ]
+}

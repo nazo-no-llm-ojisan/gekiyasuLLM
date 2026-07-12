@@ -26,9 +26,10 @@ coverage/
 *.tsbuildinfo
 .pnpm-store/
 
-# Local proxy runtime (future)
+# Local proxy runtime (future) — do not ignore dashboard/data (static demo JSON)
 *.sqlite
 *.sqlite-journal
-data/
+/data/
+packages/proxy/data/
 logs/
 .cache/
