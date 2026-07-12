@@ -11,12 +11,34 @@ import { assertSafeUpstreamUrl, PLACEHOLDER_BEARERS } from "./security.js";
 import { joinUpstreamUrl } from "./url-join.js";
 
 const MAX_REDIRECTS = 5;
+
+/** Dropped on cross-origin redirects (credentials / session material). */
 const SENSITIVE_REQUEST_HEADERS = [
   "authorization",
   "cookie",
   "x-api-key",
   "x-gekiyasu-token",
+  "proxy-authorization",
 ];
+
+/**
+ * Client request headers allowed on upstream calls (allowlist).
+ * Secrets (authorization, cookie, x-api-key, proxy token, proxy-authorization)
+ * are never copied from the client — callers set Authorization explicitly.
+ *
+ * openai-organization / openai-project / idempotency-key are included for
+ * OpenAI-compatible MVP. They are not API keys, but may identify a tenant;
+ * future multi-origin routing may scope them to the configured upstream origin only.
+ */
+const UPSTREAM_REQUEST_HEADER_ALLOWLIST = new Set([
+  "content-type",
+  "accept",
+  "accept-language",
+  "user-agent",
+  "openai-organization",
+  "openai-project",
+  "idempotency-key",
+]);
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -59,25 +81,28 @@ export function pickAuthHeader(
   return undefined;
 }
 
+/**
+ * Build upstream request headers from the client request using an allowlist.
+ * Does not set Authorization — callers must set the resolved credential explicitly
+ * (pickAuthHeader for single-upstream; resolveAuthForAttempt for route plans).
+ */
 export function buildUpstreamHeaders(
   req: IncomingMessage,
-  config: ProxyConfig,
+  _config?: ProxyConfig,
 ): Headers {
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
     if (value === undefined) continue;
     const lower = key.toLowerCase();
     if (HOP_BY_HOP.has(lower)) continue;
-    if (lower === "authorization") continue;
-    if (lower === "x-gekiyasu-token") continue;
+    if (!UPSTREAM_REQUEST_HEADER_ALLOWLIST.has(lower)) continue;
     if (Array.isArray(value)) {
       for (const v of value) headers.append(key, v);
     } else {
       headers.set(key, value);
     }
   }
-  const auth = pickAuthHeader(req, config);
-  if (auth) headers.set("authorization", auth);
+  // Never forward client compression prefs; Node fetch handles decoding.
   headers.delete("accept-encoding");
   return headers;
 }

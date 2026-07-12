@@ -46,6 +46,16 @@ export type ProxyConfig = {
    */
   allowPlaceholderApiKeySwap: boolean;
   feedFile?: string;
+  /**
+   * Proxy-owned API keys keyed by providerId (not client-supplied credentials).
+   *
+   * Used when the target offering origin differs from `upstreamBaseUrl` origin,
+   * so client Authorization is never reused across providers/origins.
+   *
+   * Future: migrate to endpoint/origin-scoped credential mapping
+   * (e.g. by base URL origin or offering id) instead of providerId alone.
+   */
+  providerApiKeys: Record<string, string>;
 };
 
 function env(name: string): string | undefined {
@@ -61,6 +71,39 @@ function envInt(name: string, fallback: number): number {
     throw new Error(`Invalid ${name}: ${raw}`);
   }
   return n;
+}
+
+function loadProviderApiKeys(): Record<string, string> {
+  const keys: Record<string, string> = {};
+
+  const standardMap: Record<string, string[]> = {
+    openai: ["OPENAI_API_KEY"],
+    anthropic: ["ANTHROPIC_API_KEY"],
+    gemini: ["GEMINI_API_KEY"],
+    deepseek: ["DEEPSEEK_API_KEY"],
+    groq: ["GROQ_API_KEY"],
+    openrouter: ["OPENROUTER_API_KEY"],
+  };
+
+  for (const [providerId, envNames] of Object.entries(standardMap)) {
+    for (const name of envNames) {
+      const val = env(name);
+      if (val) {
+        keys[providerId] = val;
+        break;
+      }
+    }
+  }
+
+  // Load custom ones from GEKIYASU_PROVIDER_KEY_ prefix
+  for (const [key, val] of Object.entries(process.env)) {
+    if (key.startsWith("GEKIYASU_PROVIDER_KEY_") && val && val.length > 0) {
+      const providerId = key.substring("GEKIYASU_PROVIDER_KEY_".length).toLowerCase();
+      keys[providerId] = val;
+    }
+  }
+
+  return keys;
 }
 
 export function loadConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
@@ -105,5 +148,6 @@ export function loadConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
     allowPlaceholderApiKeySwap:
       overrides.allowPlaceholderApiKeySwap ?? isLoopbackHost(host),
     feedFile: overrides.feedFile ?? env("GEKIYASU_FEED_FILE"),
+    providerApiKeys: overrides.providerApiKeys ?? loadProviderApiKeys(),
   };
 }

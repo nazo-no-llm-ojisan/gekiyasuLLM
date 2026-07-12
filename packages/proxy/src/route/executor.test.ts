@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { createServer } from "node:http";
+import { Readable } from "node:stream";
 import { Writable } from "node:stream";
+import { describe, it } from "node:test";
 import type { RoutePlan } from "@gekiyasu/schema";
 import type { ProxyConfig } from "../config.js";
 import type { OfferingTarget } from "./catalog.js";
@@ -9,8 +11,10 @@ import {
   describeExecution,
   executeRoutePlan,
   orderedOfferingIds,
+  resolveAuthForAttempt,
   resolvePrimaryTarget,
   resolveTarget,
+  shouldFallbackForAttempt,
   shouldFallbackHttpStatus,
   type AttemptFn,
   type AttemptResult,
@@ -30,8 +34,120 @@ function planFor(primary: string, fallbacks: string[] = []): RoutePlan {
     ],
     preferences: { preferFree: true },
   });
-  // force order for tests when free ranking might reorder
   return { ...p, primary, fallbacks };
+}
+
+function baseConfig(overrides: Partial<ProxyConfig> = {}): ProxyConfig {
+  return {
+    host: "127.0.0.1",
+    port: 16191,
+    upstreamBaseUrl: "https://api.openai.com/v1",
+    allowedUpstreamHosts: ["a.example", "b.example", "api.openai.com"],
+    upstreamApiKey: undefined,
+    proxyToken: undefined,
+    maxBodyBytes: 1_000_000,
+    upstreamTimeoutMs: 5000,
+    allowPlaceholderApiKeySwap: true,
+    providerApiKeys: {},
+    ...overrides,
+  };
+}
+
+/** Finished request stream so readBody() can complete for POST/etc. */
+function createMockReq(
+  method: string,
+  headers: Record<string, string> = {},
+  body: string | Buffer | null = null,
+): IncomingMessage {
+  const chunks: Buffer[] =
+    body === null || body === undefined
+      ? []
+      : [typeof body === "string" ? Buffer.from(body) : body];
+  const req = Readable.from(chunks) as IncomingMessage;
+  req.method = method;
+  const lower: Record<string, string> = {};
+  for (const [k, v] of Object.entries(headers)) {
+    lower[k.toLowerCase()] = v;
+  }
+  req.headers = lower;
+  return req;
+}
+
+type MockResState = {
+  headersSent: boolean;
+  writableFinished: boolean;
+  destroyed: boolean;
+  statusCode: number;
+  body: string;
+  headers: Map<string, string>;
+};
+
+type MockRes = ServerResponse & { resState: MockResState };
+
+function createMockRes(): MockRes {
+  const resState: MockResState = {
+    headersSent: false,
+    writableFinished: false,
+    destroyed: false,
+    statusCode: 0,
+    body: "",
+    headers: new Map<string, string>(),
+  };
+  const res = new Writable({
+    write(chunk, _encoding, callback) {
+      resState.body += chunk.toString();
+      callback();
+    },
+    final(callback) {
+      resState.writableFinished = true;
+      callback();
+    },
+  }) as MockRes;
+
+  Object.defineProperty(res, "headersSent", {
+    get: () => resState.headersSent,
+    configurable: true,
+  });
+  Object.defineProperty(res, "writableFinished", {
+    get: () => resState.writableFinished,
+    configurable: true,
+  });
+  Object.defineProperty(res, "destroyed", {
+    get: () => resState.destroyed,
+    set: (v: boolean) => {
+      resState.destroyed = v;
+    },
+    configurable: true,
+  });
+
+  (res as Writable & ServerResponse).setHeader = (
+    name: string,
+    value: number | string | readonly string[],
+  ) => {
+    resState.headers.set(String(name).toLowerCase(), String(value));
+    return res;
+  };
+  (res as Writable & ServerResponse).writeHead = ((
+    status: number,
+    headers?: Record<string, string | number | readonly string[]>,
+  ) => {
+    resState.headersSent = true;
+    resState.statusCode = status;
+    if (headers) {
+      for (const [k, v] of Object.entries(headers)) {
+        resState.headers.set(k.toLowerCase(), String(v));
+      }
+    }
+    return res;
+  }) as ServerResponse["writeHead"];
+  const originalDestroy = res.destroy.bind(res);
+  (res as Writable & ServerResponse).destroy = ((err?: Error) => {
+    resState.destroyed = true;
+    return originalDestroy(err);
+  }) as ServerResponse["destroy"];
+
+  res.resState = resState;
+  return res;
 }
 
 describe("orderedOfferingIds", () => {
@@ -58,6 +174,57 @@ describe("shouldFallbackHttpStatus", () => {
   });
 });
 
+describe("shouldFallbackForAttempt", () => {
+  const retry = (
+    code: string,
+    status?: number,
+  ): AttemptResult => ({
+    kind: "retry",
+    offeringId: "x",
+    code,
+    message: "m",
+    status,
+  });
+
+  it("allows GET fallback on 5xx, 429, timeout, network", () => {
+    assert.equal(shouldFallbackForAttempt("GET", retry("http_500", 500)), true);
+    assert.equal(shouldFallbackForAttempt("GET", retry("http_429", 429)), true);
+    assert.equal(
+      shouldFallbackForAttempt("GET", retry("upstream_timeout")),
+      true,
+    );
+    assert.equal(
+      shouldFallbackForAttempt("GET", retry("upstream_unreachable")),
+      true,
+    );
+  });
+
+  it("blocks POST/PATCH/PUT/DELETE fallback on any retryable failure", () => {
+    for (const method of ["POST", "PATCH", "PUT", "DELETE"]) {
+      assert.equal(
+        shouldFallbackForAttempt(method, retry("http_500", 500)),
+        false,
+        method,
+      );
+      assert.equal(
+        shouldFallbackForAttempt(method, retry("http_429", 429)),
+        false,
+        method,
+      );
+      assert.equal(
+        shouldFallbackForAttempt(method, retry("upstream_timeout")),
+        false,
+        method,
+      );
+      assert.equal(
+        shouldFallbackForAttempt(method, retry("upstream_unreachable")),
+        false,
+        method,
+      );
+    }
+  });
+});
+
 describe("resolvePrimaryTarget", () => {
   it("uses plan.primary from the catalog (not a side path)", () => {
     const catalog = new Map<string, OfferingTarget>([
@@ -81,7 +248,10 @@ describe("resolvePrimaryTarget", () => {
     const plan = planFor("other:offering");
     const target = resolvePrimaryTarget(plan, catalog);
     assert.equal(target.id, "other:offering");
-    assert.equal(resolveTarget("other:offering", catalog).baseUrl, "https://other.example/v1");
+    assert.equal(
+      resolveTarget("other:offering", catalog).baseUrl,
+      "https://other.example/v1",
+    );
   });
 
   it("throws when plan.primary is not in catalog", () => {
@@ -98,8 +268,108 @@ describe("describeExecution", () => {
   });
 });
 
+describe("resolveAuthForAttempt", () => {
+  const configured: OfferingTarget = {
+    id: "upstream_same",
+    providerId: "openai",
+    baseUrl: "https://api.openai.com/v1",
+  };
+  const otherA: OfferingTarget = {
+    id: "first",
+    providerId: "providerA",
+    baseUrl: "https://a.example/v1",
+  };
+  const otherB: OfferingTarget = {
+    id: "second",
+    providerId: "providerB",
+    baseUrl: "https://b.example/v1",
+  };
+  const sameAlienOrigin: OfferingTarget = {
+    id: "also-a",
+    providerId: "providerA2",
+    baseUrl: "https://a.example/v1/other",
+  };
+
+  it("forwards client Authorization only for configured upstream origin", () => {
+    const config = baseConfig();
+    assert.equal(
+      resolveAuthForAttempt(configured, "Bearer client-key", config),
+      "Bearer client-key",
+    );
+    assert.equal(
+      resolveAuthForAttempt(otherA, "Bearer client-key", config),
+      undefined,
+    );
+  });
+
+  it("uses provider local key on foreign origin; never client key", () => {
+    const config = baseConfig({
+      providerApiKeys: { providerA: "local-a", providerB: "local-b" },
+    });
+    assert.equal(
+      resolveAuthForAttempt(otherA, "Bearer client-key", config),
+      "Bearer local-a",
+    );
+    assert.equal(
+      resolveAuthForAttempt(otherB, "Bearer client-key", config),
+      "Bearer local-b",
+    );
+  });
+
+  it("does not reuse client key when primary and fallback share a non-configured origin", () => {
+    // Regression: previous bypass treated primaryOrigin match as safe.
+    const config = baseConfig({
+      providerApiKeys: { providerA2: "local-a2" },
+    });
+    assert.equal(
+      resolveAuthForAttempt(otherA, "Bearer openai-looking-key", config),
+      undefined,
+    );
+    assert.equal(
+      resolveAuthForAttempt(sameAlienOrigin, "Bearer openai-looking-key", config),
+      "Bearer local-a2",
+    );
+  });
+
+  it("swaps placeholder only on configured upstream origin", () => {
+    const config = baseConfig({
+      upstreamApiKey: "real-global",
+      providerApiKeys: { providerA: "local-a" },
+    });
+    assert.equal(
+      resolveAuthForAttempt(configured, "Bearer sk-local", config),
+      "Bearer real-global",
+    );
+    // Foreign origin: no placeholder/global key
+    assert.equal(
+      resolveAuthForAttempt(otherA, "Bearer sk-local", config),
+      "Bearer local-a",
+    );
+    assert.equal(
+      resolveAuthForAttempt(
+        { ...otherB, providerId: "missing" },
+        "Bearer sk-local",
+        config,
+      ),
+      undefined,
+    );
+  });
+
+  it("never sends global upstreamApiKey to foreign origin without provider key", () => {
+    const config = baseConfig({ upstreamApiKey: "real-global" });
+    assert.equal(
+      resolveAuthForAttempt(otherA, undefined, config),
+      undefined,
+    );
+    assert.equal(
+      resolveAuthForAttempt(configured, undefined, config),
+      "Bearer real-global",
+    );
+  });
+});
+
 describe("executeRoutePlan fallback", () => {
-  it("tries next offering after retryable failure on primary", async () => {
+  it("tries next offering after retryable failure on primary (GET)", async () => {
     const catalog = new Map<string, OfferingTarget>([
       ["first", { id: "first", providerId: "a", baseUrl: "https://a.example/v1" }],
       ["second", { id: "second", providerId: "b", baseUrl: "https://b.example/v1" }],
@@ -123,7 +393,6 @@ describe("executeRoutePlan fallback", () => {
           status: 503,
         };
       }
-      // Empty body avoids pipeline into a partial mock socket
       return {
         kind: "ok",
         offeringId: "second",
@@ -131,70 +400,12 @@ describe("executeRoutePlan fallback", () => {
       };
     };
 
-    const resState = {
-      headersSent: false,
-      writableFinished: false,
-      destroyed: false,
-      statusCode: 0,
-    };
-    const res = {
-      get headersSent() {
-        return resState.headersSent;
-      },
-      get writableFinished() {
-        return resState.writableFinished;
-      },
-      get destroyed() {
-        return resState.destroyed;
-      },
-      setHeader() {},
-      writeHead(status: number) {
-        resState.statusCode = status;
-        resState.headersSent = true;
-      },
-      write() {
-        return true;
-      },
-      end() {
-        resState.writableFinished = true;
-      },
-      destroy() {
-        resState.destroyed = true;
-      },
-      on() {
-        return this;
-      },
-      off() {
-        return this;
-      },
-    } as unknown as ServerResponse;
-
-    const req = {
-      method: "GET",
-      headers: { authorization: "Bearer sk-test" },
-      on() {
-        return this;
-      },
-      off() {
-        return this;
-      },
-    } as unknown as IncomingMessage;
-
-    const config = {
-      host: "127.0.0.1",
-      port: 16191,
-      upstreamBaseUrl: "https://api.openai.com/v1",
-      allowedUpstreamHosts: ["a.example", "b.example", "api.openai.com"],
+    const res = createMockRes();
+    const req = createMockReq("GET", { authorization: "Bearer sk-test" });
+    const config = baseConfig({
       upstreamApiKey: "sk-test",
-      proxyToken: undefined,
-      maxBodyBytes: 1_000_000,
-      upstreamTimeoutMs: 5000,
-      allowPlaceholderApiKeySwap: true,
-      providerApiKeys: {
-        a: "sk-test",
-        b: "sk-test",
-      },
-    } as ProxyConfig;
+      providerApiKeys: { a: "sk-test", b: "sk-test" },
+    });
 
     const result = await executeRoutePlan({
       plan,
@@ -213,105 +424,136 @@ describe("executeRoutePlan fallback", () => {
   });
 });
 
-describe("executeRoutePlan safety policies", () => {
+describe("executeRoutePlan P0 credential isolation", () => {
   const catalog = new Map<string, OfferingTarget>([
-    ["first", { id: "first", providerId: "providerA", baseUrl: "https://a.example/v1" }],
-    ["second", { id: "second", providerId: "providerB", baseUrl: "https://b.example/v1" }],
-    ["upstream_same", { id: "upstream_same", providerId: "openai", baseUrl: "https://api.openai.com/v1" }],
+    [
+      "first",
+      { id: "first", providerId: "providerA", baseUrl: "https://a.example/v1" },
+    ],
+    [
+      "second",
+      { id: "second", providerId: "providerB", baseUrl: "https://b.example/v1" },
+    ],
+    [
+      "upstream_same",
+      {
+        id: "upstream_same",
+        providerId: "openai",
+        baseUrl: "https://api.openai.com/v1",
+      },
+    ],
+    [
+      "also_a",
+      {
+        id: "also_a",
+        providerId: "providerA2",
+        baseUrl: "https://a.example/v1",
+      },
+    ],
   ]);
 
-  const createMockRes = () => {
-    const resState = {
-      headersSent: false,
-      writableFinished: false,
-      destroyed: false,
-      statusCode: 0,
-      body: "",
-      headers: new Map<string, string>(),
-    };
-    const res = new Writable({
-      write(chunk, encoding, callback) {
-        resState.body += chunk.toString();
-        callback();
-      },
-      final(callback) {
-        resState.writableFinished = true;
-        callback();
-      }
-    }) as any;
-
-    res.headersSent = false;
-    res.setHeader = (name: string, value: string) => {
-      resState.headers.set(name.toLowerCase(), value);
-    };
-    res.writeHead = (status: number, headers?: any) => {
-      res.headersSent = true;
-      resState.headersSent = true;
-      resState.statusCode = status;
-      if (headers) {
-        for (const [k, v] of Object.entries(headers)) {
-          resState.headers.set(k.toLowerCase(), String(v));
-        }
-      }
-    };
-    const originalDestroy = res.destroy.bind(res);
-    res.destroy = (err?: Error) => {
-      resState.destroyed = true;
-      return originalDestroy(err);
-    };
-
-    res.resState = resState;
-    return res;
-  };
-
-  const createMockReq = (method: string, headers: Record<string, string> = {}) => {
-    const lowercaseHeaders: Record<string, string> = {};
-    for (const [k, v] of Object.entries(headers)) {
-      lowercaseHeaders[k.toLowerCase()] = v;
-    }
-    return {
-      method,
-      headers: lowercaseHeaders,
-      on() { return this; },
-      off() { return this; },
-    } as unknown as IncomingMessage;
-  };
-
-  const defaultConfig = {
-    host: "127.0.0.1",
-    port: 16191,
-    upstreamBaseUrl: "https://api.openai.com/v1",
-    allowedUpstreamHosts: ["a.example", "b.example", "api.openai.com"],
-    upstreamApiKey: undefined,
-    providerApiKeys: {},
-    proxyToken: undefined,
-    maxBodyBytes: 1_000_000,
-    upstreamTimeoutMs: 5000,
-    allowPlaceholderApiKeySwap: true,
-  } as unknown as ProxyConfig;
-
-  it("P0: prevents forwarding client key of providerA to providerB during fallback, using local provider key if available", async () => {
-    const authHeadersSeen: Record<string, string> = {};
+  it("1: same origin as configured upstream → forwards client Authorization", async () => {
+    const authSeen: Record<string, string> = {};
     const attempt: AttemptFn = async (target, ctx) => {
-      authHeadersSeen[target.id] = ctx.auth;
-      if (target.id === "first") {
-        return { kind: "retry", offeringId: "first", code: "http_503", message: "down", status: 503 };
-      }
-      return { kind: "ok", offeringId: "second", response: new Response(null, { status: 200 }) };
+      authSeen[target.id] = ctx.auth;
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response(null, { status: 200 }),
+      };
+    };
+    const res = createMockRes();
+    const req = createMockReq("GET", {
+      authorization: "Bearer client-key-same-origin",
+    });
+    const plan: RoutePlan = {
+      primary: "upstream_same",
+      fallbacks: [],
+      reason: [],
+      generatedAt: "",
     };
 
-    const res = createMockRes();
-    // Request sent to providerA first (via 'first' offering)
-    const req = createMockReq("GET", { authorization: "Bearer client-key-for-provider-a" });
+    await executeRoutePlan({
+      plan,
+      catalog,
+      req,
+      res,
+      config: baseConfig(),
+      pathWithQuery: "/v1/models",
+      attempt,
+    });
+    assert.equal(authSeen["upstream_same"], "Bearer client-key-same-origin");
+  });
 
-    const config = {
-      ...defaultConfig,
+  it("2: foreign primary without local key → credential_unavailable, no attempt", async () => {
+    const attempted: string[] = [];
+    const attempt: AttemptFn = async (target) => {
+      attempted.push(target.id);
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response(null, { status: 200 }),
+      };
+    };
+    const res = createMockRes();
+    const req = createMockReq("GET", { authorization: "Bearer client-key" });
+    const config = baseConfig({
+      providerApiKeys: { providerB: "local-b" },
+    });
+    const plan: RoutePlan = {
+      primary: "first",
+      fallbacks: ["second"],
+      reason: [],
+      generatedAt: "",
+    };
+
+    const result = await executeRoutePlan({
+      plan,
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/models",
+      attempt,
+    });
+
+    assert.deepEqual(attempted, ["second"]);
+    assert.equal(result.offeringId, "second");
+    assert.deepEqual(result.attempts, [
+      "first:credential_unavailable",
+      "second:ok",
+    ]);
+  });
+
+  it("3: foreign fallback never receives providerA client key", async () => {
+    const authSeen: Record<string, string> = {};
+    const attempt: AttemptFn = async (target, ctx) => {
+      authSeen[target.id] = ctx.auth;
+      if (target.id === "first") {
+        return {
+          kind: "retry",
+          offeringId: "first",
+          code: "http_503",
+          message: "down",
+          status: 503,
+        };
+      }
+      return {
+        kind: "ok",
+        offeringId: "second",
+        response: new Response(null, { status: 200 }),
+      };
+    };
+    const res = createMockRes();
+    const req = createMockReq("GET", {
+      authorization: "Bearer client-key-for-provider-a",
+    });
+    const config = baseConfig({
       providerApiKeys: {
         providerA: "local-provider-a-key",
         providerB: "local-provider-b-key",
       },
-    } as ProxyConfig;
-
+    });
     const plan: RoutePlan = {
       primary: "first",
       fallbacks: ["second"],
@@ -319,221 +561,463 @@ describe("executeRoutePlan safety policies", () => {
       generatedAt: "",
     };
 
-    const result = await executeRoutePlan({ plan, catalog, req, res, config, pathWithQuery: "/v1/models", attempt });
-
-    assert.equal(result.offeringId, "second");
-    // Since 'first' (https://a.example/v1) is NOT same origin as default upstream (https://api.openai.com/v1),
-    // client key is NOT sent to primary. Instead, local providerA key is used.
-    assert.equal(authHeadersSeen["first"], "Bearer local-provider-a-key");
-    // Fallback uses local providerB key, NOT client key.
-    assert.equal(authHeadersSeen["second"], "Bearer local-provider-b-key");
-  });
-
-  it("P0: skips primary / fallback and records credential_unavailable if local provider key is missing and origin is different", async () => {
-    const attemptedIds: string[] = [];
-    const attempt: AttemptFn = async (target, ctx) => {
-      attemptedIds.push(target.id);
-      return { kind: "ok", offeringId: target.id, response: new Response(null, { status: 200 }) };
-    };
-
-    const res = createMockRes();
-    const req = createMockReq("GET", { authorization: "Bearer client-key" });
-
-    const config = {
-      ...defaultConfig,
-      providerApiKeys: {
-        // providerA is missing!
-        providerB: "local-provider-b-key",
-      },
-    } as ProxyConfig;
-
-    const plan: RoutePlan = {
-      primary: "first", // different origin, missing key
-      fallbacks: ["second"], // different origin, has key
-      reason: [],
-      generatedAt: "",
-    };
-
-    const result = await executeRoutePlan({ plan, catalog, req, res, config, pathWithQuery: "/v1/models", attempt });
-
-    // "first" is skipped because different origin + no local key.
-    // "second" is executed because it has a local key.
-    assert.deepEqual(attemptedIds, ["second"]);
-    assert.equal(result.offeringId, "second");
-    assert.deepEqual(result.attempts, ["first:credential_unavailable", "second:ok"]);
-  });
-
-  it("P0: forwards client key if target endpoint origin is same as configured upstream", async () => {
-    const authHeadersSeen: Record<string, string> = {};
-    const attempt: AttemptFn = async (target, ctx) => {
-      authHeadersSeen[target.id] = ctx.auth;
-      return { kind: "ok", offeringId: target.id, response: new Response(null, { status: 200 }) };
-    };
-
-    const res = createMockRes();
-    const req = createMockReq("GET", { authorization: "Bearer client-key-same-origin" });
-
-    const plan: RoutePlan = {
-      primary: "upstream_same", // same origin as configured upstream
-      fallbacks: [],
-      reason: [],
-      generatedAt: "",
-    };
-
-    const result = await executeRoutePlan({ plan, catalog, req, res, config: defaultConfig, pathWithQuery: "/v1/models", attempt });
-
-    assert.equal(result.offeringId, "upstream_same");
-    // Client key is forwarded because the origin is identical to configured upstream base URL
-    assert.equal(authHeadersSeen["upstream_same"], "Bearer client-key-same-origin");
-  });
-
-  it("P0: replaces placeholder key with configured local key only on same origin", async () => {
-    const authHeadersSeen: Record<string, string> = {};
-    const attempt: AttemptFn = async (target, ctx) => {
-      authHeadersSeen[target.id] = ctx.auth;
-      return { kind: "ok", offeringId: target.id, response: new Response(null, { status: 200 }) };
-    };
-
-    const res = createMockRes();
-    const req = createMockReq("GET", { authorization: "Bearer sk-local" });
-
-    const config = {
-      ...defaultConfig,
-      upstreamApiKey: "my-real-global-key",
-    } as ProxyConfig;
-
-    const plan: RoutePlan = {
-      primary: "upstream_same", // same origin
-      fallbacks: [],
-      reason: [],
-      generatedAt: "",
-    };
-
-    await executeRoutePlan({ plan, catalog, req, res, config, pathWithQuery: "/v1/models", attempt });
-    assert.equal(authHeadersSeen["upstream_same"], "Bearer my-real-global-key");
-  });
-
-  it("P0: prevents leakage of general headers (cookie, x-api-key, proxy-token) to untrusted origins", async () => {
-    // In buildUpstreamHeaders or executeRoutePlan, headers should be safe.
-    // Let's verify that other client headers like cookie or proxy token are not leaked,
-    // and custom headers are handled safely.
-    // proxy token gekiyasu-proxy: should be stripped, client authorization must not leak to different origin.
-    // This is partially verified by resolveAuthForAttempt and upstream.ts.
-    // We already have timingSafeEqual and token stripping in security.ts and upstream.ts.
-    // Let's assert client key is NOT leaked to different origin.
-    const authHeadersSeen: Record<string, string> = {};
-    const attempt: AttemptFn = async (target, ctx) => {
-      authHeadersSeen[target.id] = ctx.auth;
-      return { kind: "ok", offeringId: target.id, response: new Response(null, { status: 200 }) };
-    };
-
-    const res = createMockRes();
-    const req = createMockReq("GET", {
-      authorization: "Bearer client-private-key",
-      "x-api-key": "some-private-key",
-      cookie: "session=secret",
+    await executeRoutePlan({
+      plan,
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/models",
+      attempt,
     });
 
-    const config = {
-      ...defaultConfig,
-      providerApiKeys: { providerB: "provider-b-key" },
-    } as ProxyConfig;
-
-    const plan: RoutePlan = {
-      primary: "second", // different origin
-      fallbacks: [],
-      reason: [],
-      generatedAt: "",
-    };
-
-    await executeRoutePlan({ plan, catalog, req, res, config, pathWithQuery: "/v1/models", attempt });
-
-    // authorization is resolved from local providerB key, not the client-private-key
-    assert.equal(authHeadersSeen["second"], "Bearer provider-b-key");
+    assert.equal(authSeen["first"], "Bearer local-provider-a-key");
+    assert.equal(authSeen["second"], "Bearer local-provider-b-key");
   });
 
-  it("P1: blocks fallback for POST on any error (5xx, 429, timeout) and preserves original response status and body", async () => {
-    const attemptedIds: string[] = [];
-    const attempt: AttemptFn = async (target) => {
-      attemptedIds.push(target.id);
-      // Since it's a POST, 429 or 500 should return HTTP status immediately without being retry-caught
-      // inside defaultAttemptUpstream. It returns kind: "ok" representing transparent proxy response.
-      const bodyText = JSON.stringify({ error: { message: "Too many requests" } });
-      const mockResponse = new Response(
-        new ReadableStream({
-          start(controller) {
-            controller.enqueue(new TextEncoder().encode(bodyText));
-            controller.close();
-          }
-        }),
-        {
-          status: 429,
-          headers: { "x-request-id": "req-123" },
-        }
-      );
+  it("4: primary+fallback same alien origin must not forward client key (bypass regression)", async () => {
+    const authSeen: Record<string, string> = {};
+    const attempt: AttemptFn = async (target, ctx) => {
+      authSeen[target.id] = ctx.auth;
+      if (target.id === "first") {
+        return {
+          kind: "retry",
+          offeringId: "first",
+          code: "credential_unavailable",
+          message: "skip",
+        };
+      }
       return {
         kind: "ok",
         offeringId: target.id,
-        response: mockResponse,
+        response: new Response(null, { status: 200 }),
       };
     };
-
+    // Inject attempt that only runs if auth resolved — also test executor skip path
     const res = createMockRes();
-    const req = createMockReq("POST", { authorization: "Bearer key" });
-
-    const config = {
-      ...defaultConfig,
-      upstreamApiKey: "key",
-    } as ProxyConfig;
-
+    const req = createMockReq("GET", {
+      authorization: "Bearer should-not-leak",
+    });
+    const config = baseConfig({
+      // only also_a has a local key; first shares origin a.example but no key
+      providerApiKeys: { providerA2: "local-a2-only" },
+    });
     const plan: RoutePlan = {
       primary: "first",
-      fallbacks: ["second"],
+      fallbacks: ["also_a"],
       reason: [],
       generatedAt: "",
     };
 
-    const result = await executeRoutePlan({ plan, catalog, req, res, config, pathWithQuery: "/v1/chat/completions", attempt });
+    const result = await executeRoutePlan({
+      plan,
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/models",
+      attempt,
+    });
 
-    // Should NOT fallback to "second" because it is a POST
-    assert.deepEqual(attemptedIds, ["first"]);
-    assert.equal(result.offeringId, "first");
-
-    // Client receives original response status and headers
-    assert.equal(res.resState.statusCode, 429);
-    assert.equal(res.resState.headers.get("x-request-id"), "req-123");
-    assert.equal(res.resState.headers.get("x-gekiyasu-fallback"), "skipped-non-idempotent");
-    assert.deepEqual(JSON.parse(res.resState.body), { error: { message: "Too many requests" } });
+    assert.equal(result.attempts[0], "first:credential_unavailable");
+    assert.equal(authSeen["also_a"], "Bearer local-a2-only");
+    assert.equal(authSeen["first"], undefined);
   });
 
-  it("P1: allows fallback for GET 500", async () => {
-    const attemptedIds: string[] = [];
-    const attempt: AttemptFn = async (target) => {
-      attemptedIds.push(target.id);
-      if (target.id === "first") {
-        return { kind: "retry", offeringId: target.id, code: "http_500", message: "internal error", status: 500 };
-      }
-      return { kind: "ok", offeringId: target.id, response: new Response(null, { status: 200 }) };
+  it("5: placeholder swap only on configured upstream origin", async () => {
+    const authSeen: Record<string, string> = {};
+    const attempt: AttemptFn = async (target, ctx) => {
+      authSeen[target.id] = ctx.auth;
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response(null, { status: 200 }),
+      };
     };
-
     const res = createMockRes();
-    const req = createMockReq("GET", { authorization: "Bearer key" });
+    const req = createMockReq("GET", { authorization: "Bearer sk-local" });
+    const config = baseConfig({
+      upstreamApiKey: "my-real-global-key",
+      providerApiKeys: { providerB: "local-b" },
+    });
 
-    const config = {
-      ...defaultConfig,
-      upstreamApiKey: "key",
-    } as ProxyConfig;
+    await executeRoutePlan({
+      plan: {
+        primary: "upstream_same",
+        fallbacks: [],
+        reason: [],
+        generatedAt: "",
+      },
+      catalog,
+      req,
+      res,
+      config,
+      pathWithQuery: "/v1/models",
+      attempt,
+    });
+    assert.equal(authSeen["upstream_same"], "Bearer my-real-global-key");
 
-    const plan: RoutePlan = {
-      primary: "first",
-      fallbacks: ["second"],
-      reason: [],
-      generatedAt: "",
+    const res2 = createMockRes();
+    const req2 = createMockReq("GET", { authorization: "Bearer sk-local" });
+    await executeRoutePlan({
+      plan: {
+        primary: "second",
+        fallbacks: [],
+        reason: [],
+        generatedAt: "",
+      },
+      catalog,
+      req: req2,
+      res: res2,
+      config,
+      pathWithQuery: "/v1/models",
+      attempt,
+    });
+    // foreign: local provider key only, not placeholder or global key
+    assert.equal(authSeen["second"], "Bearer local-b");
+  });
+
+  it("6: real HTTP server does not receive secret client headers on foreign origin", async () => {
+    const received: Record<string, string | string[] | undefined>[] = [];
+    const server = createServer((req, res) => {
+      received.push({ ...req.headers });
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end("{}");
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const addr = server.address();
+    assert.ok(addr && typeof addr === "object");
+    const port = addr.port;
+    const originBase = `http://127.0.0.1:${port}/v1`;
+
+    try {
+      const localCatalog = new Map<string, OfferingTarget>([
+        [
+          "local_foreign",
+          {
+            id: "local_foreign",
+            providerId: "localprov",
+            baseUrl: originBase,
+          },
+        ],
+      ]);
+      const config = baseConfig({
+        upstreamBaseUrl: "https://api.openai.com/v1",
+        allowedUpstreamHosts: ["127.0.0.1", "api.openai.com"],
+        providerApiKeys: { localprov: "proxy-owned-key" },
+      });
+      const res = createMockRes();
+      const req = createMockReq("GET", {
+        authorization: "Bearer client-must-not-appear",
+        cookie: "session=super-secret",
+        "x-api-key": "client-x-api-key",
+        "x-gekiyasu-token": "proxy-token-value",
+        "proxy-authorization": "Basic Zm9vOmJhcg==",
+        accept: "application/json",
+      });
+
+      // Use default attempt (real fetch) against local server
+      const result = await executeRoutePlan({
+        plan: {
+          primary: "local_foreign",
+          fallbacks: [],
+          reason: [],
+          generatedAt: "",
+        },
+        catalog: localCatalog,
+        req,
+        res,
+        config,
+        pathWithQuery: "/v1/models",
+      });
+
+      assert.equal(result.offeringId, "local_foreign");
+      assert.equal(received.length, 1);
+      const h = received[0]!;
+      assert.equal(h.authorization, "Bearer proxy-owned-key");
+      assert.equal(h.cookie, undefined);
+      assert.equal(h["x-api-key"], undefined);
+      assert.equal(h["x-gekiyasu-token"], undefined);
+      assert.equal(h["proxy-authorization"], undefined);
+      // client bearer must not appear anywhere
+      const authVal = String(h.authorization ?? "");
+      assert.ok(!authVal.includes("client-must-not-appear"));
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        server.close((err) => (err ? reject(err) : resolve())),
+      );
+    }
+  });
+});
+
+describe("executeRoutePlan P1 non-idempotent fallback", () => {
+  const catalog = new Map<string, OfferingTarget>([
+    [
+      "first",
+      { id: "first", providerId: "providerA", baseUrl: "https://a.example/v1" },
+    ],
+    [
+      "second",
+      { id: "second", providerId: "providerB", baseUrl: "https://b.example/v1" },
+    ],
+  ]);
+
+  const configWithKeys = baseConfig({
+    providerApiKeys: {
+      providerA: "key-a",
+      providerB: "key-b",
+    },
+  });
+
+  it("1: GET + 500 → fallback", async () => {
+    const attempted: string[] = [];
+    const attempt: AttemptFn = async (target) => {
+      attempted.push(target.id);
+      if (target.id === "first") {
+        return {
+          kind: "retry",
+          offeringId: target.id,
+          code: "http_500",
+          message: "internal error",
+          status: 500,
+        };
+      }
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response(null, { status: 200 }),
+      };
     };
+    const res = createMockRes();
+    const req = createMockReq("GET");
+    await executeRoutePlan({
+      plan: {
+        primary: "first",
+        fallbacks: ["second"],
+        reason: [],
+        generatedAt: "",
+      },
+      catalog,
+      req,
+      res,
+      config: configWithKeys,
+      pathWithQuery: "/v1/models",
+      attempt,
+    });
+    assert.deepEqual(attempted, ["first", "second"]);
+  });
 
-    await executeRoutePlan({ plan, catalog, req, res, config, pathWithQuery: "/v1/models", attempt });
+  it("2: GET + 429 → fallback", async () => {
+    const attempted: string[] = [];
+    const attempt: AttemptFn = async (target) => {
+      attempted.push(target.id);
+      if (target.id === "first") {
+        return {
+          kind: "retry",
+          offeringId: target.id,
+          code: "http_429",
+          message: "rate limited",
+          status: 429,
+        };
+      }
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response(null, { status: 200 }),
+      };
+    };
+    const res = createMockRes();
+    const req = createMockReq("GET");
+    await executeRoutePlan({
+      plan: {
+        primary: "first",
+        fallbacks: ["second"],
+        reason: [],
+        generatedAt: "",
+      },
+      catalog,
+      req,
+      res,
+      config: configWithKeys,
+      pathWithQuery: "/v1/models",
+      attempt,
+    });
+    assert.deepEqual(attempted, ["first", "second"]);
+  });
 
-    // Should fallback to "second"
-    assert.deepEqual(attemptedIds, ["first", "second"]);
+  it("3: POST + upstream 500 response → no fallback, status/body passthrough", async () => {
+    const attempted: string[] = [];
+    const attempt: AttemptFn = async (target) => {
+      attempted.push(target.id);
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response(
+          JSON.stringify({ error: { message: "upstream boom" } }),
+          {
+            status: 500,
+            headers: {
+              "content-type": "application/json",
+              "x-request-id": "up-500",
+            },
+          },
+        ),
+      };
+    };
+    const res = createMockRes();
+    const req = createMockReq(
+      "POST",
+      { authorization: "Bearer key", "content-type": "application/json" },
+      JSON.stringify({ model: "test", messages: [] }),
+    );
+    const result = await executeRoutePlan({
+      plan: {
+        primary: "first",
+        fallbacks: ["second"],
+        reason: [],
+        generatedAt: "",
+      },
+      catalog,
+      req,
+      res,
+      config: configWithKeys,
+      pathWithQuery: "/v1/chat/completions",
+      attempt,
+    });
+
+    assert.deepEqual(attempted, ["first"]);
+    assert.equal(result.offeringId, "first");
+    assert.equal(res.resState.statusCode, 500);
+    assert.equal(res.resState.headers.get("x-request-id"), "up-500");
+    assert.equal(
+      res.resState.headers.get("x-gekiyasu-fallback"),
+      "skipped-non-idempotent",
+    );
+    assert.deepEqual(JSON.parse(res.resState.body), {
+      error: { message: "upstream boom" },
+    });
+  });
+
+  it("4: POST + upstream 429 response → no fallback, 429 passthrough", async () => {
+    const attempted: string[] = [];
+    const attempt: AttemptFn = async (target) => {
+      attempted.push(target.id);
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response(
+          JSON.stringify({ error: { message: "Too many requests" } }),
+          {
+            status: 429,
+            headers: {
+              "content-type": "application/json",
+              "x-request-id": "req-123",
+            },
+          },
+        ),
+      };
+    };
+    const res = createMockRes();
+    const req = createMockReq(
+      "POST",
+      { "content-type": "application/json" },
+      "{}",
+    );
+    const result = await executeRoutePlan({
+      plan: {
+        primary: "first",
+        fallbacks: ["second"],
+        reason: [],
+        generatedAt: "",
+      },
+      catalog,
+      req,
+      res,
+      config: configWithKeys,
+      pathWithQuery: "/v1/chat/completions",
+      attempt,
+    });
+
+    assert.deepEqual(attempted, ["first"]);
+    assert.equal(result.offeringId, "first");
+    assert.equal(res.resState.statusCode, 429);
+    assert.equal(res.resState.headers.get("x-request-id"), "req-123");
+    assert.equal(
+      res.resState.headers.get("x-gekiyasu-fallback"),
+      "skipped-non-idempotent",
+    );
+    assert.deepEqual(JSON.parse(res.resState.body), {
+      error: { message: "Too many requests" },
+    });
+  });
+
+  it("5: POST + timeout / upstream_unreachable → no fallback", async () => {
+    for (const code of ["upstream_timeout", "upstream_unreachable"] as const) {
+      const attempted: string[] = [];
+      const attempt: AttemptFn = async (target) => {
+        attempted.push(target.id);
+        return {
+          kind: "retry",
+          offeringId: target.id,
+          code,
+          message: code,
+        };
+      };
+      const res = createMockRes();
+      const req = createMockReq("POST", {}, "{}");
+      const result = await executeRoutePlan({
+        plan: {
+          primary: "first",
+          fallbacks: ["second"],
+          reason: [],
+          generatedAt: "",
+        },
+        catalog,
+        req,
+        res,
+        config: configWithKeys,
+        pathWithQuery: "/v1/chat/completions",
+        attempt,
+      });
+      assert.deepEqual(attempted, ["first"], code);
+      assert.equal(result.offeringId, "first", code);
+      assert.ok(
+        result.attempts.every((a) => !a.startsWith("second:")),
+        code,
+      );
+      assert.equal(res.resState.statusCode, 502, code);
+    }
+  });
+
+  it("6: POST fallback candidates never receive an attempt after primary failure", async () => {
+    const attempted: string[] = [];
+    const attempt: AttemptFn = async (target) => {
+      attempted.push(target.id);
+      return {
+        kind: "retry",
+        offeringId: target.id,
+        code: "http_503",
+        message: "down",
+        status: 503,
+      };
+    };
+    const res = createMockRes();
+    const req = createMockReq("POST", {}, "{}");
+    await executeRoutePlan({
+      plan: {
+        primary: "first",
+        fallbacks: ["second"],
+        reason: [],
+        generatedAt: "",
+      },
+      catalog,
+      req,
+      res,
+      config: configWithKeys,
+      pathWithQuery: "/v1/chat/completions",
+      attempt,
+    });
+    assert.deepEqual(attempted, ["first"]);
+    assert.ok(!attempted.includes("second"));
   });
 });

@@ -3,10 +3,10 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { RoutePlan } from "@gekiyasu/schema";
 import type { ProxyConfig } from "../config.js";
+import { PLACEHOLDER_BEARERS } from "../security.js";
 import {
   buildUpstreamHeaders,
   fetchUpstream,
-  pickAuthHeader,
   readBody,
   resolveUpstreamUrl,
 } from "../upstream.js";
@@ -52,8 +52,6 @@ export function resolvePrimaryTarget(
   return resolveTarget(plan.primary, catalog);
 }
 
-import { PLACEHOLDER_BEARERS } from "../security.js";
-
 export function getOrigin(urlStr: string): string {
   try {
     const url = new URL(urlStr);
@@ -71,70 +69,58 @@ export function isPlaceholderApiKey(auth: string): boolean {
   return PLACEHOLDER_BEARERS.has(auth);
 }
 
+/**
+ * Resolve Authorization for one offering attempt.
+ *
+ * Client Authorization may be forwarded only when the target origin is the
+ * exact origin of `config.upstreamBaseUrl`. Matching primary/fallback origins
+ * alone is never enough — that would leak a client key to an unrelated host
+ * that shares an origin with a skipped primary.
+ *
+ * Other origins: only proxy-owned `providerApiKeys[providerId]` (never the
+ * client key, never global upstreamApiKey / placeholders).
+ */
 export function resolveAuthForAttempt(
   offering: OfferingTarget,
   clientAuth: string | undefined,
   config: ProxyConfig,
-  isPrimary: boolean,
-  primaryOrigin?: string,
 ): string | undefined {
-  const providerId = offering.providerId;
-  const localProviderKey = config.providerApiKeys?.[providerId];
-
+  const localProviderKey = config.providerApiKeys[offering.providerId];
   const targetOrigin = getOrigin(offering.baseUrl);
-  const defaultUpstreamOrigin = getOrigin(config.upstreamBaseUrl);
+  const configuredUpstreamOrigin = getOrigin(config.upstreamBaseUrl);
+  const sameConfiguredOrigin = targetOrigin === configuredUpstreamOrigin;
 
-  // 1. Primary (初回試行)
-  if (isPrimary) {
+  if (sameConfiguredOrigin) {
     if (clientAuth && !isProxyToken(clientAuth)) {
-      if (targetOrigin === defaultUpstreamOrigin) {
-        if (config.allowPlaceholderApiKeySwap && isPlaceholderApiKey(clientAuth)) {
-          const resolvedKey = localProviderKey || config.upstreamApiKey;
-          return resolvedKey ? `Bearer ${resolvedKey}` : undefined;
-        }
-        return clientAuth;
+      if (
+        config.allowPlaceholderApiKeySwap &&
+        isPlaceholderApiKey(clientAuth)
+      ) {
+        const resolvedKey = localProviderKey || config.upstreamApiKey;
+        return resolvedKey ? `Bearer ${resolvedKey}` : undefined;
       }
-      const resolvedKey = localProviderKey;
-      return resolvedKey ? `Bearer ${resolvedKey}` : undefined;
+      return clientAuth;
     }
-    const resolvedKey =
-      targetOrigin === defaultUpstreamOrigin
-        ? (localProviderKey || config.upstreamApiKey)
-        : localProviderKey;
+    const resolvedKey = localProviderKey || config.upstreamApiKey;
     return resolvedKey ? `Bearer ${resolvedKey}` : undefined;
   }
 
-  // 2. Fallback (再試行)
-  // primary と exact origin が一致する場合のみ、クライアントのキーの流用を安全とする
-  if (
-    primaryOrigin &&
-    targetOrigin === primaryOrigin &&
-    clientAuth &&
-    !isProxyToken(clientAuth)
-  ) {
-    if (
-      targetOrigin === defaultUpstreamOrigin &&
-      config.allowPlaceholderApiKeySwap &&
-      isPlaceholderApiKey(clientAuth)
-    ) {
-      const resolvedKey = localProviderKey || config.upstreamApiKey;
-      return resolvedKey ? `Bearer ${resolvedKey}` : undefined;
-    }
-    return clientAuth;
-  }
-
+  // Different origin than configured upstream: never use client credentials.
   if (localProviderKey) {
     return `Bearer ${localProviderKey}`;
   }
-
   return undefined;
 }
 
+/**
+ * Whether a failed attempt may try the next offering.
+ * Non-idempotent methods (POST/PATCH/PUT/DELETE/…) never fallback —
+ * avoids double execution / double billing.
+ */
 export function shouldFallbackForAttempt(
   method: string,
   result: AttemptResult,
 ): boolean {
-  // POST リクエストは二重実行・二重課金を避けるため一切 fallback しない
   if (method !== "GET" && method !== "HEAD") {
     return false;
   }
@@ -147,13 +133,14 @@ export function shouldFallbackForAttempt(
     result.code === "upstream_unreachable" ||
     result.code === "upstream_not_allowed" ||
     result.code === "unknown_offering" ||
-    result.code === "credential_unavailable"
+    result.code === "credential_unavailable" ||
+    result.code === "upstream_timeout"
   ) {
     return true;
   }
 
   const status = result.status;
-  if (!status) return true; // ネットワークエラーなど
+  if (!status) return true;
 
   if (status === 408 || status === 429) {
     return true;
@@ -361,7 +348,6 @@ export async function executeRoutePlan(
 
   try {
     let lastRetry: AttemptRetry | undefined;
-    let primaryOrigin: string | undefined;
 
     for (let i = 0; i < ids.length; i++) {
       const id = ids[i]!;
@@ -380,22 +366,12 @@ export async function executeRoutePlan(
         continue;
       }
 
-      const isPrimary = i === 0;
-      if (isPrimary) {
-        primaryOrigin = getOrigin(target.baseUrl);
-      }
-
-      const auth = resolveAuthForAttempt(
-        target,
-        rawClientAuth,
-        config,
-        isPrimary,
-        primaryOrigin,
-      );
-
+      const auth = resolveAuthForAttempt(target, rawClientAuth, config);
       const hasMore = i < ids.length - 1;
 
       if (!auth) {
+        // Pre-send skip: no upstream call was made, so walking to the next
+        // offering is not double-execution (applies to POST as well).
         attemptLog.push(`${id}:credential_unavailable`);
         lastRetry = {
           kind: "retry",
@@ -437,8 +413,12 @@ export async function executeRoutePlan(
         res.setHeader("x-gekiyasu-offering", result.offeringId);
         res.setHeader("x-gekiyasu-attempts", attemptLog.join(","));
 
-        // POSTかつ400以上のエラーの時は、fallbackがスキップされたことを示す独自ヘッダを追加
-        if (method !== "GET" && method !== "HEAD" && result.response.status >= 400) {
+        // Non-idempotent error response: surface that we did not walk fallbacks
+        if (
+          method !== "GET" &&
+          method !== "HEAD" &&
+          result.response.status >= 400
+        ) {
           res.setHeader("x-gekiyasu-fallback", "skipped-non-idempotent");
         }
 
