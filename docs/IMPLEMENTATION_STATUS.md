@@ -6,7 +6,7 @@
 **いまの相のピン**（ロードマップ）: [ROADMAP.md](./ROADMAP.md)  
 失敗分類: [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)
 
-最終更新: 2026-07-12
+最終更新: 2026-07-12（P0 /v1 二重・redirect SSRF・非loopback token・fail-closed）
 
 ## 総評
 
@@ -42,7 +42,10 @@
 | body 上限 | **済** 既定 20MiB（413） |
 | プレースホルダ鍵 | **済** ループバック bind 時のみ `Bearer local\|gekiyasu\|sk-local` → env 鍵 |
 | プロキシ層トークン | **済** `GEKIYASU_PROXY_TOKEN` → `X-Gekiyasu-Token`（未設定時は /v1 開放・起動時注意） |
-| 上流 allowlist | **済** base host + `GEKIYASU_UPSTREAM_ALLOWLIST`。fetch 前に `resolveUpstreamUrl`。私有IP拒否 |
+| 上流 allowlist | **済** + **redirect: manual** で Location 再検査。HTTPS→HTTP 拒否 |
+| URL join | **済** base が `/v1` 終端でも `/v1/v1` にしない（`joinUpstreamUrl`） |
+| 非loopback | **済** `GEKIYASU_PROXY_TOKEN` 必須（または `GEKIYASU_ALLOW_UNAUTHENTICATED_REMOTE=true`） |
+| hard filter | **済** require* は fail-closed。`maxCostPerRequest` は estimatedCostPerRequest のみ比較 |
 | リクエスト body ストリーム | **未**（全読みバッファ。NFR-02 未達） |
 
 ## 次に足す順

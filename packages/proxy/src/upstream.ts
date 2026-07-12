@@ -6,6 +6,15 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { ProxyConfig } from "./config.js";
 import { assertSafeUpstreamUrl, PLACEHOLDER_BEARERS } from "./security.js";
+import { joinUpstreamUrl } from "./url-join.js";
+
+const MAX_REDIRECTS = 5;
+const SENSITIVE_REQUEST_HEADERS = [
+  "authorization",
+  "cookie",
+  "x-api-key",
+  "x-gekiyasu-token",
+];
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -81,14 +90,96 @@ export function resolveUpstreamUrl(
   baseUrlOverride?: string,
 ): string {
   const base = (baseUrlOverride ?? config.upstreamBaseUrl).replace(/\/+$/, "");
-  const path = pathWithQuery.startsWith("/")
-    ? pathWithQuery
-    : `/${pathWithQuery}`;
-  const absolute = `${base}${path}`;
+  const absolute = joinUpstreamUrl(base, pathWithQuery);
   assertSafeUpstreamUrl(absolute, {
     allowedHosts: config.allowedUpstreamHosts,
   });
   return absolute;
+}
+
+function stripSensitiveHeaders(headers: Headers): void {
+  for (const h of SENSITIVE_REQUEST_HEADERS) {
+    headers.delete(h);
+  }
+}
+
+/**
+ * fetch with redirect: manual, re-validate each Location against allowlist.
+ * Blocks open redirect / SSRF via 30x to private or non-allowlisted hosts.
+ */
+export async function fetchUpstream(
+  initialUrl: string,
+  init: {
+    method: string;
+    headers: Headers;
+    body?: Uint8Array;
+    signal: AbortSignal;
+    allowedHosts: string[];
+  },
+): Promise<Response> {
+  let url = initialUrl;
+  let method = init.method;
+  let headers = new Headers(init.headers);
+  let body: Uint8Array | undefined = init.body;
+  const initialOrigin = new URL(initialUrl).origin;
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    assertSafeUpstreamUrl(url, { allowedHosts: init.allowedHosts });
+
+    const res = await fetch(url, {
+      method,
+      headers,
+      body:
+        body && body.length > 0
+          ? Buffer.from(body.buffer, body.byteOffset, body.byteLength)
+          : undefined,
+      signal: init.signal,
+      redirect: "manual",
+    });
+
+    if (res.status < 300 || res.status >= 400) {
+      return res;
+    }
+
+    const location = res.headers.get("location");
+    if (!location) {
+      return res;
+    }
+
+    const next = new URL(location, url).href;
+    const nextUrl = new URL(next);
+
+    // No HTTPS → HTTP downgrade
+    if (url.startsWith("https:") && nextUrl.protocol === "http:") {
+      throw new Error(`Refusing HTTPS to HTTP redirect: ${next}`);
+    }
+
+    assertSafeUpstreamUrl(next, { allowedHosts: init.allowedHosts });
+
+    // Cross-origin: drop credentials / sensitive headers
+    if (nextUrl.origin !== initialOrigin) {
+      headers = new Headers(headers);
+      stripSensitiveHeaders(headers);
+    }
+
+    // 303: switch to GET without body. 301/302 historically browsers use GET for POST.
+    if (
+      res.status === 303 ||
+      ((res.status === 301 || res.status === 302) && method !== "GET" && method !== "HEAD")
+    ) {
+      method = "GET";
+      body = undefined;
+      headers.delete("content-length");
+      headers.delete("content-type");
+    }
+
+    url = next;
+    if (hop === MAX_REDIRECTS) {
+      throw new Error(`Too many redirects (>${MAX_REDIRECTS})`);
+    }
+  }
+
+  throw new Error("Redirect loop guard failed");
 }
 
 export async function proxyRequest(
@@ -167,11 +258,12 @@ export async function proxyRequest(
 
   let upstream: Response;
   try {
-    upstream = await fetch(url, {
+    upstream = await fetchUpstream(url, {
       method,
       headers,
       body: body && body.length > 0 ? new Uint8Array(body) : undefined,
       signal: ac.signal,
+      allowedHosts: config.allowedUpstreamHosts,
     });
   } catch (err) {
     clearTimeout(timer);
@@ -179,7 +271,14 @@ export async function proxyRequest(
       err instanceof Error &&
       (err.name === "AbortError" || err.message.includes("abort"));
     const message = err instanceof Error ? err.message : String(err);
-    res.writeHead(aborted ? 504 : 502, { "content-type": "application/json" });
+    const forbidden =
+      err instanceof Error &&
+      (message.includes("not in the allowlist") ||
+        message.includes("private") ||
+        message.includes("Refusing HTTPS"));
+    res.writeHead(aborted ? 504 : forbidden ? 403 : 502, {
+      "content-type": "application/json",
+    });
     res.end(
       JSON.stringify({
         error: {
@@ -187,7 +286,11 @@ export async function proxyRequest(
             ? `Upstream timeout after ${config.upstreamTimeoutMs}ms`
             : `Upstream fetch failed: ${message}`,
           type: "proxy_error",
-          code: aborted ? "upstream_timeout" : "upstream_unreachable",
+          code: aborted
+            ? "upstream_timeout"
+            : forbidden
+              ? "upstream_not_allowed"
+              : "upstream_unreachable",
         },
       }),
     );

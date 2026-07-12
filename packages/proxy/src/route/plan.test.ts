@@ -11,6 +11,7 @@ const A: RouteCandidate = {
   id: "paid:tools",
   providerId: "official",
   tools: true,
+  streaming: true,
   free: false,
   inputPerMillion: 1,
   allowsPrivateCode: true,
@@ -22,11 +23,20 @@ const B: RouteCandidate = {
   id: "free:no-tools",
   providerId: "gateway",
   tools: false,
+  streaming: true,
   free: true,
   inputPerMillion: 0,
   allowsPrivateCode: false,
   editorialRankInfluence: "none",
   contextWindow: 32_000,
+};
+
+const C_unknown_stream: RouteCandidate = {
+  id: "unknown-stream",
+  providerId: "x",
+  tools: true,
+  // streaming intentionally undefined — requireStreaming must fail-closed
+  free: false,
 };
 
 describe("filterCandidates", () => {
@@ -47,6 +57,33 @@ describe("filterCandidates", () => {
       eligible.map((c) => c.id),
       ["paid:tools"],
     );
+  });
+
+  it("requireStreaming fail-closed when streaming unknown", () => {
+    const { eligible, rejected } = filterCandidates([C_unknown_stream], {
+      requireStreaming: true,
+    });
+    assert.equal(eligible.length, 0);
+    assert.equal(rejected[0]?.reason, "require_streaming");
+  });
+
+  it("maxCostPerRequest does not compare against $/M tokens", () => {
+    const rich: RouteCandidate = {
+      id: "rich",
+      providerId: "p",
+      tools: true,
+      inputPerMillion: 100,
+      estimatedCostPerRequest: 0.01,
+    };
+    const { eligible } = filterCandidates([rich], {
+      maxCostPerRequest: 0.05,
+    });
+    assert.equal(eligible.length, 1);
+    const { eligible: none } = filterCandidates(
+      [{ ...rich, estimatedCostPerRequest: undefined }],
+      { maxCostPerRequest: 0.05 },
+    );
+    assert.equal(none.length, 0);
   });
 });
 

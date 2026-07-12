@@ -20,6 +20,8 @@ export type RouteCandidate = {
   allowsPrivateCode?: boolean;
   free?: boolean;
   inputPerMillion?: number;
+  /** Estimated USD for this request (same unit as HardConstraints.maxCostPerRequest). */
+  estimatedCostPerRequest?: number;
   editorialRankInfluence?: "none" | string;
 };
 
@@ -82,13 +84,14 @@ function hardRejectReason(
   ) {
     return "not_in_provider_allowlist";
   }
+  // Hard constraints are fail-closed: require explicit true / known values.
   if (constraints.requireTools && c.tools !== true) {
     return "require_tools";
   }
   if (constraints.requireVision && c.vision !== true) {
     return "require_vision";
   }
-  if (constraints.requireStreaming && c.streaming === false) {
+  if (constraints.requireStreaming && c.streaming !== true) {
     return "require_streaming";
   }
   if (
@@ -100,28 +103,25 @@ function hardRejectReason(
   if (constraints.privateMode && c.allowsPrivateCode !== true) {
     return "private_mode";
   }
-  if (
-    constraints.requireEditorialRankNone !== false &&
+  if (constraints.requireEditorialRankNone === true) {
+    if (c.editorialRankInfluence !== "none") {
+      return "editorial_rank_influence";
+    }
+  } else if (
     c.editorialRankInfluence != null &&
     c.editorialRankInfluence !== "none"
   ) {
-    // Default: block non-none rank influence when field is present and not none
+    // Explicit non-none influence always blocked when present
     return "editorial_rank_influence";
   }
-  if (
-    constraints.requireEditorialRankNone === true &&
-    c.editorialRankInfluence !== "none" &&
-    c.editorialRankInfluence != null
-  ) {
-    return "editorial_rank_influence";
-  }
-  if (
-    constraints.maxCostPerRequest != null &&
-    c.inputPerMillion != null &&
-    c.inputPerMillion > constraints.maxCostPerRequest
-  ) {
-    // crude proxy for "too expensive per M input" when used as budget stand-in
-    return "max_cost_per_request";
+  // maxCostPerRequest compares estimated USD per request only — never $/M tokens.
+  if (constraints.maxCostPerRequest != null) {
+    if (c.estimatedCostPerRequest == null) {
+      return "max_cost_unknown";
+    }
+    if (c.estimatedCostPerRequest > constraints.maxCostPerRequest) {
+      return "max_cost_per_request";
+    }
   }
   return null;
 }

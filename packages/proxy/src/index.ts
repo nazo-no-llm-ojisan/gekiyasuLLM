@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { DEFAULT_HOST, DEFAULT_PORT, loadConfig } from "./config.js";
+import { isLoopbackHost } from "./security.js";
 import { listen } from "./server.js";
 
 function printHelp(): void {
@@ -37,13 +38,21 @@ async function main(): Promise<void> {
   }
 
   const config = loadConfig();
-  if (config.host !== "127.0.0.1" && config.host !== "localhost") {
+  if (!isLoopbackHost(config.host)) {
     console.warn(
       `[warn] Binding to ${config.host}. Prefer 127.0.0.1 unless you intentionally expose the proxy.`,
     );
-    if (!config.allowPlaceholderApiKeySwap) {
+    const allowUnauth =
+      process.env.GEKIYASU_ALLOW_UNAUTHENTICATED_REMOTE === "true";
+    if (!config.proxyToken && !allowUnauth) {
+      console.error(
+        "[fatal] Non-loopback bind requires GEKIYASU_PROXY_TOKEN, or set GEKIYASU_ALLOW_UNAUTHENTICATED_REMOTE=true (dangerous).",
+      );
+      process.exit(1);
+    }
+    if (!config.proxyToken && allowUnauth) {
       console.warn(
-        "[warn] Placeholder API key swap (Bearer local|gekiyasu|sk-local) is DISABLED off loopback.",
+        "[warn] GEKIYASU_ALLOW_UNAUTHENTICATED_REMOTE=true — /v1 is open on a non-loopback address.",
       );
     }
   }
