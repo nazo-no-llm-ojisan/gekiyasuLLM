@@ -154,8 +154,12 @@ function hardRejectReason(
   ) {
     return "min_context_window";
   }
+  // T-046: private mode is fail-closed. Both an explicit `false` and an
+  // `undefined` (trust unknown) block the offering. Only an explicit `true`
+  // passes. When `privateMode` is not set, all three pass through (the proxy
+  // will not surface this offering as private, but other constraints still
+  // apply).
   if (constraints.privateMode && c.allowsPrivateCode !== true) {
-    // Fail-closed: `undefined` (unknown trust) is treated the same as `false`.
     return "private_mode";
   }
   if (constraints.requireEditorialRankNone === true) {

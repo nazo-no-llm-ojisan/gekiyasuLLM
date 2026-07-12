@@ -74,6 +74,60 @@ describe("apiCompat fail-closed (T-045)", () => {
   });
 });
 
+describe("allowsPrivateCode fail-closed (T-046)", () => {
+  it("rejects an offering with unknown trust (undefined) when privateMode=true", () => {
+    const candidates: RouteCandidate[] = [
+      { id: "unknown-trust", providerId: "p1" },
+    ];
+    const { eligible, rejected } = filterCandidates(candidates, {
+      privateMode: true,
+    });
+    assert.equal(eligible.length, 0);
+    assert.equal(rejected.length, 1);
+    assert.equal(rejected[0]!.id, "unknown-trust");
+    assert.equal(rejected[0]!.reason, "private_mode");
+  });
+
+  it("rejects an offering with allowsPrivateCode=false when privateMode=true", () => {
+    const candidates: RouteCandidate[] = [
+      { id: "explicit-no", providerId: "p1", allowsPrivateCode: false },
+    ];
+    const { eligible, rejected } = filterCandidates(candidates, {
+      privateMode: true,
+    });
+    assert.equal(eligible.length, 0);
+    assert.equal(rejected[0]!.reason, "private_mode");
+  });
+
+  it("accepts an offering with allowsPrivateCode=true when privateMode=true", () => {
+    const candidates: RouteCandidate[] = [
+      { id: "ok", providerId: "p1", allowsPrivateCode: true },
+    ];
+    const { eligible, rejected } = filterCandidates(candidates, {
+      privateMode: true,
+    });
+    assert.equal(rejected.length, 0);
+    assert.deepEqual(
+      eligible.map((c) => c.id),
+      ["ok"],
+    );
+  });
+
+  it("passes offerings with unknown trust when privateMode is unset", () => {
+    const candidates: RouteCandidate[] = [
+      { id: "unknown", providerId: "p1" },
+      { id: "false", providerId: "p2", allowsPrivateCode: false },
+      { id: "true", providerId: "p3", allowsPrivateCode: true },
+    ];
+    const { eligible, rejected } = filterCandidates(candidates, {});
+    assert.equal(rejected.length, 0);
+    assert.deepEqual(
+      eligible.map((c) => c.id),
+      ["unknown", "false", "true"],
+    );
+  });
+});
+
 describe("filterCandidates", () => {
   it("drops candidates that fail requireTools", () => {
     const { eligible, rejected } = filterCandidates([A, B], {
