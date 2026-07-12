@@ -21,22 +21,45 @@
 
 ## 最小セットアップ
 
-1. 自分の upstream キーを環境に置く（例: `OPENAI_API_KEY`）。**シェル履歴やチャットに貼らない。**
-2. Proxy を loopback で起動:
+### 推奨: `packages/proxy/.env`（gitignore 済み）
 
-```bash
+利用者が一度だけ書く。**チャット・git・ログに貼らない。**
+
+```text
+# packages/proxy/.env  （.gitignore の .env / .env.* で除外）
+GEKIYASU_UPSTREAM_BASE_URL=https://…/v1
+OPENAI_API_KEY=…          # または GEKIYASU_UPSTREAM_API_KEY
+GEKIYASU_UPSTREAM_ALLOWLIST=host1,host2
+GEKIYASU_PROXY_TOKEN=…    # 任意だが、設定した場合は /v1 に X-Gekiyasu-Token が必須
+```
+
+この repo は dotenv 自動読込をしない。**起動前に process environment へ注入する**（PowerShell 例は下）。エージェントは `.env` の内容を cat / 報告 / commit しない。
+
+### 起動（loopback）
+
+```powershell
 cd packages/proxy
-npm install
+# .env を process に読み込み（値は表示しない）
+Get-Content .env | ForEach-Object {
+  if ($_ -match '^\s*$' -or $_ -match '^\s*#') { return }
+  $p = $_ -split '=', 2
+  if ($p.Count -eq 2) { Set-Item -Path "Env:$($p[0].Trim())" -Value $p[1].Trim().Trim('"') }
+}
+$env:GEKIYASU_HOST = "127.0.0.1"
 npm run dev
 ```
 
-3. クライアントの base URL:
+- 既定 bind: `http://127.0.0.1:16191`
+- クライアント base URL: `http://127.0.0.1:16191/v1`
+- E2E 最小は **passthrough（configured upstream 一本）**。feed 横断は不要
 
-```text
-http://127.0.0.1:16191/v1
-```
+### IDE（利用者設定）
 
-4. （任意）静的フィードを使う場合のみ `GEKIYASU_FEED_FILE` を設定。E2E 最小は **passthrough（configured upstream のみ）** でよい。
+| 項目 | 値 |
+|---|---|
+| Base URL | `http://127.0.0.1:16191/v1` |
+| API Key | `sk-local`（loopback で env の upstream key に置換） |
+| Proxy token | `.env` に `GEKIYASU_PROXY_TOKEN` がある場合、custom header `X-Gekiyasu-Token` が必要。非対応 IDE なら token なしで初回導通してもよい（**外部 bind 禁止**） |
 
 ---
 
@@ -50,22 +73,26 @@ curl -sS http://127.0.0.1:16191/health
 
 ### B. GET（models）— 冪等 path
 
+`GEKIYASU_PROXY_TOKEN` 設定時は header を付ける（値はシェル変数から。ログに出さない）。
+
 ```bash
-curl -sS http://127.0.0.1:16191/v1/models \
-  -H "Authorization: Bearer $OPENAI_API_KEY"
+curl.exe -sS http://127.0.0.1:16191/v1/models \
+  -H "Authorization: Bearer sk-local" \
+  -H "X-Gekiyasu-Token: %GEKIYASU_PROXY_TOKEN%"
 ```
 
-期待: upstream 相当の 200 系。失敗時はキー / allowlist / 起動を疑う。
+期待: upstream 相当の 200 系。`x-gekiyasu-offering: passthrough:default` など。失敗時はキー / allowlist / token / 起動を疑う。
 
 ### C. POST（chat completions）— 非冪等 path
 
-**短く安いモデル・短い prompt** で 1 回だけ。
+**短く安いモデル・短い prompt** で 1 回だけ。モデル id は `/v1/models` で見えるものを使う。
 
 ```bash
-curl -sS http://127.0.0.1:16191/v1/chat/completions \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
+curl.exe -sS http://127.0.0.1:16191/v1/chat/completions \
+  -H "Authorization: Bearer sk-local" \
+  -H "X-Gekiyasu-Token: %GEKIYASU_PROXY_TOKEN%" \
   -H "Content-Type: application/json" \
-  -d "{\"model\":\"gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":16}"
+  -d "{\"model\":\"（上流で使える id）\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":16}"
 ```
 
 期待:

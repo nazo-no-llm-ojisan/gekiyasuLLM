@@ -59,13 +59,20 @@
 - P0/P1 セキュリティ修正（**正本 `e2b3d14`**、docs `d4880d8`）— 外部再監査でも合格。`4bbc1fb` の問題は実質解消
 - 検証: unit（`upstream.test.ts` allowlist）+ executor の local HTTP server 実受信 header 検査あり。redirect またぎ `fetchUpstream` は未カバー
 
+### L11 手動確認（2026-07-12）
+- **方式:** `packages/proxy/.env`（gitignore）を process env に注入 → `npm run dev` → curl  
+- **キー・token・Authorization 実値はログ/git に出していない**  
+- **結果:**
+  - `GET /health` → **200**（`proxyTokenRequired: true`）
+  - `GET /v1/models` without token → **401**（proxy token 必須の確認）
+  - `GET /v1/models` + `X-Gekiyasu-Token` + `Bearer sk-local` → **200**（models_count>0, offering=`passthrough:default`）
+  - `POST /v1/chat/completions` 最小 1 回 → **200**（offering=`passthrough:default`, attempts=`…:ok`）
+- **起動先:** `http://127.0.0.1:16191`（loopback）  
+- **IDE 一通**は未実施（Base URL `http://127.0.0.1:16191/v1` + API key `sk-local` + 必要なら `X-Gekiyasu-Token`）
+
 ### 次の本線候補
-1. **L11 実キー E2E（推奨）** — [L11_MANUAL_E2E.md](./L11_MANUAL_E2E.md)  
-   - 利用者が **自分のキー** で health → models → 短い chat を一通  
-   - routing / credential isolation / POST passthrough の実確認  
-   - **エージェント・CI は有償 API を叩かない**（明示承認なしは禁止）  
-   - 成功後: ROADMAP_LOCAL の L11 チェック + 本 HANDOFF に日付のみ（キー・本文なし）
-2. **L10 ローカル統計** — L11 後推奨。L11 で見えた offering / attempts / status / latency / estimate を記録対象のたたき台にする
+1. **IDE から L11 接続**（任意）— 利用者が IDE の base URL を proxy に向ける  
+2. **L10 ローカル統計** — offering / attempts / status / latency / estimate を記録（本文・キーは残さない）
 
 ### 将来（本線外・P0 ではない）
 - tenant/correlation headers（`openai-organization` / `openai-project` / `idempotency-key`）を configured upstream origin のみに限定
