@@ -17,11 +17,19 @@ describe("resolvePrimaryTarget", () => {
     const catalog = new Map<string, OfferingTarget>([
       [
         "passthrough:default",
-        { id: "passthrough:default", baseUrl: "https://api.openai.com/v1" },
+        {
+          id: "passthrough:default",
+          providerId: "local",
+          baseUrl: "https://api.openai.com/v1",
+        },
       ],
       [
         "other:offering",
-        { id: "other:offering", baseUrl: "https://other.example/v1" },
+        {
+          id: "other:offering",
+          providerId: "other",
+          baseUrl: "https://other.example/v1",
+        },
       ],
     ]);
     const plan = planFor("other:offering");
