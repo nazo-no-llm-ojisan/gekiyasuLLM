@@ -258,7 +258,10 @@ export async function proxyRequest(
     upstream = await fetchUpstream(url, {
       method,
       headers,
-      body: body && body.length > 0 ? new Blob([body]) : undefined,
+      body:
+        body && body.length > 0
+          ? Uint8Array.from(body)
+          : undefined,
       signal: ac.signal,
       allowedHosts: config.allowedUpstreamHosts,
     });
