@@ -3,7 +3,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { RoutePlan } from "@gekiyasu/schema";
 import type { ProxyConfig } from "../config.js";
-import { PLACEHOLDER_BEARERS } from "../security.js";
+import { isProxyAuthorization, PLACEHOLDER_BEARERS } from "../security.js";
 import {
   buildUpstreamHeaders,
   fetchUpstream,
@@ -62,7 +62,7 @@ export function getOrigin(urlStr: string): string {
 }
 
 export function isProxyToken(auth: string): boolean {
-  return auth.startsWith("Bearer gekiyasu-proxy:");
+  return isProxyAuthorization(auth);
 }
 
 export function isPlaceholderApiKey(auth: string): boolean {

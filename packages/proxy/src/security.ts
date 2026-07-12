@@ -93,10 +93,23 @@ export function extractProxyToken(headers: {
 
   const auth = headers.authorization;
   const authVal = Array.isArray(auth) ? auth[0] : auth;
-  if (typeof authVal === "string" && authVal.startsWith("Bearer gekiyasu-proxy:")) {
-    return authVal.slice("Bearer gekiyasu-proxy:".length).trim();
+  if (typeof authVal === "string") {
+    return extractProxyTokenFromAuthorization(authVal);
   }
   return undefined;
+}
+
+export function extractProxyTokenFromAuthorization(
+  authorization: string,
+): string | undefined {
+  const match = /^Bearer\s+(?:Bearer\s+)?gekiyasu-proxy:(.+)$/i.exec(
+    authorization.trim(),
+  );
+  return match ? match[1]!.trim() : undefined;
+}
+
+export function isProxyAuthorization(authorization: string): boolean {
+  return extractProxyTokenFromAuthorization(authorization) !== undefined;
 }
 
 export type ProxyTokenCheck =

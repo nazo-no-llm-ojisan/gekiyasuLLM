@@ -7,7 +7,11 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ProxyConfig } from "./config.js";
-import { assertSafeUpstreamUrl, PLACEHOLDER_BEARERS } from "./security.js";
+import {
+  assertSafeUpstreamUrl,
+  isProxyAuthorization,
+  PLACEHOLDER_BEARERS,
+} from "./security.js";
 import { joinUpstreamUrl } from "./url-join.js";
 
 const MAX_REDIRECTS = 5;
@@ -66,7 +70,7 @@ export function pickAuthHeader(
   const fromClient = req.headers.authorization;
   if (typeof fromClient === "string" && fromClient.length > 0) {
     // Do not treat proxy-token Authorization form as upstream key
-    if (fromClient.startsWith("Bearer gekiyasu-proxy:")) {
+    if (isProxyAuthorization(fromClient)) {
       if (config.upstreamApiKey) {
         return `Bearer ${config.upstreamApiKey}`;
       }

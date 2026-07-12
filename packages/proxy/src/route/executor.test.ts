@@ -374,6 +374,14 @@ describe("resolveAuthForAttempt", () => {
       resolveAuthForAttempt(configured, "Bearer gekiyasu-proxy:proxy-token", config),
       "Bearer real-global",
     );
+    assert.equal(
+      resolveAuthForAttempt(
+        configured,
+        "Bearer Bearer gekiyasu-proxy:proxy-token",
+        config,
+      ),
+      "Bearer real-global",
+    );
   });
 });
 

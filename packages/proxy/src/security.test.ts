@@ -109,6 +109,14 @@ describe("proxy token", () => {
       "secret",
     );
   });
+  it("extracts when clients prefix Bearer around a user-entered Bearer token", () => {
+    assert.equal(
+      extractProxyToken({
+        authorization: "Bearer Bearer gekiyasu-proxy:secret",
+      }),
+      "secret",
+    );
+  });
   it("skips check when not configured", () => {
     assert.deepEqual(checkProxyToken({}, undefined), { ok: true });
   });
