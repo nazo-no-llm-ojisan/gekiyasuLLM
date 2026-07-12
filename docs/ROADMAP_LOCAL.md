@@ -25,14 +25,14 @@
 L0–L12  中継・plan・静的feed・統計・dashboard・circuit  ████ 完了
 
 本線マイルストーン
-  M1  正しく振り分ける     ░░░░  ← いまここ（T-044 本線）
-  M2  データから一本通す   ░░░░
+  M1  正しく振り分ける     ████ 完了（T-044 / T-045 / T-046）
+  M2  データから一本通す   ░░░░  ← いまここ
   M3  安全に自動公開する   ░░░░
   公開フィード運用開始     ░░░░
 ```
 
-**ピン:** **M1**（request-aware routing）。  
-中継としては使える。まだ **「フィード内最安候補を選ぶ OpenAI 互換中継器」** に近い。  
+**ピン:** **M2**（T-039 / T-024 / T-050 / T-051）。  
+M1 完了: request-aware routing（要求モデル → 候補絞り込み → hard filter → 最安 → `upstreamModelId` 書換）が実 HTTP 経路で動作。`apiCompat` / `allowsPrivateCode` も fail-closed。  
 本番利用・自動取得公開フィード: **不可**（M3 前）。
 
 ---
@@ -51,14 +51,14 @@ M3 安全な自動公開              T-035 · T-034 · T-048
 公開フィード運用開始
 ```
 
-### M1 — 正しく振り分ける（**本線・いま**）
+### M1 — 正しく振り分ける（**完了**）
 
 Proxy の正しさだけ。スクレイピングも署名も不要。
 
 | | |
 |---|---|
 | **含む** | request body から model・能力を読む / 対応 Offering だけ候補化 / `apiCompat` fail-closed / private trust fail-closed / `upstreamModelId` へ書換 |
-| **タスク** | **T-044** · **T-045** · **T-046**（台帳） |
+| **タスク** | **T-044** ✅ · **T-045** ✅ · **T-046** ✅（台帳） |
 | **完了条件** | fixture 上の同一論理モデルについて、適合する最安 Offering を選び、正しい `upstreamModelId` を上流へ送れる |
 
 ### M2 — データから実際に一本通す
@@ -150,7 +150,7 @@ L12 静的 dashboard             完了
 - [x] GET/HEAD fallback、POST 禁止
 - [x] 静的フィード差し替え
 - [x] ローカル統計
-- [ ] **M1** 正しい model ID で振り分け ← 製品としての次
+- [x] **M1** 正しい model ID で振り分け（完了） ← 製品としての次: M2
 
 ---
 

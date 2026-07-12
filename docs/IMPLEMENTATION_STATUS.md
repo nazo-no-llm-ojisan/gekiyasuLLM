@@ -11,12 +11,12 @@
 | 層 | 状態 |
 |---|---|
 | 設計 docs | 先行・厚い。ローカル本線 **M1–M3** は [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) |
-| Proxy | **中継 + 境界 + plan/filter/fallback + フィード + CostEstimate + credential isolation + ローカル統計 JSONL + circuit** |
-| ルーティング | plan は動くが **request model 未使用**（**M1 / T-044** 未）。GET/HEAD fallback 済。POST fallback 禁止 |
+| Proxy | **中継 + 境界 + plan/filter/fallback + フィード + CostEstimate + credential isolation + ローカル統計 JSONL + circuit + fail-closed CORS** |
+| ルーティング | **M1 完了** — request model → 候補絞り込み → hard filter → 最安 → `upstreamModelId` 書換（実 HTTP 経路で動作）。`apiCompat` / `allowsPrivateCode` fail-closed。GET/HEAD fallback 済。POST fallback 禁止 |
 | フィード収集 | 未（静的ファイル読込は L8 済） |
 | Dashboard | 静的デモ（`/dashboard/`）。公開カタログは L24 Pages 予定 |
-| 本番利用 | **不可**。公開フィードは L17 署名 + L18 DNS pin 前は不可 |
-| CI | **Actions あり**（test はファイル明示列挙 — L19 で硬化予定） |
+| 本番利用 | **不可**。公開フィードは M3 / T-035 署名 + T-034 DNS pin 前は不可 |
+| CI | **Actions あり**（test はファイル明示列挙 — M3 / T-048 で glob 化予定） |
 
 ## セキュリティ
 
@@ -45,12 +45,12 @@
 
 | 項目 | 実装 |
 |---|---|
-| RoutePlan filter+rank | 済（ただし **request 非連動** — 現状ほぼ `preferFree` 固定） |
-| **request model → offering 候補化** | **未（M1 / T-044）** |
-| **upstreamModelId への body 書換** | **未（M1 / T-044）** |
-| tools/vision/stream/private を request から hard filter | **未（M1 / T-044）** |
-| apiCompat fail-closed（非 OpenAI 除外） | **未（M1 / T-045）** |
-| allowsPrivateCode fail-closed | **未（M1 / T-046）** — catalog が unknown を true 扱い |
+| RoutePlan filter+rank | 済（`requestFacts` 連動の request-aware 候補絞り込みを含む） |
+| **request model → offering 候補化** | **済（M1 / T-044）** — `server.ts` で `extractRequestFacts` → `PreparedRequest` 経由で `executeRoutePlan` へ |
+| **upstreamModelId への body 書換** | **済（M1 / T-044）** — `body-rewrite.ts` 純粋関数。attempt ごとに元 Buffer から書換（破壊なし） |
+| tools/vision/stream/private を request から hard filter | **済（M1 / T-044）** — `extractRequestFacts` が `requiresTools` / `requiresVision` / `streaming` を返す。`filterCandidates` が hard filter 適用 |
+| apiCompat fail-closed（非 OpenAI 除外） | **済（M1 / T-045）** — `openai_chat` 以外・宣言ありは `api_compat_unsupported` で除外 |
+| allowsPrivateCode fail-closed | **済（M1 / T-046）** — `privateMode=true` かつ `!== true`（unknown / false 両方）で除外 |
 | Executor plan.primary | 済 |
 | Executor fallbacks | **済（GET/HEAD のみ）** — 408/429/5xx/timeout/network 等で次候補。**POST 等は fallback 禁止** |
 | Circuit breaker (T-036) | **済** — per-offering closed/open/half-open。server 寿命で共有。`GEKIYASU_CIRCUIT_FAILURES` / `GEKIYASU_CIRCUIT_OPEN_SECONDS` |

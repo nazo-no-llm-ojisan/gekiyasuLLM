@@ -16,11 +16,13 @@
 
 | 地図 | 位置 |
 |---|---|
-| **大枠** | Phase 2 完了 → Phase 3 進行中 → [docs/ROADMAP_MACRO.md](./docs/ROADMAP_MACRO.md) |
-| **ローカル** | **L9 完了 → 次 L11 手動 E2E（推奨）→ L10 統計** → [docs/ROADMAP_LOCAL.md](./docs/ROADMAP_LOCAL.md) · [docs/L11_MANUAL_E2E.md](./docs/L11_MANUAL_E2E.md) |
+| **大枠** | Phase 3 完了 → 次の本線は **M1→M2→M3** のうち **M2 進行中** → [docs/ROADMAP_MACRO.md](./docs/ROADMAP_MACRO.md) |
+| **ローカル** | **L12 完了・M1 完了** · 次は **M2**（T-039 / T-024 / T-050 / T-051）→ [docs/ROADMAP_LOCAL.md](./docs/ROADMAP_LOCAL.md) |
 
 - 既定ポート **`16191`**（`http://127.0.0.1:16191/v1`）
 - 中継・plan/filter/rank・**GET/HEAD fallback**・静的フィード catalog・最小 CostEstimate あり
+- **request-aware routing**（M1 / T-044）: クライアントが指定した model に対応する offering だけ候補化し、選択先の `upstreamModelId` に body を書き換えて送信。`apiCompat`（T-045）/ `allowsPrivateCode`（T-046）fail-closed
+- CORS は既定 OFF。`GEKIYASU_CORS_ALLOWLIST` で明示 opt-in
 - client API key は configured upstream origin のみへ転送（別 origin は `providerApiKeys`）。**POST は自動 fallback しない**
 - 索引: [docs/ROADMAP.md](./docs/ROADMAP.md) · ギャップ表: [docs/IMPLEMENTATION_STATUS.md](./docs/IMPLEMENTATION_STATUS.md) · docs 一覧: [docs/README.md](./docs/README.md)
 
