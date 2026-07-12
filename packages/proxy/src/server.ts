@@ -24,27 +24,36 @@ function sendJson(
   res: http.ServerResponse,
   status: number,
   body: unknown,
+  req?: http.IncomingMessage,
 ): void {
   res.writeHead(status, {
-    ...corsHeaders(),
+    ...corsHeaders(req),
     "content-type": "application/json",
   });
   res.end(JSON.stringify(body));
 }
 
-function corsHeaders(): Record<string, string> {
-  return {
-    "access-control-allow-origin": "*",
+function corsHeaders(req?: http.IncomingMessage): Record<string, string> {
+  const origin = req?.headers.origin;
+  const allowOrigin = typeof origin === "string" && origin.length > 0 ? origin : "*";
+  const headers: Record<string, string> = {
+    "access-control-allow-origin": allowOrigin,
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers":
       "authorization,content-type,x-gekiyasu-token,openai-organization,openai-project",
     "access-control-expose-headers":
       "x-gekiyasu-route-plan,x-gekiyasu-offering,x-gekiyasu-attempts,x-gekiyasu-fallback",
+    "access-control-allow-private-network": "true",
+    vary: "Origin",
   };
+  if (allowOrigin !== "*") {
+    headers["access-control-allow-credentials"] = "true";
+  }
+  return headers;
 }
 
-function sendOptions(res: http.ServerResponse): void {
-  res.writeHead(204, corsHeaders());
+function sendOptions(req: http.IncomingMessage, res: http.ServerResponse): void {
+  res.writeHead(204, corsHeaders(req));
   res.end();
 }
 
@@ -93,7 +102,7 @@ export function createServer(config: ProxyConfig): http.Server {
     const path = url.pathname;
 
     if (req.method === "OPTIONS") {
-      sendOptions(res);
+      sendOptions(req, res);
       return;
     }
 
@@ -104,7 +113,7 @@ export function createServer(config: ProxyConfig): http.Server {
         upstream: config.upstreamBaseUrl,
         proxyTokenRequired: Boolean(config.proxyToken),
         statsEnabled: Boolean(config.statsFile),
-      });
+      }, req);
       return;
     }
 
@@ -150,7 +159,7 @@ export function createServer(config: ProxyConfig): http.Server {
             type: "invalid_request_error",
             code: tokenCheck.code,
           },
-        });
+        }, req);
         return;
       }
 
@@ -172,7 +181,7 @@ export function createServer(config: ProxyConfig): http.Server {
             type: "proxy_error",
             code: "no_eligible_offering",
           },
-        });
+        }, req);
         await recordRouteStat(stats, {
           method,
           path,
@@ -208,7 +217,7 @@ export function createServer(config: ProxyConfig): http.Server {
         if (!res.headersSent) {
           sendJson(res, 500, {
             error: { message, type: "proxy_error", code: "internal_error" },
-          });
+          }, req);
         }
         await recordRouteStat(stats, {
           method,
@@ -228,7 +237,7 @@ export function createServer(config: ProxyConfig): http.Server {
         type: "invalid_request_error",
         code: "not_found",
       },
-    });
+    }, req);
   });
 }
 

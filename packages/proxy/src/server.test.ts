@@ -50,7 +50,15 @@ describe("CORS preflight", () => {
       });
 
       assert.equal(res.status, 204);
-      assert.equal(res.headers.get("access-control-allow-origin"), "*");
+      assert.equal(
+        res.headers.get("access-control-allow-origin"),
+        "http://localhost:8080",
+      );
+      assert.equal(res.headers.get("access-control-allow-credentials"), "true");
+      assert.equal(
+        res.headers.get("access-control-allow-private-network"),
+        "true",
+      );
       assert.match(
         res.headers.get("access-control-allow-headers") ?? "",
         /authorization/i,
@@ -64,6 +72,21 @@ describe("CORS preflight", () => {
 
       assert.equal(res.status, 401);
       assert.equal(res.headers.get("access-control-allow-origin"), "*");
+    });
+  });
+
+  it("reflects Origin on JSON errors for credentialed browser clients", async () => {
+    await withServer(testConfig(), async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/v1/models`, {
+        headers: { origin: "http://localhost:3000" },
+      });
+
+      assert.equal(res.status, 401);
+      assert.equal(
+        res.headers.get("access-control-allow-origin"),
+        "http://localhost:3000",
+      );
+      assert.equal(res.headers.get("access-control-allow-credentials"), "true");
     });
   });
 });
