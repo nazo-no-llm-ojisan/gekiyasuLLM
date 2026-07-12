@@ -2,7 +2,7 @@
 
 Local OpenAI-compatible proxy. Default bind: **`127.0.0.1:16191`**.
 
-MVP: passthrough + RoutePlan (filter/rank) + executor fallback (**GET/HEAD only**) + static feed catalog + minimal cost estimate.
+MVP: passthrough + RoutePlan (filter/rank) + request-aware routing (M1: request model → candidate filter → `upstreamModelId` body rewrite; `apiCompat` / `allowsPrivateCode` fail-closed) + executor fallback (**GET/HEAD only**) + circuit breaker + static feed catalog + minimal cost estimate + CORS fail-closed (off by default).
 
 ## Requirements
 
@@ -116,6 +116,7 @@ Checklist: [docs/L11_MANUAL_E2E.md](../../docs/L11_MANUAL_E2E.md) (`/health` →
 | Placeholder keys (`Bearer local` / `gekiyasu` / `sk-local`) | Swapped to the configured upstream key **only** on loopback bind **and** configured upstream origin. |
 | Upstream request headers | **Allowlist** (`content-type`, `accept`, `accept-language`, `user-agent`). Tenant headers `openai-organization` / `openai-project` / `idempotency-key` are forwarded **only** when the target offering origin equals the exact origin of `GEKIYASU_UPSTREAM_BASE_URL` (T-031). Never copy client `authorization`, `cookie`, `x-api-key`, `x-gekiyasu-token`, `proxy-authorization`. |
 | Fallback | **GET/HEAD:** on 408/429/5xx/timeout/network → try next offering. **POST/PATCH/PUT/DELETE:** never auto-fallback (avoids double charge). Upstream error status/body is passed through when available. |
+| Circuit breaker (T-036) | Per-offering closed/open/half-open. After `GEKIYASU_CIRCUIT_FAILURES` consecutive failures, the offering is skipped (open) for `GEKIYASU_CIRCUIT_OPEN_SECONDS` seconds before a half-open retry is attempted. Shared across the server lifetime. |
 
 ## Response handling & client compatibility
 
@@ -153,6 +154,10 @@ When debugging a new "works in curl, fails in client X" report, **do not start w
 | `GEKIYASU_MAX_BODY_BYTES` | 20MiB | Max buffered request body |
 | `GEKIYASU_UPSTREAM_TIMEOUT_MS` | 120000 | Upstream fetch timeout |
 | `GEKIYASU_STATS_FILE` | `{cwd}/data/stats.jsonl` | Local request stats JSONL (metadata only). Set `off` to disable |
+| `GEKIYASU_CORS_ALLOWLIST` | — (CORS off) | Comma-separated origins (scheme+host+port) allowed to receive CORS headers. Empty = no CORS headers emitted. `*` is not supported (T-047). |
+| `GEKIYASU_CIRCUIT_FAILURES` | 3 | Consecutive failures before an offering circuit opens |
+| `GEKIYASU_CIRCUIT_OPEN_SECONDS` | 300 | Seconds an offering stays circuit-open before half-open retry |
+| `GEKIYASU_ALLOW_UNAUTHENTICATED_REMOTE` | — | Set to `true` to allow non-loopback bind without `GEKIYASU_PROXY_TOKEN` (dangerous). |
 
 Every upstream fetch (including feed `base_url`) is checked with the allowlist + https/loopback rules. Private/link-local IPv4 and IPv6 (ULA `fc00::/7`, link-local `fe80::/10`, private IPv4-mapped `::ffff:…`) are blocked (except loopback http for local tests).
 

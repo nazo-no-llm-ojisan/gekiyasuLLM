@@ -18,7 +18,10 @@
   packages/
     schema/             # フィード・設定の型 / JSON Schema
     proxy/              # gekiyasuLLMProxy (TypeScript)
-  feeds/                # 公開用サンプルフィードのみ（秘密・個人キーを含めない）
+  fixtures/             # 公開用サンプルフィードのみ（秘密・個人キーを含めない）
+  scripts/              # 共通ユーティリティ（run-tests.mjs 等）
+  dashboard/            # 静的ダッシュボード
+  .github/workflows/    # CI 設定
 ```
 
 ## 2. 実装方針 (MVP)

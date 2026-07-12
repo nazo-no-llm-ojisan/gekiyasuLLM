@@ -16,15 +16,15 @@
 
 | 地図 | 位置 |
 |---|---|
-| 大枠 | Phase 1–3 ほぼ完了 → **次は M1（正しく振り分ける）** |
-| ローカル | **L12 完了** · 本線 **M1**（T-044 request-aware） |
+| 大枠 | Phase 1–3 完了 → **次は M2（データ縦貫通）** |
+| ローカル | **L12 完了** · 本線 **M1 完了**（T-044–046 request-aware）→ **M2** |
 
 ```text
 M1 正しいルーティング  →  M2 データ縦貫通  →  M3 安全な自動公開
      T-044–046              T-039,024,050,051     T-035,034,048
 ```
 
-中継・fallback・静的 feed・統計・circuit あり。要求 model はまだ未使用。  
+中継・fallback・静的 feed・統計・circuit あり。要求 model で候補絞り込み → `upstreamModelId` 書換済み（M1 完了）。  
 詳細は [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md)。作業単位は [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)。
 
 ---

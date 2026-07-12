@@ -28,7 +28,7 @@
 - 中央は **署名付きルーティングフィード**（価格・能力・キャンペーン・可用性など）を配信し、原則として **ユーザーの LLM リクエストは中継しません**。
 - ルーティングは利用者の PC 上で、**自分の API キー**と**自分のポリシー**（コスト・能力・信頼度・allowlist 等）に従って行います。
 
-**現状:** 大枠 **Phase 2 完了 → Phase 3 進行中**。ローカル **L9 完了→次 L10/L11**（[docs/ROADMAP.md](./docs/ROADMAP.md)）。GET/HEAD fallback・静的フィード・最小コスト見積あり。client key は configured upstream origin のみ。POST は自動 fallback しない。既定 **`127.0.0.1:16191`** / dashboard `/dashboard/`。まだ本番向けではありません。
+**現状:** 大枠 **Phase 3 完了**。ローカル **L12 完了 · M1 完了** → 次は **M2**（データ縦貫通）（[docs/ROADMAP.md](./docs/ROADMAP.md)）。GET/HEAD fallback・静的フィード・最小コスト見積・request-aware routing（要求モデルで候補絞り込み、body を `upstreamModelId` に書換）あり。`apiCompat` / `allowsPrivateCode` は fail-closed。client key は configured upstream origin のみ。POST は自動 fallback しない。CORS は既定 OFF（`GEKIYASU_CORS_ALLOWLIST` で opt-in）。既定 **`127.0.0.1:16191`** / dashboard `/dashboard/`。まだ本番向けではありません（M3 / T-035 署名 + T-034 DNS pin が未完了）。
 
 **注意:** 価格・可用性・品質・セキュリティは **保証しません**。上流の選定と送信内容（非公開コード含む）の責任は **利用者** にあります。無料枠・キャンペーンは予告なく変わります。スポンサー / 紹介はフィード上で機械可読に開示し、既定ランキングを歪めません。訂正は影響期間・原因・フィード版を残します（[docs/CORRECTIONS.md](./docs/CORRECTIONS.md)）。
 

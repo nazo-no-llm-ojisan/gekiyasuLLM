@@ -16,18 +16,18 @@
 
 ---
 
-## 2. 現在の引き継ぎコンテキスト (2026-07-12)
+## 2. 現在の引き継ぎコンテキスト (2026-07-13)
 
 ### リポジトリ & 環境
 - **パス:** `C:\dev\project\gekiyasuLLM`
 - **Remote:** `https://github.com/nazo-no-llm-ojisan/gekiyasuLLM.git`
 - **ブランチ:** `main` (公開前提)
-- **最新同期コミット:** L10 実装後に更新
+- **最新同期コミット:** `8b71ff1`（T-048 CI fix: run-tests.mjs + dist smoke fixes）
   - P0/P1 正本: `e2b3d14` · L11 curl: `d6326a9` 記録
 
 ### 現在のピン
-- **大枠:** Phase 1–3 ほぼ。**次はローカル M1**
-- **ローカル:** **L12 完了** · 本線 **M1**（T-044 request-aware）→ M2 → M3
+- **大枠:** Phase 1–3 完了。**次は M2（データ縦貫通）**
+- **ローカル:** **L12 完了** · 本線 **M1 完了**（T-044–046 request-aware）→ **M2** → M3
 - **中継先:** `http://127.0.0.1:16191/v1`
 - **静的 UI:** `http://127.0.0.1:16191/dashboard/`
 
@@ -43,6 +43,7 @@
 - `packages/schema` 単体: `npm --prefix packages/schema test`
 - `packages/proxy` 単体: `npm --prefix packages/proxy test`
 - typecheck / build: `npm --prefix packages/proxy run typecheck` / `build`
+- テストランナー: `scripts/run-tests.mjs`（`src/` 再帰走査で `*.test.ts` を自動検出。glob 不使用。0件時は失敗）
 
 ### 重要な実装済みガード
 - `joinUpstreamUrl`（`/v1/v1` 二重防止）
@@ -58,7 +59,10 @@
 - L8 静的フィード、L9 CostEstimate、L10 統計、L11 curl、L12 dashboard
 - T-031 tenant header origin-scope、T-033 IPv6 SSRF、**T-036 circuit breaker**
 - P0/P1 セキュリティ修正（**正本 `e2b3d14`**）
-- **2026-07-12 salvage:** 無料エージェント WIP を回収。`circuit` の壊れた setter・未配線 test・`attempt` 未渡しテストを修正。proxy typecheck + 103 tests green
+- **M1 完了:** T-044 request-aware routing、T-045 apiCompat fail-closed、T-046 privateMode fail-closed
+- **品質レーン:** T-047 CORS fail-closed（issue #3）
+- **T-048:** `scripts/run-tests.mjs` + CI dist smoke（issue #5 close済み）
+- proxy typecheck + 136 tests green
 
 ### ローカル proxy 運用（2026-07-12 以降）
 - **常用起動:** リポジトリルート `ecosystem.config.cjs` + **pm2**（headless / `dist/index.js`）

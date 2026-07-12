@@ -94,7 +94,7 @@ M1 完了後が本筋。収集実験（T-024 / T-039）は M1 と path が重な
 
 | タスク | 内容 |
 |---|---|
-| T-047 | CORS 全経路 + origin allowlist |
+| T-047 | CORS 全経路 + origin allowlist — **done** |
 | T-049 | health 情報最小化 |
 | T-037 | stats CLI / 集計 |
 | T-038 | IDE 一通 docs |

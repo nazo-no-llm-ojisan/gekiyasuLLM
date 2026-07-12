@@ -6,7 +6,7 @@
   "local": {
     "proxy_default": "http://127.0.0.1:16191/v1",
     "phase": "Phase 3",
-    "local_pin": "L12 done · mainline M1 (T-044 request-aware routing) → M2 → M3"
+    "local_pin": "L12 done · M1 done (T-044–046) · next M2 → M3"
   },
   "offerings": [
     {

@@ -16,7 +16,7 @@
 | フィード収集 | 未（静的ファイル読込は L8 済） |
 | Dashboard | 静的デモ（`/dashboard/`）。公開カタログは L24 Pages 予定 |
 | 本番利用 | **不可**。公開フィードは M3 / T-035 署名 + T-034 DNS pin 前は不可 |
-| CI | **Actions あり**（test は glob 化済み — T-048）。`npm run build` + `dist/index.js` 起動 → `/health` スモークも CI に追加済み |
+| CI | **Actions あり**（test は `scripts/run-tests.mjs` で自動検出 — T-048）。`npm run build` + `dist/index.js` 起動 → `/health` スモークも CI に追加済み |
 
 ## セキュリティ
 
@@ -84,7 +84,7 @@
 | POST fallback opt-in | idempotency + 明示 opt-in 後 |
 | redaction / audit | 境界・運用 |
 | deprecated 整理 | `proxyRequest` / `pickAuthHeader` / `resolvePrimaryTarget` 削除済み（9378f95）。`assertSafeUpstreamBaseUrl` は `loadConfig` の bootstrap チェック用途で残置 |
-| CI test 明示列挙 / build smoke | **M3 / T-048** — glob 化 + CI で `npm run build` + `dist/index.js` スモーク完了 |
+| CI test 明示列挙 / build smoke | **M3 / T-048** — `scripts/run-tests.mjs` による自動検出 + CI で `npm run build` + `dist/index.js` スモーク完了 |
 | CORS actual response | **品質レーン T-047** |
 | health が upstream URL 全文 | **品質レーン T-049** |
 | `Accept-Encoding: identity` で上流圧縮を禁止 | **未採用**（issue #1 検討）。上流が br/gzip/zstd で返してきても proxy 側で strip する前提（`copyResponseHeaders` + `HOP_BY_HOP`）で根治済み。`identity` を強制すると (a) 巨大 `/v1/models` で帯域が増える、(b) 一部 upstream は `Accept-Encoding: identity` を尊重せず依然 br を返す、(c) proxy 層で再度展開する必要はない。再開しない。`curl` で `Accept-Encoding: identity` を渡すのは個人診断用としては有用。 |

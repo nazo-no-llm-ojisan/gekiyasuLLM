@@ -70,8 +70,8 @@
 
 | 対象 | 置き場 | 実行 |
 |---|---|---|
-| schema 型・純関数 | `packages/schema` または将来 `*.test.ts` | 後で test runner |
-| proxy の plan / cost | `packages/proxy/src/**/*.test.ts` | 後で test runner |
+| schema 型・純関数 | `packages/schema` または将来 `*.test.ts` | `npm test`（`scripts/run-tests.mjs`） |
+| proxy の plan / cost | `packages/proxy/src/**/*.test.ts` | `npm test`（`scripts/run-tests.mjs`） |
 | 上流HTTP | `fixtures/` + モック。実APIは手動たまに |
 
 **いま test runner が無くても:**  

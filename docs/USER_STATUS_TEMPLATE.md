@@ -15,8 +15,8 @@
 
 ## いま（超短）
 
-**大枠ピン:** （例: Phase 3 進行中 — [ROADMAP_MACRO.md](./ROADMAP_MACRO.md)）  
-**ローカルピン:** （例: L4 完了→次 L5 — [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md)）  
+**大枠ピン:** （例: Phase 3 完了 — [ROADMAP_MACRO.md](./ROADMAP_MACRO.md)）  
+**ローカルピン:** （例: M1 完了→次 M2 — [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md)）  
 
 **できてる:** （例: 中継箱 `127.0.0.1:16191`）  
 **できてない:** （例: 安いAIを自動で選ぶ）
@@ -71,11 +71,11 @@
 
 ---
 
-## 記入例（2026-07-12 時点のスナップショット）
+## 記入例（2026-07-13 時点のスナップショット）
 
-**できてる:** 中継・plan/fallback(GET)・フィード・CostEstimate・credential isolation  
-**できてない:** 実キー一通の手動確認、ローカル統計  
+**できてる:** 中継・plan/fallback(GET)・フィード・CostEstimate・credential isolation・request-aware routing（M1完了）・CORS fail-closed（T-047）・CI smoke（T-048）  
+**できてない:** M2 データ縦貫通、M3 署名 + DNS pin
 
-**今日:** [L11_MANUAL_E2E.md](./L11_MANUAL_E2E.md) で health → models → 短い chat を自分のキーで一通  
+**今日:** M2 タスク（T-039 model-id / T-024 collector / T-050 vertical slice / T-051 Pages）
 
-**順番の位置:** L11（手動）→ その後 L10
+**順番の位置:** M1 完了 → M2（次）

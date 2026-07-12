@@ -138,7 +138,7 @@
 - preflight / 200 / 401 / 502 / ストリーミング すべての経路で同じポリシー。
 - `providerApiKeys` か `upstreamApiKey` が設定されていて `proxyToken` 未設定 + loopback bind は、**警告ログ**で知らせる（後方互換）。非 loopback bind は **起動失敗**（既存ロジックと一致）。
 - 既存テスト（CORS preflight で Origin 反射を期待しているもの）を、新挙動に追随して書き換える。
-| T-048 | ci | **M3** test discovery or list-sync + proxy build in CI | T-025 | packages/proxy/package.json, .github/** | CI fails on missing test / runs glob | all `*.test.ts` run; `npm run build` in CI | forbidden | **done** |
+| T-048 | ci | **M3** test discovery or list-sync + proxy build in CI | T-025 | packages/proxy/package.json, .github/** | CI fails on missing test / runs all `*.test.ts` | all `*.test.ts` run; `npm run build` in CI | forbidden | **done** |
 | T-049 | proxy | **品質レーン** minimize unauthenticated /health | - | packages/proxy/src/server*, config*, security* | health leakage test | no full upstreamBaseUrl without token; reject query/fragment in base URL | proposed（/health response contract 縮小。後方互換なし） | todo |
 | T-050 | proxy/fixtures | **M2** vertical slice 2–3 OpenAI-compatible providers | T-044 | packages/proxy/**, fixtures/**, docs/** | vertical slice fixture or manual note | same logical model: price→offering→plan→rewrite for ≥2 providers | proposed | todo（**M2**。要 M1） |
 | T-051 | docs/site | **M2** GitHub Pages min catalog from same feed | T-029 | docs/**, 将来 site/**, fixtures/feeds/** | — | static pages from feed JSON + evidence; not signed production feed; no central relay | proposed | todo（**M2**） |
