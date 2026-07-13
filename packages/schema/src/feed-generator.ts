@@ -336,11 +336,13 @@ function buildProviderEntry(
     entry.synthetic = true;
   }
 
-  // Trust is derived from the manifest's pricing source, not from a
-  // generic policy URL. Only the synthetic OpenRouter entry carries a
-  // trust assertion (false) and it is explicitly synthetic. Real
-  // providers without scoped evidence (openai-direct here) get a trust
-  // block with `confidence: "inferred"` rather than "confirmed".
+  // Trust is derived only from synthetic pricing sources. Real
+  // providers (no `synthetic: true` flag on the pricing source) MUST
+  // NOT carry an `allowsPrivateCode` field in the generated feed:
+  // asserting true/false from a generic pricing page or unscoped ToS
+  // URL is the very pattern Issue #13 trust-data correction rejects.
+  // Such providers are surfaced as `unknown` to consumers, and any
+  // privateMode comparison must use a synthetic provider fixture.
   const trust = deriveTrust(mp, rows);
   if (trust) {
     entry.trust = trust;
@@ -353,29 +355,22 @@ function deriveTrust(
   mp: ManifestProvider,
   _rows: ReadonlyArray<SavedHtmlRow | SavedJsonRow>,
 ): ManifestTrust | undefined {
-  if (mp.pricingSource.synthetic) {
-    return {
-      allowsPrivateCode: {
-        value: false,
-        evidence: syntheticEvidence(mp, "synthetic fixture only; no saved policy source"),
-      },
-    };
+  // Real providers: no scoped ToS evidence is in the repository. Emit
+  // NO trust block. Consumers must treat the provider as `unknown`
+  // and the fail-closed private mode (T-046) excludes it.
+  if (!mp.pricingSource.synthetic) {
+    return undefined;
   }
-  // Real provider, no scoped ToS evidence saved in this repo: emit
-  // `inferred` to avoid asserting "confirmed" on a generic policy URL.
+  // Synthetic pricing source: it is the only place where a
+  // `allowsPrivateCode` value is permitted. Use this provider fixture
+  // for any privateMode true/false comparison.
   return {
     allowsPrivateCode: {
-      value: true,
-      evidence: {
-        sourceUrl: mp.pricingSource.sourceUrl,
-        retrievedAt: mp.pricingSource.retrievedAt,
-        sourceType: "manual",
-        confidence: "inferred",
-        parserId: "feed-generator",
-        parserVersion: PARSER_VERSION,
-        notes:
-          "asserted from a generic pricing page only; scoped ToS evidence not present in this repository",
-      },
+      value: false,
+      evidence: syntheticEvidence(
+        mp,
+        "synthetic fixture only; do not interpret as a real provider's policy",
+      ),
     },
   };
 }

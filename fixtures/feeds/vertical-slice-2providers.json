@@ -23,20 +23,6 @@
         "sponsored": false,
         "affiliate": false,
         "editorial_rank_influence": "none"
-      },
-      "trust": {
-        "allowsPrivateCode": {
-          "value": true,
-          "evidence": {
-            "sourceUrl": "https://openai.com/api/pricing/",
-            "retrievedAt": "2026-07-13T00:00:00Z",
-            "sourceType": "manual",
-            "confidence": "inferred",
-            "parserId": "feed-generator",
-            "parserVersion": "1",
-            "notes": "asserted from a generic pricing page only; scoped ToS evidence not present in this repository"
-          }
-        }
       }
     },
     {
@@ -58,7 +44,7 @@
             "confidence": "inferred",
             "parserId": "feed-generator",
             "parserVersion": "1",
-            "notes": "synthetic fixture only; no saved policy source"
+            "notes": "synthetic fixture only; do not interpret as a real provider's policy"
           }
         }
       }
