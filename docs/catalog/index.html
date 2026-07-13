@@ -8,7 +8,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      max-width: 960px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 2rem 1rem;
       color: #1a1a1a;
@@ -31,12 +31,13 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
     }
     th, td {
       text-align: left;
-      padding: 0.5rem 0.75rem;
+      padding: 0.5rem 0.5rem;
       border-bottom: 1px solid #ddd;
+      vertical-align: top;
     }
     th {
       background: #f5f5f5;
@@ -54,6 +55,26 @@
     .cap { display: inline-block; background: #e5e7eb; border-radius: 3px; padding: 0.1rem 0.4rem; font-size: 0.75rem; margin-right: 0.25rem; }
     .cap-yes { background: #dcfce7; color: #166534; }
     .cap-no { background: #fee2e2; color: #991b1b; }
+    .trust-unknown { color: #6b7280; font-style: italic; }
+    .trust-true { color: #16a34a; }
+    .trust-false { color: #dc2626; }
+    .synthetic-tag {
+      display: inline-block;
+      background: #ede9fe;
+      color: #6b21a8;
+      border-radius: 3px;
+      padding: 0.1rem 0.4rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-left: 0.3rem;
+    }
+    .evidence-link {
+      font-size: 0.75rem;
+      display: block;
+      word-break: break-all;
+    }
+    .evidence-link a { color: #2563eb; }
+    .evidence-inferred { color: #6b7280; font-size: 0.7rem; }
     footer {
       margin-top: 2rem;
       padding-top: 1rem;
@@ -62,18 +83,29 @@
       color: #666;
     }
     footer a { color: #2563eb; }
+    .legend {
+      font-size: 0.75rem;
+      color: #666;
+      margin-bottom: 0.5rem;
+    }
+    .legend span { margin-right: 1rem; }
   </style>
 </head>
 <body>
   <h1>gekiyasuLLM モデルカタログ</h1>
 
   <div class="disclaimer">
-    <strong>注意:</strong> これはサンプルデータから生成された静的カタログです。
-    署名付きプロダクションフィードではありません。
+    <strong>注意:</strong> これは静的かつ署名のない非プロダクションカタログです。
     リクエストの中継は行いません。
+    このカタログは Proxy が消費するものと同一の feed JSON から機械生成されています。
   </div>
 
   <div class="meta" id="meta"></div>
+
+  <div class="legend">
+    <span>プライベートコード: <span class="trust-true">可</span> / <span class="trust-false">不可</span> / <span class="trust-unknown">不明</span></span>
+    <span><span class="synthetic-tag">SYNTHETIC</span> = 合成データ (実プロバイダの証跡ではありません)</span>
+  </div>
 
   <table>
     <thead>
@@ -82,16 +114,19 @@
         <th>プロバイダ</th>
         <th>入力 (USD/1M tokens)</th>
         <th>出力 (USD/1M tokens)</th>
+        <th>プライベートコード</th>
         <th>ステータス</th>
         <th>機能</th>
+        <th>証跡</th>
       </tr>
     </thead>
     <tbody id="catalog-body"></tbody>
   </table>
 
   <footer>
-    <p>データソース: <code>fixtures/feeds/sample-feed.json</code></p>
-    <p>gekiyasuLLM &mdash; <a href="https://github.com">GitHub</a></p>
+    <p>データソース: <code>fixtures/feeds/vertical-slice-2providers.json</code>（<a href="https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/blob/main/fixtures/feeds/vertical-slice-2providers.json">リポジトリ内の feed</a>）</p>
+    <p>再生成: <code>node scripts/generate-catalog.mjs</code></p>
+    <p>gekiyasuLLM &mdash; <a href="https://github.com/nazo-no-llm-ojisan/gekiyasuLLM">GitHub</a></p>
   </footer>
 
   <script src="data.js"></script>
@@ -102,9 +137,10 @@
       // Meta info
       var meta = document.getElementById("meta");
       meta.textContent =
-        "フィードバージョン: " + feed.feed_version +
-        " | 基準日時: " + feed.as_of +
-        " | オファリング数: " + feed.offerings.length;
+        "生成元 feed: " + (feed.feed_version || "unknown") +
+        " | 基準日時: " + (feed.as_of || "unknown") +
+        " | オファリング数: " + (feed.offerings ? feed.offerings.length : 0) +
+        " | provider数: " + (feed.providers ? feed.providers.length : 0);
 
       // Build provider lookup
       var providerMap = {};
@@ -114,33 +150,113 @@
         });
       }
 
+      // Resolve allowsPrivateCode trust value from provider
+      function getAllowsPrivateCode(providerId) {
+        var p = providerMap[providerId];
+        if (!p || !p.trust || !p.trust.allowsPrivateCode) return null;
+        return p.trust.allowsPrivateCode;
+      }
+
+      // Get best evidence URL from an offering or its pricing
+      function getEvidenceInfo(off) {
+        // Check pricing.evidence first
+        if (off.pricing && off.pricing.evidence && off.pricing.evidence.sourceUrl) {
+          return off.pricing.evidence;
+        }
+        // Check pricing.currency.evidence
+        if (off.pricing && off.pricing.currency && off.pricing.currency.evidence && off.pricing.currency.evidence.sourceUrl) {
+          return off.pricing.currency.evidence;
+        }
+        // Check inputPerMillion.evidence
+        if (off.pricing && off.pricing.inputPerMillion && off.pricing.inputPerMillion.evidence && off.pricing.inputPerMillion.evidence.sourceUrl) {
+          return off.pricing.inputPerMillion.evidence;
+        }
+        return null;
+      }
+
+      function displayPrice(value) {
+        if (!value) return "-";
+        if (value.raw !== undefined && value.raw !== null && value.raw !== "") {
+          return String(value.raw);
+        }
+        if (value.normalized !== undefined && value.normalized !== null) {
+          return String(value.normalized);
+        }
+        return "-";
+      }
+
+      function safeEvidenceUrl(value) {
+        try {
+          var parsed = new URL(value);
+          if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+            return parsed.href;
+          }
+        } catch (_) {
+          // Render invalid evidence URLs as text instead of links.
+        }
+        return null;
+      }
+
       // Render offerings
       var tbody = document.getElementById("catalog-body");
       feed.offerings.forEach(function (off) {
         var tr = document.createElement("tr");
 
-        // Model name
+        // Model name (with synthetic tag if applicable)
         var tdName = document.createElement("td");
-        tdName.textContent = off.marketingName || off.upstreamModelId;
+        var nameText = off.marketingName || off.upstreamModelId;
+        tdName.textContent = nameText;
+
+        // Check if provider is synthetic
+        var prov = providerMap[off.providerId];
+        if (prov && prov.synthetic) {
+          var synTag = document.createElement("span");
+          synTag.className = "synthetic-tag";
+          synTag.textContent = "SYNTHETIC";
+          tdName.appendChild(synTag);
+        }
         tr.appendChild(tdName);
 
         // Provider
         var tdProv = document.createElement("td");
-        var prov = providerMap[off.providerId];
         tdProv.textContent = prov ? prov.displayName : off.providerId;
+        if (prov && prov.synthetic) {
+          var synTag2 = document.createElement("span");
+          synTag2.className = "synthetic-tag";
+          synTag2.textContent = "SYNTHETIC";
+          tdProv.appendChild(synTag2);
+        }
         tr.appendChild(tdProv);
 
         // Input price
         var tdIn = document.createElement("td");
         tdIn.className = "price";
-        tdIn.textContent = off.pricing ? off.pricing.inputPerMillion.raw : "-";
+        tdIn.textContent = displayPrice(off.pricing && off.pricing.inputPerMillion);
         tr.appendChild(tdIn);
 
         // Output price
         var tdOut = document.createElement("td");
         tdOut.className = "price";
-        tdOut.textContent = off.pricing ? off.pricing.outputPerMillion.raw : "-";
+        tdOut.textContent = displayPrice(off.pricing && off.pricing.outputPerMillion);
         tr.appendChild(tdOut);
+
+        // Private code trust
+        var tdTrust = document.createElement("td");
+        var trust = getAllowsPrivateCode(off.providerId);
+        if (trust === null) {
+          tdTrust.className = "trust-unknown";
+          tdTrust.textContent = "不明";
+        } else if (trust.value === true) {
+          tdTrust.className = "trust-true";
+          tdTrust.textContent = "可";
+        } else if (trust.value === false) {
+          tdTrust.className = "trust-false";
+          tdTrust.textContent = "不可";
+        } else {
+          tdTrust.className = "trust-unknown";
+          tdTrust.textContent = "不明";
+        }
+        tr.appendChild(tdTrust);
 
         // Status
         var tdStatus = document.createElement("td");
@@ -169,6 +285,41 @@
           });
         }
         tr.appendChild(tdCaps);
+
+        // Evidence
+        var tdEvidence = document.createElement("td");
+        var ev = getEvidenceInfo(off);
+        if (ev && ev.sourceUrl) {
+          var evidenceUrl = safeEvidenceUrl(ev.sourceUrl);
+          if (!evidenceUrl) {
+            tdEvidence.textContent = ev.sourceUrl;
+          } else {
+            var link = document.createElement("a");
+            link.href = evidenceUrl;
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.textContent = ev.sourceUrl;
+            var span = document.createElement("span");
+            span.className = "evidence-link";
+            span.appendChild(link);
+            tdEvidence.appendChild(span);
+
+            if (ev.confidence === "inferred" || ev.sourceType === "manual") {
+              var note = document.createElement("span");
+              note.className = "evidence-inferred";
+              var noteText = [];
+              if (ev.notes) noteText.push(ev.notes);
+              if (ev.confidence === "inferred") noteText.push("confidence: inferred (未確認証跡)");
+              note.textContent = " (" + noteText.join("; ") + ")";
+              tdEvidence.appendChild(note);
+            }
+          }
+        } else if (prov && prov.synthetic) {
+          tdEvidence.textContent = "(合成データ)";
+        } else {
+          tdEvidence.textContent = "-";
+        }
+        tr.appendChild(tdEvidence);
 
         tbody.appendChild(tr);
       });

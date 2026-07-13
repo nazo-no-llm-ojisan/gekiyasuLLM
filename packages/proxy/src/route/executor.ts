@@ -197,6 +197,8 @@ export type AttemptContext = {
   pathWithQuery: string;
   auth: string;
   method: string;
+  /** Prepared request bytes before the per-offering model rewrite. */
+  originalBody: Buffer | undefined;
   body: Buffer | undefined;
   signal: AbortSignal;
 };
@@ -513,6 +515,7 @@ export async function executeRoutePlan(
         pathWithQuery,
         auth,
         method,
+        originalBody: body,
         body: attemptBody,
         signal: ac.signal,
       };

@@ -1,151 +1,328 @@
 /**
- * Vertical slice integration test (T-050).
+ * Issue #14 offline vertical proof through the production HTTP handler.
  *
- * Demonstrates end-to-end: feed -> catalog -> plan -> body rewrite.
- * One logical model (gpt-4o) offered via two providers at different prices.
- * The proxy must pick the cheapest, rewrite the body, and produce the correct
- * upstreamModelId for the chosen provider.
+ * The only fake is the executor's existing upstream-attempt boundary. Tests do
+ * not call a provider and do not reimplement catalog, planning, or body rewrite.
  */
 import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import type { ProxyConfig } from "../config.js";
-import {
-  buildOfferingCatalog,
-  candidatesFromCatalog,
-} from "./catalog.js";
-import {
-  selectCandidatesForRequestedModel,
-  buildRoutePlan,
-} from "./plan.js";
-import { rewriteModelForOffering } from "./body-rewrite.js";
+import { createServer, type ServerDependencies } from "../server.js";
+import type { AttemptFn } from "./executor.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const verticalSliceFeedPath = join(
   here,
   "../../../../fixtures/feeds/vertical-slice-2providers.json",
 );
+const syntheticFeedPath = join(here, "fixtures/issue-14-synthetic-feed.json");
 
-/**
- * Helper: load catalog from the vertical slice fixture.
- */
-function loadVerticalSliceCatalog() {
-  const config = {
+function verticalSliceServerConfig(): ProxyConfig {
+  return {
+    host: "127.0.0.1",
+    port: 0,
     upstreamBaseUrl: "https://api.openai.com/v1",
     allowedUpstreamHosts: ["api.openai.com"],
+    upstreamApiKey: "offline-openai-key",
+    proxyToken: "proxy-token",
+    maxBodyBytes: 1_000_000,
+    upstreamTimeoutMs: 1_000,
+    allowPlaceholderApiKeySwap: true,
+    providerApiKeys: { openrouter: "offline-openrouter-key" },
+    statsFile: undefined,
+    circuitFailureThreshold: 3,
+    circuitOpenSeconds: 300,
+    corsAllowlist: [],
     feedFile: verticalSliceFeedPath,
-  } as unknown as ProxyConfig;
-  return buildOfferingCatalog(config);
+  };
 }
 
-function runPlannedRequest(
-  makePlan: () => ReturnType<typeof buildRoutePlan>,
-  execute: (plan: ReturnType<typeof buildRoutePlan>) => void,
-): void {
-  execute(makePlan());
+function syntheticServerConfig(): ProxyConfig {
+  return {
+    ...verticalSliceServerConfig(),
+    upstreamApiKey: undefined,
+    providerApiKeys: {
+      "synthetic-ineligible": "offline-ineligible-key",
+      "synthetic-eligible": "offline-eligible-key",
+      "synthetic-unknown": "offline-unknown-key",
+    },
+    feedFile: syntheticFeedPath,
+  };
 }
 
-describe("vertical slice: gpt-4o via 2 providers (T-050)", () => {
-  it("catalog loads both gpt-4o offerings from the fixture", () => {
-    const catalog = loadVerticalSliceCatalog();
-    // 3 entries: passthrough + 2 feed offerings
-    assert.ok(catalog.has("passthrough:default"));
-    assert.ok(catalog.has("openai-direct:gpt-4o:standard"));
-    assert.ok(catalog.has("openrouter:gpt-4o:discount"));
-
-    const direct = catalog.get("openai-direct:gpt-4o:standard")!;
-    const router = catalog.get("openrouter:gpt-4o:discount")!;
-
-    // Verify pricing is loaded correctly
-    assert.equal(direct.inputPerMillion, 2.5);
-    assert.equal(router.inputPerMillion, 2.4);
-    // Verify upstreamModelId differs per provider
-    assert.equal(direct.upstreamModelId, "gpt-4o");
-    assert.equal(router.upstreamModelId, "openai/gpt-4o");
-  });
-
-  it("plan picks the cheaper provider (openrouter) for gpt-4o", () => {
-    const catalog = loadVerticalSliceCatalog();
-    const allCandidates = candidatesFromCatalog(catalog);
-
-    // Narrow to gpt-4o via alias match
-    const gpt4oCandidates = selectCandidatesForRequestedModel(
-      allCandidates,
-      "gpt-4o",
-    );
-
-    // Should include both feed offerings (passthrough has no alias "gpt-4o")
-    assert.equal(gpt4oCandidates.length, 2);
-
-    const plan = buildRoutePlan({
-      candidates: gpt4oCandidates,
-      preferences: { preferFree: true },
+async function withInjectedServer<T>(
+  config: ProxyConfig,
+  dependencies: ServerDependencies,
+  fn: (baseUrl: string) => Promise<T>,
+): Promise<T> {
+  const server = createServer(config, dependencies);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await fn(`http://127.0.0.1:${address.port}`);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
     });
+  }
+}
 
-    // openrouter ($2.40/M) should be cheaper than openai-direct ($2.50/M)
-    assert.equal(plan.primary, "openrouter:gpt-4o:discount");
-    assert.deepEqual(plan.fallbacks, ["openai-direct:gpt-4o:standard"]);
-  });
-
-  it("body rewrite produces correct upstreamModelId for the chosen provider", () => {
-    const catalog = loadVerticalSliceCatalog();
-    const allCandidates = candidatesFromCatalog(catalog);
-    const gpt4oCandidates = selectCandidatesForRequestedModel(
-      allCandidates,
-      "gpt-4o",
-    );
-    const plan = buildRoutePlan({
-      candidates: gpt4oCandidates,
-      preferences: { preferFree: true },
-    });
-
-    // The primary offering is openrouter:gpt-4o:discount
-    const chosen = catalog.get(plan.primary)!;
-    assert.ok(chosen.upstreamModelId);
-
-    // Simulate a client request body
-    const clientBody = Buffer.from(
-      JSON.stringify({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: "Hello" }],
+function offlineSuccessAttempt(observedOfferingIds: string[]): AttemptFn {
+  return async (target) => {
+    observedOfferingIds.push(target.id);
+    return {
+      kind: "ok",
+      offeringId: target.id,
+      response: new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
       }),
-      "utf8",
+    };
+  };
+}
+
+async function postChat(baseUrl: string, body: unknown): Promise<Response> {
+  return fetch(`${baseUrl}/v1/chat/completions`, {
+    method: "POST",
+    headers: {
+      authorization: "Bearer proxy-token",
+      "content-type": "application/json",
+    },
+    body: Buffer.isBuffer(body) ? Uint8Array.from(body) : JSON.stringify(body),
+  });
+}
+
+describe("issue #14 actual HTTP/executor vertical proof", () => {
+  it("narrows the generated feed, selects the cheaper offering, and rewrites its attempt", async () => {
+    const observed: Array<{
+      offeringId: string;
+      baseUrl: string;
+      auth: string;
+      originalBody: Buffer | undefined;
+      body: Buffer | undefined;
+    }> = [];
+    const attempt: AttemptFn = async (target, context) => {
+      observed.push({
+        offeringId: target.id,
+        baseUrl: target.baseUrl,
+        auth: context.auth,
+        originalBody: context.originalBody,
+        body: context.body,
+      });
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      };
+    };
+    const originalBody = Buffer.from(JSON.stringify({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: "offline proof" }],
+    }));
+    const originalSnapshot = Buffer.from(originalBody);
+
+    await withInjectedServer(
+      verticalSliceServerConfig(),
+      { attempt },
+      async (baseUrl) => {
+        const response = await postChat(baseUrl, originalBody);
+
+        assert.equal(response.status, 200);
+        assert.equal(
+          response.headers.get("x-gekiyasu-route-plan"),
+          "primary=openrouter:gpt-4o:discount; fallbacks=openai-direct:gpt-4o:standard",
+        );
+        assert.equal(observed.length, 1);
+        assert.equal(observed[0]!.offeringId, "openrouter:gpt-4o:discount");
+        assert.equal(observed[0]!.baseUrl, "https://openrouter.ai/api/v1");
+        assert.equal(observed[0]!.auth, "Bearer offline-openrouter-key");
+        assert.equal(
+          (JSON.parse(observed[0]!.originalBody!.toString("utf8")) as { model: string }).model,
+          "gpt-4o",
+        );
+        assert.equal(
+          (JSON.parse(observed[0]!.body!.toString("utf8")) as { model: string }).model,
+          "openai/gpt-4o",
+        );
+        assert.notStrictEqual(observed[0]!.body, observed[0]!.originalBody);
+        assert.deepEqual(originalBody, originalSnapshot);
+        await response.arrayBuffer();
+      },
     );
-
-    // Rewrite body for the chosen offering
-    const rewritten = rewriteModelForOffering(clientBody, {
-      upstreamModelId: chosen.upstreamModelId!,
-    });
-
-    const parsed = JSON.parse(rewritten.toString("utf8"));
-    // Upstream should receive "openai/gpt-4o" (OpenRouter's model id)
-    assert.equal(parsed.model, "openai/gpt-4o");
-    // Messages should be preserved
-    assert.deepEqual(parsed.messages, [{ role: "user", content: "Hello" }]);
   });
 
-  it("when privateMode=true, unknown and explicit false trust make no upstream attempt", () => {
-    const catalog = loadVerticalSliceCatalog();
-    const candidates = selectCandidatesForRequestedModel(
-      candidatesFromCatalog(catalog),
-      "gpt-4o",
-    );
-    let executorSpyCount = 0;
+  const capabilityCases: Array<{ name: string; body: Record<string, unknown> }> = [
+    {
+      name: "tools",
+      body: { tools: [{ type: "function", function: { name: "lookup" } }] },
+    },
+    {
+      name: "vision",
+      body: {
+        messages: [{
+          role: "user",
+          content: [{
+            type: "image_url",
+            image_url: { url: "data:image/png;base64,AA==" },
+          }],
+        }],
+      },
+    },
+    { name: "streaming", body: { stream: true } },
+  ];
 
-    assert.throws(
-      () => runPlannedRequest(
-        () => buildRoutePlan({
-          candidates,
-          constraints: { privateMode: true },
-          preferences: { preferFree: true },
-        }),
-        () => {
-          executorSpyCount += 1;
+  for (const capabilityCase of capabilityCases) {
+    it(`applies the ${capabilityCase.name} requirement from RequestFacts`, async () => {
+      const observedOfferingIds: string[] = [];
+
+      await withInjectedServer(
+        syntheticServerConfig(),
+        { attempt: offlineSuccessAttempt(observedOfferingIds) },
+        async (baseUrl) => {
+          const response = await postChat(baseUrl, {
+            model: "proof-model",
+            messages: [],
+            ...capabilityCase.body,
+          });
+
+          assert.equal(response.status, 200);
+          assert.deepEqual(observedOfferingIds, [
+            "synthetic-eligible:proof-model:standard",
+          ]);
+          await response.arrayBuffer();
         },
-      ),
-      /No eligible offerings.*private_mode/,
+      );
+    });
+
+    it(`makes zero attempts when the only match lacks ${capabilityCase.name}`, async () => {
+      let attemptCount = 0;
+
+      await withInjectedServer(
+        syntheticServerConfig(),
+        {
+          attempt: async () => {
+            attemptCount += 1;
+            throw new Error("capability rejection must happen before attempt");
+          },
+        },
+        async (baseUrl) => {
+          const response = await postChat(baseUrl, {
+            model: "false-only-model",
+            messages: [],
+            ...capabilityCase.body,
+          });
+          const payload = (await response.json()) as { error?: { code?: string } };
+
+          assert.equal(response.status, 503);
+          assert.equal(payload.error?.code, "no_eligible_offering");
+          assert.equal(attemptCount, 0);
+        },
+      );
+    });
+  }
+
+  it("admits only explicit true trust in private mode", async () => {
+    const observedOfferingIds: string[] = [];
+
+    await withInjectedServer(
+      syntheticServerConfig(),
+      {
+        attempt: offlineSuccessAttempt(observedOfferingIds),
+        routingConstraints: { privateMode: true },
+      },
+      async (baseUrl) => {
+        const response = await postChat(baseUrl, {
+          model: "private-model",
+          messages: [],
+        });
+
+        assert.equal(response.status, 200);
+        assert.deepEqual(observedOfferingIds, [
+          "synthetic-eligible:proof-model:standard",
+        ]);
+        await response.arrayBuffer();
+      },
     );
-    assert.equal(executorSpyCount, 0);
+  });
+
+  for (const model of ["false-only-model", "unknown-only-model"]) {
+    it(`makes zero attempts for ${model} in private mode`, async () => {
+      let attemptCount = 0;
+
+      await withInjectedServer(
+        syntheticServerConfig(),
+        {
+          attempt: async () => {
+            attemptCount += 1;
+            throw new Error("private-mode rejection must happen before attempt");
+          },
+          routingConstraints: { privateMode: true },
+        },
+        async (baseUrl) => {
+          const response = await postChat(baseUrl, { model, messages: [] });
+          const payload = (await response.json()) as { error?: { code?: string } };
+
+          assert.equal(response.status, 503);
+          assert.equal(payload.error?.code, "no_eligible_offering");
+          assert.equal(attemptCount, 0);
+        },
+      );
+    });
+  }
+
+  it("fails closed for an unknown logical model with zero attempts", async () => {
+    let attemptCount = 0;
+
+    await withInjectedServer(
+      verticalSliceServerConfig(),
+      {
+        attempt: async () => {
+          attemptCount += 1;
+          throw new Error("unknown model must fail before attempt");
+        },
+      },
+      async (baseUrl) => {
+        const response = await postChat(baseUrl, {
+          model: "unknown-logical-model",
+          messages: [],
+        });
+        const payload = (await response.json()) as { error?: { code?: string } };
+
+        assert.equal(response.status, 400);
+        assert.equal(payload.error?.code, "no_matching_offering");
+        assert.equal(attemptCount, 0);
+      },
+    );
+  });
+
+  it("does not fake provider success when credentials are unavailable", async () => {
+    let attemptCount = 0;
+    const config = verticalSliceServerConfig();
+    config.upstreamApiKey = undefined;
+    config.providerApiKeys = {};
+
+    await withInjectedServer(
+      config,
+      {
+        attempt: async () => {
+          attemptCount += 1;
+          throw new Error("credential rejection must happen before attempt");
+        },
+      },
+      async (baseUrl) => {
+        const response = await postChat(baseUrl, { model: "gpt-4o", messages: [] });
+        const payload = (await response.json()) as { error?: { code?: string } };
+
+        assert.equal(response.status, 401);
+        assert.equal(payload.error?.code, "credential_unavailable");
+        assert.equal(attemptCount, 0);
+      },
+    );
   });
 });
