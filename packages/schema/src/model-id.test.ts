@@ -28,6 +28,34 @@ describe("parseModelId", () => {
     assert.equal(parsed.rawId, "gpt-4o");
   });
 
+  it("distinguishes raw, normalized, and deprecated provider fields", () => {
+    const cases = [
+      {
+        raw: "zhipu/glm-5.2",
+        rawProvider: "zhipu",
+        normalizedProvider: "z-ai",
+      },
+      {
+        raw: "~openai/gpt-4o",
+        rawProvider: "~openai",
+        normalizedProvider: "openai",
+      },
+      {
+        raw: "gpt-4o",
+        rawProvider: "unknown",
+        normalizedProvider: "unknown",
+      },
+    ] as const;
+
+    for (const fixture of cases) {
+      const parsed = parseModelId(fixture.raw);
+
+      assert.equal(parsed.rawProvider, fixture.rawProvider);
+      assert.equal(parsed.normalizedProvider, fixture.normalizedProvider);
+      assert.equal(parsed.provider, parsed.rawProvider);
+    }
+  });
+
   // ── Contract test cases ────────────────────────────────────────────────────
 
   // Test 1: openai/gpt-4o-mini:free

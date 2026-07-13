@@ -1,6 +1,13 @@
 /** Parsed result from a raw model identifier string. */
 export type ParsedModelId = {
-  /** Raw provider segment or "unknown" when no slash present. */
+  /** Provider segment exactly as parsed from the raw ID, or "unknown" without a slash. */
+  rawProvider: string;
+  /** Provider after marker removal, case normalization, and alias normalization. */
+  normalizedProvider: string;
+  /**
+   * Raw provider segment or "unknown" when no slash is present.
+   * @deprecated Use rawProvider for the input representation or normalizedProvider for matching.
+   */
   provider: string;
   /** Model family name, e.g. "gpt-4o", "glm-5.2", "claude-3.5-sonnet". */
   family: string;
@@ -338,15 +345,16 @@ export function parseModelId(raw: string): ParsedModelId {
 
   // Step 2: Split on first `/` to get provider/rest
   const slashIdx = working.indexOf("/");
-  let provider: string;
+  let rawProvider: string;
   let rest: string;
   if (slashIdx === -1) {
-    provider = "unknown";
+    rawProvider = "unknown";
     rest = working;
   } else {
-    provider = working.slice(0, slashIdx);
+    rawProvider = working.slice(0, slashIdx);
     rest = working.slice(slashIdx + 1);
   }
+  const normalizedProvider = normalizeProvider(rawProvider);
 
   // Step 3: Extract @region from family
   const { family: afterRegion, region } = extractRegion(rest);
@@ -370,13 +378,15 @@ export function parseModelId(raw: string): ParsedModelId {
   const family = afterAccess;
 
   // Developer resolution (section 3.2)
-  const developer = resolveDeveloper(provider, family);
+  const developer = resolveDeveloper(normalizedProvider, family);
 
   // Canonical key (section 3.3)
   const canonicalKey = buildCanonicalKey(developer, family, version, derivative);
 
   return {
-    provider,
+    rawProvider,
+    normalizedProvider,
+    provider: rawProvider,
     family,
     version,
     derivative,
