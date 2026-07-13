@@ -129,7 +129,7 @@
 | T-021 | schema | Offering parses one fixed-price fixture | - | packages/schema/**, fixtures/** | parse-offering.test.ts | fixed feed parses | forbidden | **done** |
 | T-022 | proxy | RoutePlan selects sole eligible offering | - | packages/proxy/src/route/** | plan.test.ts | one candidate selected | forbidden | **done** |
 | T-023 | proxy | Executor uses plan.primary | T-022 | packages/proxy/src/route/**, upstream* | executor.test.ts | primary attempt used | forbidden | **done** |
-| T-024 | parser | M2 pricing parser one saved HTML fixture | - | packages/schema/src/pricing-parser*, fixtures/pricing/** | pricing-parser.test.ts | saved HTML parses offline | forbidden | **landed-unverified** (`34a01e1`, #13へ) |
+| T-024 | parser | M2 pricing parser one saved HTML fixture | - | packages/schema/src/pricing-parser*, fixtures/pricing/** | pricing-parser.test.ts | saved HTML parses offline | forbidden | **done** (`fd8fb47`, `62244eb`, #13) |
 | T-025 | ci | npm test runs schema and proxy | T-020 | package.json, .github/** | root npm test | both packages test | forbidden | **done** |
 | T-026 | docs | failure taxonomy canonical | - | docs/** | FAILURE_TAXONOMY.md | table canonical | forbidden | **done** |
 | T-027 | proxy | multi-candidate hard filter + soft rank | T-022 | packages/proxy/src/route/** | plan.test.ts | 2+ candidates | forbidden | **done** |
@@ -156,7 +156,7 @@
 | T-047 | proxy | CORS allowlist all paths | - | packages/proxy/src/** | CORS tests | same policy all responses | proposed | **done** |
 | T-048 | ci | test discovery + proxy build smoke | T-025 | scripts, package files, .github | CI discovery | all tests/build/smoke | forbidden | **done** |
 | T-049 | proxy | minimize unauthenticated health | - | packages/proxy/src/** | leakage test | no full upstream URL | proposed | todo |
-| T-050 | proxy/fixtures | M2 2-provider vertical slice | T-044,T-039,T-024 | proxy, generated feed fixture | real path integration | generated feed→HTTP/executor attempt | proposed | **landed-unverified** (`34a01e1`, #13/#14へ) |
+| T-050 | proxy/fixtures | M2 2-provider vertical slice | T-044,T-039,T-024 | proxy, generated feed fixture | real path integration | generated feed→HTTP/executor attempt | proposed | **landed-unverified** (`34a01e1`, #14へ) |
 | T-051 | site | M2 static catalog from exact same feed | T-029,T-050 | docs/catalog, generator, feed fixture | stale-output test | ProxyとPagesが同一feed content | proposed | **landed-unverified** (`34a01e1`, #15へ) |
 
 ### M2監査fix（Issueが作業正本）
@@ -164,11 +164,12 @@
 | id | area | title | depends_on | owned_paths | done_when | contract_changes | status |
 |---|---|---|---|---|---|---|---|
 | [#12](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/12) | schema/docs | model-id contract review | T-039 landed | model-id*, design/06 | raw/normalized/access semantics合意・test | **proposed** | todo・直列 |
-| [#13](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/13) | parser/feed | saved snapshots→generated feed | #12 | pricing fixtures/parser/generator/feed | provenance付きdeterministic feed | forbidden | todo |
-| [#14](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/14) | proxy | real HTTP/executor vertical proof | #13 | proxy tests/必要最小実装 | injected attemptでendpoint/body証明 | forbidden | blocked |
-| [#15](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/15) | site | exact same feed→static catalog | #13 | docs/catalog + generator/check | stale output検出・same content | forbidden | blocked |
+| [#13](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/13) | parser/feed | saved snapshots→generated feed | T-024 landed | pricing fixtures/parser/generator/feed | provenance付きdeterministic feed | forbidden | **done / closed** |
+| [#16](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/16) | proxy | preserve unknown private-code trust | #13 | packages/proxy/** | unknown保持・private mode fail-closed | forbidden | **done / closed** |
+| [#14](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/14) | proxy | real HTTP/executor vertical proof | #13,#16 | proxy tests/必要最小実装 | injected attemptでendpoint/body証明 | forbidden | todo・着手可 |
+| [#15](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/15) | site | exact same feed→static catalog | #13 | docs/catalog + generator/check | stale output検出・same content | forbidden | todo・着手可 |
 
-依存は **#12 → #13 → #14/#15**。#14と#15だけが#13完了後に並列可。
+#12は公開model-id契約の独立ゲートとして直列レビューする。#13と#16は完了済み。#14と#15は実装pathが重ならないため並列着手可能だが、#14の完了判定では#12の確定契約との整合を確認する。
 
 ---
 
@@ -177,7 +178,7 @@
 | M | 完了条件 | タスク |
 |---|---|---|
 | M1 | fixture同一論理model→適合最安Offering→正しいupstreamModelIdをactual pathへ | T-044–046 ✅ |
-| M2 | 保存source由来のexact same feedをProxyとPagesが利用し、actual HTTP/executor pathを証明 | T-039/024/050/051 + #12–#15（未完） |
+| M2 | 保存source由来のexact same feedをProxyとPagesが利用し、actual HTTP/executor pathを証明 | T-039/024/050/051 + #12–#16（#13/#16完了、全体未完） |
 | M3 | candidate feedを署名・DNS pin・CI gateで安全に取得検証 | T-035/034/048（未完） |
 
 ---
