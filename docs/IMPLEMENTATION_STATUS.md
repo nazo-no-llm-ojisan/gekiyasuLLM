@@ -4,7 +4,7 @@
 
 **ピン:** [ROADMAP.md](./ROADMAP.md) · 台帳: [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md) · 失敗分類: [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)
 
-最終更新: 2026-07-13（Issue #13完了、Issue #16追加）
+最終更新: 2026-07-13（Issue #13・#16完了、Issue #14 unblock）
 
 ## 状態語
 
@@ -24,12 +24,13 @@
 | ルーティング | **M1済** — request model→候補→hard filter→最安→`upstreamModelId` rewriteが実HTTP経路で動作 |
 | M2収集・feed生成 | **部分的に済** — #13で保存fixture→parser→provenance付きgenerated feedを監査完了 |
 | M2 model identity | **着地・未監査** — #12で契約レビュー待ち |
-| M2 vertical slice | **着地・未監査** — #16後、#14でactual HTTP/executor attempt証明 |
+| M2 feed trust取込 | **済** — #16でmissing/false/trueを保持しprivate modeをfail-closed化 |
+| M2 vertical slice | **着地・未監査** — #14でactual HTTP/executor attempt証明が必要 |
 | M2静的catalog | **着地・未監査** — #15でProxyとexact same feedの機械生成 |
 | Phase 3+ | 未実装 — schema / ledger / active projection / overlay |
 | Phase 4 | 未実装 — review queue / evidence collector / operator UI / daily publication |
 | 本番利用 | **不可** — M2未完、M3署名/DNS pin未完、Phase 3+ publication governance未完 |
-| CI | Actions、recursive test discovery、proxy build + dist smokeあり（T-048済） |
+| CI | Actions、recursive test discovery、proxy build + dist smokeあり（T-048済）。直近main commitのGitHub status/run証拠はなし |
 
 ## M2監査結果
 
@@ -38,8 +39,8 @@
 ```text
 #12 model-id contract review                         未完
 #13 saved snapshots → deterministic generated feed  完了
-#16 feed trust unknownをProxyでunknownのまま保持     未完
-#14 actual HTTP/executor vertical proof              #16待ち
+#16 feed trust unknownをProxyでunknownのまま保持     完了
+#14 actual HTTP/executor vertical proof              着手可
 #15 exact same feed → static catalog                 着手可
 ```
 
@@ -55,6 +56,19 @@
 - scoped evidenceのない実providerには`allowsPrivateCode`を出力しない
 
 直接mainへpushされたためPR-triggered GitHub Actionsの証拠はない。tests/typecheck/build greenは実装担当のローカル報告として記録した。
+
+### Issue #16 完了証拠
+
+コミット `2adcefc` と `03c56da` を監査し、次を確認した。
+
+- feed由来providerのmissing trustは`undefined`のまま保持される
+- explicit `false`は`false`、explicit `true`は`true`のまま保持される
+- private modeはexplicit `allowsPrivateCode: true`だけを許可する
+- local passthrough offeringの明示的trust既定値と、任意feed providerのtrustを分離する
+- generated feed contract、schema、POST fallbackを変更していない
+- helper/executor spyをactual HTTP/executor proofとは扱わず、#14の責務を残している
+
+GitHub上にCI status/checkは見当たらないため、142 tests / typecheck / build greenは実装担当のローカル報告として扱う。差分とtest codeの監査にはblocking findingなし。
 
 ## セキュリティ
 
@@ -76,7 +90,7 @@
 | Content-Encoding/Length | undici展開後の不整合を防ぐためstrip済み |
 | `/v1/models`形 | OpenAI風listへ正規化済み |
 | generated feedのreal-provider trust | **済 #13** — scoped evidenceがなければ省略・unknown |
-| feed trustのProxy取込 | **要修正 #16** — catalogの`?? true`がunknownをtrustedへ変換 |
+| feed trustのProxy取込 | **済 #16** — missingはunknownのまま、private modeはexplicit trueのみ許可 |
 
 ## ルーティング
 
@@ -86,7 +100,7 @@
 | request model→Offering候補 | 済（M1/T-044） |
 | upstreamModelId body rewrite | 済（M1/T-044、元Buffer不変） |
 | tools/vision/stream hard filter | 済 |
-| private hard filter | plannerはexplicit trueのみ許可。ただしfeed catalog取込に#16のgapあり |
+| private hard filter | 済（T-046/#16）。feed取込でもunknownをtrustedへ変換しない |
 | apiCompat fail-closed | 済（T-045） |
 | Executor primary/fallback | 済。GET/HEADのみfallback、POST禁止 |
 | Circuit breaker | 済（T-036） |
@@ -100,7 +114,8 @@
 |---|---|---|
 | T-039 | model-id実装着地・未監査 | #12で契約レビュー |
 | T-024 | 保存HTML parser + generated feed接続を監査済み | #13完了 |
-| T-050 | 2-provider fixture/helper test着地・未監査 | #16後、#14でactual path証明 |
+| T-046 trust consumer fix | feed trust三値保持を監査済み | #16完了 |
+| T-050 | 2-provider fixture/helper test着地・未監査 | #14でactual path証明 |
 | T-051 | static catalog prototype着地・未監査 | #15でsame-feed generator |
 
 ## 次（正本Issue/台帳）
@@ -109,11 +124,11 @@
 |---|---|---|
 | 契約 | [#12 model-id normalization contract](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/12) | todo・直列 |
 | 完了 | [#13 saved snapshots→generated feed](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/13) | **done / closed** |
-| 安全 | [#16 preserve unknown feed trust](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/16) | todo・#14前提 |
-| 縦貫通 | [#14 actual HTTP/executor vertical proof](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/14) | #16待ち |
+| 完了 | [#16 preserve unknown feed trust](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/16) | **done / closed** |
+| 縦貫通 | [#14 actual HTTP/executor vertical proof](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/14) | 着手可・actual path未証明 |
 | site | [#15 exact same feed static catalog](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/15) | 着手可 |
 
-#12は公開契約の独立ゲート。#15は#13完了により着手可能。#14のprivate-mode証明は#16完了後に行う。
+#12は公開契約の独立ゲート。#14と#15は#13/#16完了により作業上のblockを解除する。ただし#14の完了判定では、未確定のmodel-id契約を暗黙に固定していないか#12と照合する。
 
 ## その他バックログ
 
@@ -139,6 +154,7 @@
 
 - 個人loopback MVPとM1は成立
 - #13のevidence-backed feed generationは成立
-- M2全体は#12/#16/#14/#15が残るため未完
+- #16のfeed trust unknown保持とprivate-mode fail-closedは成立
+- M2全体は#12/#14/#15が残るため未完
 - 本線は M2 audit fixes → Phase 3+ / M3 → Phase 4
 - CORS/health/circuit等の品質レーンを本線完了と混同しない
