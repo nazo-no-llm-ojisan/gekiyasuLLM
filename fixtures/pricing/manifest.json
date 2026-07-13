@@ -1,0 +1,69 @@
+{
+  "asOf": "2026-07-13",
+  "currency": "USD",
+  "providers": [
+    {
+      "providerId": "openai-direct",
+      "displayName": "OpenAI Direct",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiCompat": "openai_chat",
+      "endpointId": "openai-direct:api",
+      "pricingSource": {
+        "kind": "saved_html",
+        "path": "fixtures/pricing/openai-official/2026-07-13.html",
+        "sourceUrl": "https://openai.com/api/pricing/",
+        "sourceType": "official",
+        "retrievedAt": "2026-07-13T00:00:00Z",
+        "parserId": "openai-pricing-html"
+      },
+      "offers": [
+        {
+          "modelId": "openai-direct/gpt-4o",
+          "upstreamModelId": "gpt-4o",
+          "idToken": "gpt-4o",
+          "rowSelector": { "modelId": "gpt-4o" },
+          "marketingName": "GPT-4o (Direct)",
+          "aliases": ["gpt-4o"],
+          "declaredCapabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true
+          },
+          "accessVariant": "standard"
+        }
+      ]
+    },
+    {
+      "providerId": "openrouter",
+      "displayName": "OpenRouter (synthetic)",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiCompat": "openai_chat",
+      "endpointId": "openrouter:api",
+      "pricingSource": {
+        "kind": "saved_json",
+        "path": "fixtures/pricing/openrouter-synthetic/2026-07-13.json",
+        "sourceUrl": "https://openrouter.ai/pricing",
+        "sourceType": "manual",
+        "retrievedAt": "2026-07-13T00:00:00Z",
+        "parserId": "synthetic-json",
+        "synthetic": true
+      },
+      "offers": [
+        {
+          "modelId": "openrouter/gpt-4o",
+          "upstreamModelId": "openai/gpt-4o",
+          "idToken": "gpt-4o",
+          "rowSelector": { "upstreamModelId": "openai/gpt-4o" },
+          "marketingName": "GPT-4o via OpenRouter (Discount, synthetic)",
+          "aliases": ["gpt-4o"],
+          "declaredCapabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true
+          },
+          "accessVariant": "discount"
+        }
+      ]
+    }
+  ]
+}

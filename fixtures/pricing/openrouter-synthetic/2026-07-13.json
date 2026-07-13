@@ -1,0 +1,14 @@
+{
+  "synthetic": true,
+  "source_label": "synthetic",
+  "notes": "OpenRouter saved snapshot does not exist in this repository. This file is an explicitly synthetic fixture for the M2 vertical-slice test path. Do not interpret the values as confirmed OpenRouter pricing.",
+  "asOf": "2026-07-13",
+  "currency": "USD",
+  "rows": [
+    {
+      "upstreamModelId": "openai/gpt-4o",
+      "inputPerMillion": 2.4,
+      "outputPerMillion": 9.6
+    }
+  ]
+}

@@ -14,6 +14,26 @@ export { parseModelId, resolveDeveloper } from "./model-id.js";
 export type { ParsedModelId } from "./model-id.js";
 export { parseOpenAIPricingHtml } from "./pricing-parser.js";
 export type { ParsedPricing } from "./pricing-parser.js";
+export {
+  generateFeedFromFixtures,
+  generateFeedFromManifest,
+  defaultRepoRoot,
+  schemaFixturePath,
+  DEFAULT_FEED_GENERATOR_INPUT,
+} from "./feed-generator.js";
+export type {
+  FeedGeneratorInput,
+  FeedGeneratorOutput,
+  GeneratedFeed,
+  GeneratedPricing,
+  PricingManifest,
+  ManifestProvider,
+  ManifestOffer,
+  ManifestPricingSource,
+  SavedHtmlRow,
+  SavedJsonRow,
+  ManifestTrust,
+} from "./feed-generator.js";
 
 /** Fixed default listen port for gekiyasuLLMProxy (project-wide). */
 export const DEFAULT_PROXY_PORT = 16191 as const;
