@@ -145,7 +145,7 @@
 | T-036 | proxy | circuit breaker | T-028 | packages/proxy/src/route/** | circuit tests | closed/open/half-open | forbidden | **done** |
 | T-037 | proxy | stats CLI / summary | T-032 | packages/proxy/src/stats/** | summary test | no bodies/secrets | proposed | todo |
 | T-038 | docs/proxy | IDE one-shot E2E note | T-032 | specified docs/proxy | manual | user confirms | forbidden | todo |
-| T-039 | schema | M2 model-id + developer normalization | - | packages/schema/src/model-id* | model-id tests | approved contract implemented | proposed | **landed-unverified** (`34a01e1`, #12へ) |
+| T-039 | schema | M2 model-id + developer normalization | - | packages/schema/src/model-id* | model-id tests | approved contract implemented | proposed | **done** (`a4c1b81`, `6e11a83`, #12) |
 | T-040 | docs | Design 06 model identity memo | - | docs/design/06* | — | linked contract memo | forbidden | **done** |
 | T-041 | schema | optional thin Lua hook | T-039 | packages/schema/src/**, design/06 | hook test/spike | removable hook | proposed | todo |
 | T-042 | ci/release | single-file release spike | T-025 | package.json, proxy, .github, docs | packaging smoke | approach+checksums | proposed | todo |
@@ -164,13 +164,13 @@
 
 | id | area | title | depends_on | owned_paths | done_when | contract_changes | status |
 |---|---|---|---|---|---|---|---|
-| [#12](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/12) | schema/docs | model-id contract review | T-039 landed | model-id*, design/06 | raw/normalized/access semantics合意・test | **proposed** | todo・直列 |
+| [#12](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/12) | schema/docs | model-id contract review | T-039 landed | model-id*, design/06 | raw/normalized/access semantics合意・test | **proposed** | **done / closed** |
 | [#13](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/13) | parser/feed | saved snapshots→generated feed | T-024 landed | pricing fixtures/parser/generator/feed | provenance付きdeterministic feed | forbidden | **done / closed** |
 | [#16](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/16) | proxy | preserve unknown private-code trust | #13 | packages/proxy/** | unknown保持・private mode fail-closed | forbidden | **done / closed** |
 | [#14](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/14) | proxy | real HTTP/executor vertical proof | #13,#16 | proxy tests/必要最小実装 | injected attemptでendpoint/body証明 | forbidden | **done / closed** |
 | [#15](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/15) | site | exact same feed→static catalog | #13 | docs/catalog + generator/check | stale output検出・same content | forbidden | **done / closed** |
 
-#13、#16、#14、#15は監査完了・closed。M2で残るのは公開model-id契約の独立ゲート#12のみ。#14は現在のgenerated feed契約を消費し、#12の未確定事項を再定義していない。
+#12、#13、#16、#14、#15は監査完了・closed。M2の公開契約、generated feed、trust consumer、actual HTTP/executor path、same-feed catalogはすべてdone。
 
 ---
 
@@ -179,7 +179,7 @@
 | M | 完了条件 | タスク |
 |---|---|---|
 | M1 | fixture同一論理model→適合最安Offering→正しいupstreamModelIdをactual pathへ | T-044–046 ✅ |
-| M2 | 保存source由来のexact same feedをProxyとPagesが利用し、actual HTTP/executor pathを証明 | T-024/050/051と#13/#16/#14/#15は完了。T-039/#12のみ未完 |
+| M2 | 保存source由来のexact same feedをProxyとPagesが利用し、actual HTTP/executor pathとmodel-id公開契約を証明 | T-039/024/050/051 + #12–#16 ✅ |
 | M3 | candidate feedを署名・DNS pin・CI gateで安全に取得検証 | T-035/034/048（未完） |
 
 ---
