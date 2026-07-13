@@ -366,7 +366,8 @@ export function parseModelId(raw: string): ParsedModelId {
   const { family: afterDeriv, derivative } = extractDerivative(afterDate);
 
   // Step 6: Strip colon-less access suffixes (instruct, chat)
-  const { family: afterAccess } = stripAccessSuffixes(afterDeriv);
+  const { family: afterAccess, stripped: colonLessAccess } = stripAccessSuffixes(afterDeriv);
+  accessVariant ??= colonLessAccess?.toLowerCase();
 
   // Step 7: Extract numeric version
   const { version: numericVersion } = extractVersion(afterAccess);

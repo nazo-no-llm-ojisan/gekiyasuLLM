@@ -165,6 +165,19 @@ describe("parseModelId", () => {
       "canonicalKey should be identical regardless of accessVariant");
   });
 
+  it("preserves colon-less chat and instruct as access variants", () => {
+    for (const access of ["chat", "instruct"] as const) {
+      const colon = parseModelId(`provider/foo:${access}`);
+      const colonLess = parseModelId(`provider/foo-${access}`);
+      const withoutProvider = parseModelId(`foo-${access}`);
+
+      assert.equal(colonLess.accessVariant, access);
+      assert.equal(withoutProvider.accessVariant, access);
+      assert.equal(colonLess.canonicalKey, colon.canonicalKey);
+      assert.equal(withoutProvider.family, "foo");
+    }
+  });
+
   it("tilde prefix on provider is stripped", () => {
     const parsed = parseModelId("~openai/gpt-4o");
 
