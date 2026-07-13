@@ -10,7 +10,10 @@ import {
   executeRoutePlan,
   type AttemptFn,
 } from "./route/executor.js";
-import { buildRoutePlan } from "./route/plan.js";
+import {
+  buildRoutePlan,
+  selectCandidatesForRequestedModel,
+} from "./route/plan.js";
 import { extractRequestFacts } from "./route/request-facts.js";
 import { checkProxyToken, describeAuthShape } from "./security.js";
 import {
@@ -212,11 +215,34 @@ export function createServer(
         contentType: typeof contentType === "string" ? contentType : undefined,
         body,
       });
+      const requestCandidates = selectCandidatesForRequestedModel(
+        candidatesFromCatalog(catalog),
+        facts.requestedModel,
+      );
+
+      if (facts.requestedModel && requestCandidates.length === 0) {
+        sendJson(res, 400, {
+          error: {
+            message: `No offering matches requested model '${facts.requestedModel}'`,
+            type: "invalid_request_error",
+            code: "no_matching_offering",
+          },
+        }, req);
+        await recordRouteStat(stats, {
+          method,
+          path,
+          startedMs,
+          attempts: [],
+          status: 400,
+          errorCode: "no_matching_offering",
+        });
+        return;
+      }
 
       let plan;
       try {
         plan = buildRoutePlan({
-          candidates: candidatesFromCatalog(catalog),
+          candidates: requestCandidates,
           constraints: {
             requireTools: facts.requiresTools,
             requireVision: facts.requiresVision,

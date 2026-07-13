@@ -140,6 +140,10 @@ describe("vertical slice: gpt-4o via 2 providers (T-050)", () => {
       });
 
       assert.equal(response.status, 200);
+      assert.equal(
+        response.headers.get("x-gekiyasu-route-plan"),
+        "primary=openrouter:gpt-4o:discount; fallbacks=openai-direct:gpt-4o:standard",
+      );
       assert.equal(observed.length, 1);
       assert.equal(observed[0]!.offeringId, "openrouter:gpt-4o:discount");
       assert.equal(observed[0]!.baseUrl, "https://openrouter.ai/api/v1");
