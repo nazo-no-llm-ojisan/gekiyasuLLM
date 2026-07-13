@@ -21,4 +21,12 @@ describe("parseModelId", () => {
     assert.equal(parsed.accessVariant, "free");
     assert.equal(parsed.rawId, "openai/gpt-4o-mini:free");
   });
+
+  it("returns provider=unknown when no slash present", () => {
+    const parsed = parseModelId("gpt-4o");
+
+    assert.equal(parsed.provider, "unknown");
+    assert.equal(parsed.family, "gpt-4o");
+    assert.equal(parsed.rawId, "gpt-4o");
+  });
 });
