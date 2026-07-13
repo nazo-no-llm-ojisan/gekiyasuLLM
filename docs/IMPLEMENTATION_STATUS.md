@@ -4,7 +4,7 @@
 
 **ピン:** [ROADMAP.md](./ROADMAP.md) · 台帳: [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md) · 失敗分類: [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)
 
-最終更新: 2026-07-13（コミット`34a01e1`のM2監査とIssue #12–#15を反映）
+最終更新: 2026-07-13（Issue #13完了、Issue #16追加）
 
 ## 状態語
 
@@ -22,9 +22,10 @@
 | 設計docs | ローカル本線M1–M3、Phase 3+ anomaly governance、Phase 4日次reviewを分離済み |
 | Proxy | 中継 + 境界 + plan/filter/fallback + 静的feed + CostEstimate + credential isolation + stats + circuit + fail-closed CORS |
 | ルーティング | **M1済** — request model→候補→hard filter→最安→`upstreamModelId` rewriteが実HTTP経路で動作 |
-| M2収集・正規化 | **着地・未監査** — model-id parserと保存HTML parserあり。契約とfeed接続は#12/#13で修正 |
-| M2 vertical slice | **着地・未監査** — helper結合testあり。actual HTTP/executor attempt証明は#14 |
-| M2静的catalog | **着地・未監査** — prototypeあり。Proxyとexact same feedの機械生成は#15 |
+| M2収集・feed生成 | **部分的に済** — #13で保存fixture→parser→provenance付きgenerated feedを監査完了 |
+| M2 model identity | **着地・未監査** — #12で契約レビュー待ち |
+| M2 vertical slice | **着地・未監査** — #16後、#14でactual HTTP/executor attempt証明 |
+| M2静的catalog | **着地・未監査** — #15でProxyとexact same feedの機械生成 |
 | Phase 3+ | 未実装 — schema / ledger / active projection / overlay |
 | Phase 4 | 未実装 — review queue / evidence collector / operator UI / daily publication |
 | 本番利用 | **不可** — M2未完、M3署名/DNS pin未完、Phase 3+ publication governance未完 |
@@ -32,31 +33,28 @@
 
 ## M2監査結果
 
-コミット `34a01e1` は T-039 / T-024 / T-050 / T-051 のコード候補を一括で追加した。次の理由で各TとM2を`done`にしない。
+最初のコミット `34a01e1` は、parser、手書きfeed、helper-level vertical test、static catalog prototypeを一括で追加した。監査fixは以下。
 
 ```text
-saved OpenAI HTML → parser test              （feedへ未接続）
-hand-authored vertical-slice feed → route helper tests
-sample-feed.json → manually copied data.js → static catalog
+#12 model-id contract review                         未完
+#13 saved snapshots → deterministic generated feed  完了
+#16 feed trust unknownをProxyでunknownのまま保持     未完
+#14 actual HTTP/executor vertical proof              #16待ち
+#15 exact same feed → static catalog                 着手可
 ```
 
-不足:
+### Issue #13 完了証拠
 
-1. model-idのraw/normalized provider、colon-less access suffix、rule table契約
-2. 保存snapshotから価格・provenance付きfeedを決定論的に生成する経路
-3. generated feedを使ったactual HTTP/executor/injected attemptの証明
-4. ProxyとPagesがexact same feed contentを使うgenerator/check
-5. 実providerのprivate-code trustをgeneric policy URLだけで`confirmed`にしない境界
+コミット `fd8fb47` と `62244eb` を監査し、次を確認した。
 
-修正順:
+- 保存したOpenAI価格HTMLから価格をparseし、checked feedを決定論的に生成する
+- OpenRouter価格は実価格と偽装せずsynthetic fixtureとして明示する
+- raw/normalized/provenance/parser metadataを保持する
+- zeroとmissingを構造上区別する
+- checked artifactの陳腐化をtestで検出する
+- scoped evidenceのない実providerには`allowsPrivateCode`を出力しない
 
-```text
-#12 model-id contract
-  ↓
-#13 snapshots → generated feed
-  ├─ #14 actual HTTP/executor vertical test
-  └─ #15 exact same feed → static catalog
-```
+直接mainへpushされたためPR-triggered GitHub Actionsの証拠はない。tests/typecheck/build greenは実装担当のローカル報告として記録した。
 
 ## セキュリティ
 
@@ -77,7 +75,8 @@ sample-feed.json → manually copied data.js → static catalog
 | tenant headers | configured originのみ（T-031） |
 | Content-Encoding/Length | undici展開後の不整合を防ぐためstrip済み |
 | `/v1/models`形 | OpenAI風listへ正規化済み |
-| real-provider private-code trust fixture | **要修正 #13**。根拠不足の`confirmed: true`を完了証拠にしない |
+| generated feedのreal-provider trust | **済 #13** — scoped evidenceがなければ省略・unknown |
+| feed trustのProxy取込 | **要修正 #16** — catalogの`?? true`がunknownをtrustedへ変換 |
 
 ## ルーティング
 
@@ -86,9 +85,9 @@ sample-feed.json → manually copied data.js → static catalog
 | RoutePlan filter+rank | 済 |
 | request model→Offering候補 | 済（M1/T-044） |
 | upstreamModelId body rewrite | 済（M1/T-044、元Buffer不変） |
-| tools/vision/stream/private hard filter | 済 |
+| tools/vision/stream hard filter | 済 |
+| private hard filter | plannerはexplicit trueのみ許可。ただしfeed catalog取込に#16のgapあり |
 | apiCompat fail-closed | 済（T-045） |
-| allowsPrivateCode fail-closed | 済（T-046） |
 | Executor primary/fallback | 済。GET/HEADのみfallback、POST禁止 |
 | Circuit breaker | 済（T-036） |
 | CostEstimate最小 | 済 |
@@ -100,20 +99,21 @@ sample-feed.json → manually copied data.js → static catalog
 | ID | 現状 | 次 |
 |---|---|---|
 | T-039 | model-id実装着地・未監査 | #12で契約レビュー |
-| T-024 | OpenAI風HTML parser着地・未監査 | #13でfeed生成へ接続 |
-| T-050 | 2-provider fixture/helper test着地・未監査 | #13後、#14でactual path証明 |
-| T-051 | static catalog prototype着地・未監査 | #13後、#15でsame-feed generator |
+| T-024 | 保存HTML parser + generated feed接続を監査済み | #13完了 |
+| T-050 | 2-provider fixture/helper test着地・未監査 | #16後、#14でactual path証明 |
+| T-051 | static catalog prototype着地・未監査 | #15でsame-feed generator |
 
 ## 次（正本Issue/台帳）
 
 | 順 | 作業 | 状態 |
 |---|---|---|
-| 1 | [#12 model-id normalization contract](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/12) | todo・直列 |
-| 2 | [#13 saved snapshots→generated feed](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/13) | #12待ち |
-| 3a | [#14 actual HTTP/executor vertical proof](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/14) | #13待ち |
-| 3b | [#15 exact same feed static catalog](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/15) | #13待ち |
+| 契約 | [#12 model-id normalization contract](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/12) | todo・直列 |
+| 完了 | [#13 saved snapshots→generated feed](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/13) | **done / closed** |
+| 安全 | [#16 preserve unknown feed trust](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/16) | todo・#14前提 |
+| 縦貫通 | [#14 actual HTTP/executor vertical proof](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/14) | #16待ち |
+| site | [#15 exact same feed static catalog](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/15) | 着手可 |
 
-#14と#15だけは#13完了後に並列可。
+#12は公開契約の独立ゲート。#15は#13完了により着手可能。#14のprivate-mode証明は#16完了後に行う。
 
 ## その他バックログ
 
@@ -138,6 +138,7 @@ sample-feed.json → manually copied data.js → static catalog
 ## 監査メモ（2026-07-13）
 
 - 個人loopback MVPとM1は成立
-- M2は「部品着地」まで。evidence-backed exact-same-feed verticalは未成立
+- #13のevidence-backed feed generationは成立
+- M2全体は#12/#16/#14/#15が残るため未完
 - 本線は M2 audit fixes → Phase 3+ / M3 → Phase 4
 - CORS/health/circuit等の品質レーンを本線完了と混同しない
