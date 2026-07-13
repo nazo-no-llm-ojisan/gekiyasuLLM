@@ -1,45 +1,57 @@
-// This file is auto-generated from fixtures/feeds/sample-feed.json
-// For development/preview only. NOT a signed production feed.
+// GENERATED FILE — DO NOT EDIT
+// Source: fixtures/feeds/vertical-slice-2providers.json
+// Regenerate: node scripts/generate-catalog.mjs
+//
+// Static unsigned non-production catalog.
+// This catalog does NOT relay requests.
+// NOT a signed production feed.
 var FEED_DATA = {
   "feed_version": "0.1.0",
-  "as_of": "2026-07-12T00:00:00Z",
+  "as_of": "2026-07-13",
+  "endpoints": [
+    {
+      "id": "openai-direct:api",
+      "providerId": "openai-direct",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiCompat": "openai_chat"
+    },
+    {
+      "id": "openrouter:api",
+      "providerId": "openrouter",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiCompat": "openai_chat"
+    }
+  ],
   "providers": [
     {
-      "id": "provider-a",
-      "displayName": "Provider A (Safe)",
+      "id": "openai-direct",
+      "displayName": "OpenAI Direct",
       "relationships": {
         "sponsored": false,
         "affiliate": false,
         "editorial_rank_influence": "none"
-      },
-      "trust": {
-        "allowsPrivateCode": {
-          "value": true,
-          "evidence": {
-            "sourceUrl": "https://provider-a.example/privacy",
-            "retrievedAt": "2026-07-12T00:00:00Z",
-            "sourceType": "manual",
-            "confidence": "confirmed"
-          }
-        }
       }
     },
     {
-      "id": "provider-b",
-      "displayName": "Provider B (Aggregator)",
+      "id": "openrouter",
+      "displayName": "OpenRouter (synthetic)",
       "relationships": {
         "sponsored": false,
         "affiliate": false,
         "editorial_rank_influence": "none"
       },
+      "synthetic": true,
       "trust": {
         "allowsPrivateCode": {
           "value": false,
           "evidence": {
-            "sourceUrl": "https://provider-b.example/terms",
-            "retrievedAt": "2026-07-12T00:00:00Z",
+            "sourceUrl": "https://openrouter.ai/pricing",
+            "retrievedAt": "2026-07-13T00:00:00Z",
             "sourceType": "manual",
-            "confidence": "confirmed"
+            "confidence": "inferred",
+            "parserId": "feed-generator",
+            "parserVersion": "1",
+            "notes": "synthetic fixture only; do not interpret as a real provider's policy"
           }
         }
       }
@@ -47,60 +59,191 @@ var FEED_DATA = {
   ],
   "offerings": [
     {
-      "id": "provider-a:model-x:fixed",
-      "modelId": "provider-a/model-x",
-      "providerId": "provider-a",
-      "endpointId": "provider-a:api",
-      "upstreamModelId": "model-x",
-      "marketingName": "Model X Standard",
+      "id": "openai-direct:gpt-4o:standard",
+      "modelId": "openai-direct/gpt-4o",
+      "providerId": "openai-direct",
+      "endpointId": "openai-direct:api",
+      "upstreamModelId": "gpt-4o",
+      "marketingName": "GPT-4o (Direct)",
+      "aliases": [
+        "gpt-4o"
+      ],
       "declaredCapabilities": {
         "streaming": true,
-        "tools": true
+        "tools": true,
+        "vision": true
       },
       "status": "active",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
       "pricing": {
         "currency": {
           "raw": "USD",
-          "normalized": "USD"
+          "normalized": "USD",
+          "evidence": {
+            "sourceUrl": "https://openai.com/api/pricing/",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "official",
+            "confidence": "confirmed",
+            "parserId": "openai-pricing-html",
+            "parserVersion": "1"
+          },
+          "parserId": "openai-pricing-html",
+          "parserVersion": "1"
         },
-        "asOf": "2026-07-12",
+        "asOf": "2026-07-13",
+        "evidence": {
+          "sourceUrl": "https://openai.com/api/pricing/",
+          "retrievedAt": "2026-07-13T00:00:00Z",
+          "sourceType": "official",
+          "confidence": "confirmed",
+          "parserId": "openai-pricing-html",
+          "parserVersion": "1"
+        },
         "inputPerMillion": {
-          "raw": "$0.10 / 1M",
-          "normalized": 0.1
+          "raw": "$2.50 / 1M tokens",
+          "normalized": 2.5,
+          "conversionFormula": "per_1m",
+          "evidence": {
+            "sourceUrl": "https://openai.com/api/pricing/",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "official",
+            "confidence": "confirmed",
+            "parserId": "openai-pricing-html",
+            "parserVersion": "1"
+          },
+          "parserId": "openai-pricing-html",
+          "parserVersion": "1"
         },
         "outputPerMillion": {
-          "raw": "$0.30 / 1M",
-          "normalized": 0.3
+          "raw": "$10.00 / 1M tokens",
+          "normalized": 10,
+          "conversionFormula": "per_1m",
+          "evidence": {
+            "sourceUrl": "https://openai.com/api/pricing/",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "official",
+            "confidence": "confirmed",
+            "parserId": "openai-pricing-html",
+            "parserVersion": "1"
+          },
+          "parserId": "openai-pricing-html",
+          "parserVersion": "1"
+        },
+        "cachedInputPerMillion": {
+          "raw": "$1.25 / 1M tokens",
+          "normalized": 1.25,
+          "conversionFormula": "per_1m",
+          "evidence": {
+            "sourceUrl": "https://openai.com/api/pricing/",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "official",
+            "confidence": "confirmed",
+            "parserId": "openai-pricing-html",
+            "parserVersion": "1"
+          },
+          "parserId": "openai-pricing-html",
+          "parserVersion": "1"
+        },
+        "normalized": {
+          "currency": "USD",
+          "inputPerMillion": 2.5,
+          "outputPerMillion": 10,
+          "cachedInputPerMillion": 1.25,
+          "asOf": "2026-07-13"
         }
       }
     },
     {
-      "id": "provider-b:model-x:free",
-      "modelId": "provider-b/model-x-free",
-      "providerId": "provider-b",
-      "endpointId": "provider-b:api",
-      "upstreamModelId": "model-x-free",
-      "marketingName": "Model X Free Promotion",
+      "id": "openrouter:gpt-4o:discount",
+      "modelId": "openrouter/gpt-4o",
+      "providerId": "openrouter",
+      "endpointId": "openrouter:api",
+      "upstreamModelId": "openai/gpt-4o",
+      "marketingName": "GPT-4o via OpenRouter (Discount, synthetic)",
+      "aliases": [
+        "gpt-4o"
+      ],
       "declaredCapabilities": {
         "streaming": true,
-        "tools": false
+        "tools": true,
+        "vision": true
       },
       "status": "active",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
       "pricing": {
         "currency": {
           "raw": "USD",
-          "normalized": "USD"
+          "normalized": "USD",
+          "evidence": {
+            "sourceUrl": "https://openrouter.ai/pricing",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed",
+            "parserId": "synthetic-json",
+            "parserVersion": "1",
+            "notes": "synthetic fixture; values are NOT real OpenRouter prices"
+          },
+          "parserId": "synthetic-json",
+          "parserVersion": "1"
         },
-        "asOf": "2026-07-12",
+        "asOf": "2026-07-13",
+        "evidence": {
+          "sourceUrl": "https://openrouter.ai/pricing",
+          "retrievedAt": "2026-07-13T00:00:00Z",
+          "sourceType": "manual",
+          "confidence": "confirmed",
+          "parserId": "synthetic-json",
+          "parserVersion": "1",
+          "notes": "synthetic fixture; values are NOT real OpenRouter prices"
+        },
         "inputPerMillion": {
-          "raw": "$0.00",
-          "normalized": 0.0
+          "raw": "$2.40 / 1M tokens",
+          "normalized": 2.4,
+          "conversionFormula": "per_1m",
+          "evidence": {
+            "sourceUrl": "https://openrouter.ai/pricing",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed",
+            "parserId": "synthetic-json",
+            "parserVersion": "1",
+            "notes": "synthetic fixture; values are NOT real OpenRouter prices"
+          },
+          "parserId": "synthetic-json",
+          "parserVersion": "1"
         },
         "outputPerMillion": {
-          "raw": "$0.00",
-          "normalized": 0.0
+          "raw": "$9.60 / 1M tokens",
+          "normalized": 9.6,
+          "conversionFormula": "per_1m",
+          "evidence": {
+            "sourceUrl": "https://openrouter.ai/pricing",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed",
+            "parserId": "synthetic-json",
+            "parserVersion": "1",
+            "notes": "synthetic fixture; values are NOT real OpenRouter prices"
+          },
+          "parserId": "synthetic-json",
+          "parserVersion": "1"
+        },
+        "normalized": {
+          "currency": "USD",
+          "inputPerMillion": 2.4,
+          "outputPerMillion": 9.6,
+          "asOf": "2026-07-13"
         }
       }
     }
-  ]
+  ],
+  "corrections": []
 };

@@ -6,10 +6,13 @@
   "license": "Apache-2.0",
   "scripts": {
     "build:schema": "npm --prefix packages/schema run build",
+    "generate:catalog": "node scripts/generate-catalog.mjs",
+    "check:catalog": "node --test scripts/generate-catalog.test.mjs",
     "test:scripts": "node --test scripts/start-proxy-windows.test.cjs",
+    "test:catalog": "npm run check:catalog",
     "test:schema": "npm --prefix packages/schema run build && npm --prefix packages/schema run test --if-present",
     "test:proxy": "npm --prefix packages/proxy test",
-    "test": "npm run test:schema && npm run test:proxy && npm run test:scripts"
+    "test": "npm run test:schema && npm run test:proxy && npm run test:scripts && npm run test:catalog"
   },
   "engines": {
     "node": ">=20"
