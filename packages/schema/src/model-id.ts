@@ -310,8 +310,12 @@ function stripAccessSuffixes(family: string): { family: string; stripped?: strin
   const accessPattern = /-(instruct|chat)$/i;
   const match = family.match(accessPattern);
   if (match) {
+    const remainingFamily = family.slice(0, match.index);
+    if (!/[a-z0-9]$/i.test(remainingFamily)) {
+      return { family };
+    }
     return {
-      family: family.slice(0, match.index),
+      family: remainingFamily,
       stripped: match[1],
     };
   }
@@ -339,8 +343,15 @@ export function parseModelId(raw: string): ParsedModelId {
   let accessVariant: string | undefined;
   const colonMatch = working.match(/:([a-z][a-z0-9-]*)$/);
   if (colonMatch) {
-    accessVariant = colonMatch[1];
-    working = working.slice(0, colonMatch.index);
+    const withoutAccess = working.slice(0, colonMatch.index);
+    const slashIndex = withoutAccess.indexOf("/");
+    const familyBeforeAccess = slashIndex === -1
+      ? withoutAccess
+      : withoutAccess.slice(slashIndex + 1);
+    if (/[a-z0-9]$/i.test(familyBeforeAccess)) {
+      accessVariant = colonMatch[1];
+      working = withoutAccess;
+    }
   }
 
   // Step 2: Split on first `/` to get provider/rest

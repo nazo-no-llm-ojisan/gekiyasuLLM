@@ -192,6 +192,20 @@ describe("parseModelId", () => {
     }
   });
 
+  it("fails safe when removing an access suffix would leave an invalid family", () => {
+    for (const fixture of [
+      { raw: "provider/-chat", family: "-chat" },
+      { raw: "provider/foo--instruct", family: "foo--instruct" },
+      { raw: "-chat", family: "-chat" },
+      { raw: "provider/:chat", family: ":chat" },
+    ] as const) {
+      const parsed = parseModelId(fixture.raw);
+
+      assert.equal(parsed.family, fixture.family);
+      assert.equal(parsed.accessVariant, undefined);
+    }
+  });
+
   it("tilde prefix on provider is stripped", () => {
     const parsed = parseModelId("~openai/gpt-4o");
 
