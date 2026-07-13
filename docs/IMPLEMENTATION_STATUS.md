@@ -4,7 +4,7 @@
 
 **ピン:** [ROADMAP.md](./ROADMAP.md) · 台帳: [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md) · 失敗分類: [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)
 
-最終更新: 2026-07-13（Issue #14・#15監査完了・closed。M2は#12待ち）
+最終更新: 2026-07-13（Issue #14・#15監査完了・closed。main CI green。M2は#12待ち）
 
 ## 状態語
 
@@ -30,7 +30,7 @@
 | Phase 3+ | 未実装 — schema / ledger / active projection / overlay |
 | Phase 4 | 未実装 — review queue / evidence collector / operator UI / daily publication |
 | 本番利用 | **不可** — M2の#12未完、M3署名/DNS pin未完、Phase 3+ publication governance未完 |
-| CI | Actions、recursive test discovery、proxy build + dist smokeあり（T-048済）。直近main commitのGitHub status/run証拠はなし |
+| CI | **green** — mainのGitHub Actions `ci` が統合後およびDocs Sync後の各pushで成功。recursive test discovery、proxy build + dist smokeを実行 |
 
 ## M2監査結果
 
@@ -55,7 +55,7 @@
 - checked artifactの陳腐化をtestで検出する
 - scoped evidenceのない実providerには`allowsPrivateCode`を出力しない
 
-直接mainへpushされたためPR-triggered GitHub Actionsの証拠はない。tests/typecheck/build greenは実装担当のローカル報告として記録した。
+当時の直接main pushにはPR-triggered runがなかったため、当該コミット単体のtests/typecheck/build greenは実装担当のローカル報告として記録した。後続の統合mainではGitHub Actions `ci` greenを確認済み。
 
 ### Issue #16 完了証拠
 
@@ -67,7 +67,7 @@
 - local passthrough offeringの明示的trust既定値と、任意feed providerのtrustを分離する
 - generated feed contract、schema、POST fallbackを変更していない
 
-GitHub上にCI status/checkは見当たらないため、142 tests / typecheck / build greenは実装担当のローカル報告として扱う。差分とtest codeの監査にはblocking findingなし。
+142 tests / typecheck / build greenは実装担当のローカル報告として監査し、差分とtest codeにblocking findingなし。後続の統合mainではGitHub Actions `ci` greenを確認済み。
 
 ### Issue #14 完了証拠
 
@@ -81,7 +81,7 @@ GitHub上にCI status/checkは見当たらないため、142 tests / typecheck /
 - trust専用fixtureは全providerをsyntheticとして明示する
 - live provider call、schema/feed/model-id契約変更、POST fallback変更はない
 
-150 proxy tests、typecheck、build greenは実装担当のローカル報告。main先端のGitHub combined status/checkは空のため、CI greenとは表現しない。blocking findingなし。
+150 proxy tests、typecheck、build greenは実装担当のローカル報告として監査し、blocking findingなし。統合後のmain GitHub Actions `ci` greenを確認済み。
 
 ### Issue #15 完了証拠
 
@@ -96,7 +96,7 @@ GitHub上にCI status/checkは見当たらないため、142 tests / typecheck /
 - synthetic/real、missing/false/true trust、evidence不足を表示時に勝手に補完しない
 - static unsigned non-production / no request relay disclaimerを維持する
 
-catalog/schema/proxy testsとbuild greenは実装担当のローカル報告。main先端のGitHub combined status/checkは空のため、CI greenとは表現しない。blocking findingなし。
+catalog/schema/proxy testsとbuild greenは実装担当のローカル報告として監査し、blocking findingなし。`01d6521`以降のmain GitHub Actions `ci` greenを確認済み。
 
 ## セキュリティ
 
@@ -186,6 +186,7 @@ catalog/schema/proxy testsとbuild greenは実装担当のローカル報告。m
 - #16のfeed trust unknown保持とprivate-mode fail-closedは成立
 - #14のactual HTTP/executor縦貫通は成立
 - #15のsame-feed static catalogとstale検出は成立
+- 統合後およびDocs Sync後のmain GitHub Actions `ci` はgreen
 - M2全体は#12だけが残るため未完
 - 本線は #12 contract review → M2判定 → Phase 3+ / M3 → Phase 4
 - CORS/health/circuit等の品質レーンを本線完了と混同しない
