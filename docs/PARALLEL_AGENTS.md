@@ -1,259 +1,215 @@
 # 並列エージェント運用（契約済みだけ並列）
 
 **原則:** 設計判断は直列。契約済み実装は並列。  
-各エージェントは「独立した赤テスト1本を緑にする閉じた変更」だけやる。  
-契約を勝手に増やさない。賢く分岐させない。
+各エージェントは「独立した赤テスト1本を緑にする閉じた変更」だけを行う。契約を勝手に増やさない。
 
-脳レスTDD（[BRAINLESS_TDD.md](./BRAINLESS_TDD.md)）＋ **作業所有権** ＝ 複数エージェントを互いに賢くさせず働かせる。
+脳レスTDD（[BRAINLESS_TDD.md](./BRAINLESS_TDD.md)）＋作業所有権＝複数エージェントを互いに賢くさせず働かせる。
+
+---
+
+## 責務と完了権限
+
+### 統括・Docs Sync担当
+
+- Phase / M / T / Issueの依存を決める
+- `contract_changes: proposed`をレビューする
+- `ROADMAP*.md`、`IMPLEMENTATION_STATUS.md`、本台帳を横断同期する
+- 実装成果の証拠を監査し、`done`を宣言する
+
+### 実装担当
+
+- 指定されたTまたはIssueだけを実装する
+- `owned_paths`と`done_when`を守る
+- 直接必要な局所docsだけを更新する
+- tests / typecheck / buildの結果を報告する
+
+実装担当は、横断ROADMAP、IMPLEMENTATION_STATUS、台帳statusを独断で`done`へ変更しない。**コミット済み ≠ done。**
 
 ---
 
 ## 安全な構造
 
 ```text
-中央の短い設計・契約（リポジトリ正本）
-├─ Agent A: schema  の赤1本 → 緑
-├─ Agent B: proxy   の赤1本 → 緑
-├─ Agent C: fixture/parser の赤1本 → 緑
-└─ Agent D: docs/CI の独立作業
+中央の短い設計・契約（統括が確定）
+├─ Agent A: schemaの赤1本 → 緑
+├─ Agent B: proxyの赤1本 → 緑
+├─ Agent C: fixture/parserの赤1本 → 緑
+└─ Agent D: site/CIの独立作業
+       ↓
+統括: 境界・証拠・全体testを監査 → Docs Sync → done
 ```
 
-無制限並列は **実装のうち境界が確定した作業だけ**。  
-設計を各エージェントに自由に生やさせると、型・命名・エラー・設定が枝分かれし、最後に人間がコンパイラになる。
+無制限並列は境界が確定した作業だけ。設計を各エージェントに自由に生やさせると、全員が違う世界を完成させる。
 
 ---
 
 ## 並列化の条件（すべて満たすこと）
 
-1. 触る **package / path が重ならない**
-2. **入出力契約が既にリポジトリにある**（`packages/schema` 等）
-3. 各作業が **単独でテスト可能**
-4. **統合順序と depends_on** が台帳に明示されている
+1. 触るpackage/pathが重ならない
+2. 入出力契約がリポジトリに存在する
+3. 各作業が単独でテスト可能
+4. 統合順序と`depends_on`が台帳に明示されている
+5. 先行`proposed`契約が統括レビュー済み
 
 ### 並列してよい例
 
 | 例 | 理由 |
 |---|---|
-| schema: Offering を fixture から読める | 型契約あり |
-| proxy: RoutePlan を Executor が実行 | plan 契約あり |
-| collector: 保存 HTML から価格抽出 | fixture 独立 |
-| docs: 失敗分類表を正本へ | コード非接触 |
-| CI: 各 package の `npm test` | 実行のみ |
+| schema: Offeringをfixtureから読む | 型契約あり |
+| proxy: RoutePlanをExecutorが実行 | plan契約あり |
+| collector: 保存HTMLから価格抽出 | fixture独立 |
+| site: 確定feedから静的成果物を生成 | feed契約あり |
+| CI: 各packageのtest/build | 実行境界あり |
 
 ### 衝突しやすい例（やらない）
 
-- A が Offering 型を設計、B も Offering を変更、C が独自価格型、D が前提にルーター  
-→ 全員が違う世界を完成させる
+- schema契約、parser、feed、proxy縦貫通、siteを一つのエージェント・一つのコミットへ無断で束ねる
+- AがOffering型を設計し、BもOfferingを変更し、Cが独自価格型を作る
+- 実装担当が自分の成果を理由にROADMAPを完了更新する
 
 ---
 
-## 先に共有する薄い契約（これ以外を勝手に増やさない）
+## 先に共有する薄い契約
 
 | 契約 | 正本 |
 |---|---|
 | canonical types | `packages/schema` |
-| public interfaces | schema + proxy の export / CLI env |
-| error taxonomy | [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)（型正本: `packages/schema` `ProbeFailureClass`） |
+| public interfaces | schema + proxy exports / CLI env |
+| error taxonomy | [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md) |
 | fixture format | `fixtures/README.md` |
+| model identity | [design/06-model-identity-and-normalization.md](./design/06-model-identity-and-normalization.md) |
 | package ownership | 下表 |
-| dependency direction | `proxy` → `schema` のみ。schema は他 package に依存しない |
+| dependency direction | `proxy` → `schema`のみ。schemaは他packageに依存しない |
 
-**契約変更は直列。** 実装の緑化は並列。
+**契約変更は直列。実装の緑化は並列。**
 
 ---
 
-## Package ownership（触ってよいパス）
+## Package ownership
 
 | Package | owned_paths | 触らない |
 |---|---|---|
-| schema | `packages/schema/**` | proxy 実装 |
-| proxy | `packages/proxy/**` | schema の破壊的変更（必要なら proposed 直列） |
-| fixtures | `fixtures/**` | 本番ロジック |
-| docs | `docs/**`, README* | 実行コード（マーカー更新は可） |
-| ci | 将来 `.github/**` | アプリロジック |
+| schema | `packages/schema/**` | proxy実装、横断ROADMAP |
+| proxy | `packages/proxy/**` | schemaの未承認変更 |
+| collectors/parser | `packages/collectors/**`, `fixtures/pricing/**` | proxy routing |
+| fixtures/feed generation | `fixtures/**`, 明示されたgenerator | 本番network、独自公開契約 |
+| site | `docs/catalog/**`, 将来`site/**` | competing feed model |
+| docs局所 | 指定されたdocs | 横断status/done宣言 |
+| ci | `.github/**`, scriptsの指定範囲 | アプリ契約変更 |
 
-同じ path を2エージェントが同時に持たない。
+同じpathを2エージェントが同時に持たない。
 
 ---
 
 ## 作業台帳フォーマット
 
-各行 = 閉じた1サイクル。
-
 | 列 | 意味 |
 |---|---|
-| id | `T-0xx` |
-| area | schema / proxy / parser / docs / ci |
-| title | 英語または日本語の一行 |
-| depends_on | 先行タスク id（カンマ）。なければ `-` |
-| owned_paths | 触ってよい glob |
-| expected_red_test | 最初に赤にするテスト名 or ファイル |
-| done_when | 緑の定義（1文） |
+| id | `T-0xx`または監査fix Issue |
+| area | schema / proxy / parser / docs / ci / site |
+| title | 一行 |
+| depends_on | 先行id |
+| owned_paths | 触ってよいglob |
+| expected_red_test | 最初に赤にするtest |
+| done_when | 緑の定義 |
 | contract_changes | `forbidden` \| `proposed` |
-| status | `todo` \| `doing` \| `done` |
+| status | `todo` \| `doing` \| `landed-unverified` \| `done` |
 
-- **`contract_changes: proposed` だけ直列**（レビュー→契約マージ→他が並列再開）
-- **`forbidden` は並列可**（depends_on を満たせば）
+- `landed-unverified` = 実装コミットはあるが、契約・境界・証拠の監査を通っていない
+- `proposed`は直列。統括レビュー後に下流を開始
+- `forbidden`は`depends_on`を満たせば並列可
 
-### 台帳（初期・追記していく）
+---
+
+## 台帳
 
 | id | area | title | depends_on | owned_paths | expected_red_test | done_when | contract_changes | status |
 |---|---|---|---|---|---|---|---|---|
 | T-020 | proxy | security token + allowlist | - | packages/proxy/** | security.test.ts | npm test green | forbidden | **done** |
-| T-021 | schema | Offering parses one fixed-price fixture | - | packages/schema/**, fixtures/** | parse-offering.test.ts | 1 test green | forbidden | **done** |
-| T-022 | proxy | RoutePlan selects sole eligible offering | - | packages/proxy/src/route/** | plan.test.ts | 1 test green | forbidden | **done** |
-| T-023 | proxy | Executor uses plan.primary for upstream | T-022 | packages/proxy/src/route/**, upstream* | executor.test.ts | 1 test green | forbidden | **done** |
-| T-024 | parser | **M2** Pricing parser one saved HTML fixture | - | fixtures/**, 将来 packages/collectors/** | parser test | 1 test green from offline HTML | forbidden | todo（**M2**） |
-| T-025 | ci | npm test runs schema and proxy | T-020 | package.json / 将来 .github | root `npm test` | both packages test | forbidden | **done** |
-| T-026 | docs | failure taxonomy table as canonical | - | docs/** | FAILURE_TAXONOMY.md | table canonical | forbidden | **done** |
-| T-027 | proxy | multi-candidate hard filter + soft rank | T-022 | packages/proxy/src/route/** | plan.test.ts | 2+ candidates green | forbidden | **done** |
-| T-028 | proxy | Executor walks plan.fallbacks on failure | T-023,T-027 | packages/proxy/src/route/**, upstream* | executor fallback test | 1 fail→2nd green | forbidden | **done** |
-| T-029 | proxy/schema | Static feed loading (L8) | - | packages/schema/**, packages/proxy/**, fixtures/** | feed loading test | load static JSON feed to catalog | proposed | **done** |
-| T-030 | proxy | P0 credential isolation + P1 no POST fallback | T-028 | packages/proxy/src/** | executor + upstream header tests | client key only on configured origin; POST never fallbacks | forbidden | **done** |
-| T-031 | proxy | Origin-scope tenant headers + endpoint credential map | T-030 | packages/proxy/src/** | header origin-scope tests | org/project/idempotency only on configured origin; keys by origin/endpoint | forbidden | **done** |
-| T-032 | proxy | L10 local request stats JSONL | T-028 | packages/proxy/src/stats/**, server*, config* | store.test.ts | append metadata-only events; no bodies/keys | forbidden | **done** |
-| T-033 | proxy | Block IPv6 ULA / link-local / v4-mapped in SSRF filter | T-020 | packages/proxy/src/security* | security.test.ts IPv6 cases | fc00::/7 fe80::/10 ::ffff:10.x rejected | forbidden | **done** |
-| T-034 | proxy | **M3** DNS rebinding / resolve-and-pin | T-033 | packages/proxy/src/security*, upstream* | rebind-focused tests | resolved address re-checked vs private ranges; pin before connect | forbidden | todo（**M3** 公開必須） |
-| T-035 | proxy/schema | **M3** Feed signature verification (F-SEC-05) | T-029 | packages/schema/**, packages/proxy/** | verify signed feed fixture | unsigned/invalid rejected when required; feed host ≠ auto allowlist | proposed | todo（**M3** 公開必須） |
-| T-036 | proxy | **品質レーン** Circuit breaker | T-028 | packages/proxy/src/route/** | circuit open/half-open tests | N fails → skip offering for T seconds | forbidden | **done** |
-| T-037 | proxy | **品質レーン** Stats CLI / summary (no bodies) | T-032 | packages/proxy/src/stats/**, index* | summary test | `stats` or local summary without secrets | proposed（CLI サブコマンド追加。後方互換） | todo |
-| T-038 | docs/proxy | **品質レーン** IDE one-shot E2E note | T-032 | docs/L11*, ROADMAP* | — | ROADMAP IDE checkbox when user confirms | forbidden | todo |
-| T-039 | schema | **M2** model-id + developer normalize pure TS | - | packages/schema/src/** | model-id / developer unit tests | parse `:free` first; infra→family developer; no proxy coupling | proposed | todo（**M2**。設計 06） |
-| T-040 | docs | Design 06 model identity contract memo | - | docs/design/06* | — | 06 が索引・05 からリンク | forbidden | **done** |
-| T-041 | schema | **品質レーン** thin Lua hook for model identity | T-039 | packages/schema/src/**, docs/design/06* | hook contract test or spike note | TS matcher default; optional Lua removable without data migration | proposed | todo |
-| T-042 | ci/release | **品質レーン** single-file binary release spike | T-025 | package.json, packages/proxy/**, .github/**, docs/** | release packaging smoke test | Win/macOS/Linux approach + checksum plan documented | proposed | todo |
-| T-043 | docs | **品質レーン** herding / self-reference NFR | - | docs/** | — | herding risk + local-routing mitigation documented | forbidden | todo |
-| T-044 | proxy | **M1** request-aware routing + upstreamModelId rewrite | T-044-prep | packages/proxy/src/** | route request-model tests (5 below) | see T-044 done_when below | proposed | **done** |
-| T-044-prep | proxy | **M1** M1 prerequisites: RequestFacts, PreparedRequest, apiCompat, trust unknown | T-030 | packages/schema/src/route.ts, packages/proxy/src/route/** | request-facts / prepared-request / catalog apiCompat / fail-closed trust tests | see T-044-prep row below | proposed | **done** |
-| T-045 | proxy | **M1** reject unsupported apiCompat in catalog | T-044 | packages/proxy/src/route/** | catalog apiCompat test | non-openai_chat (MVP) excluded fail-closed | forbidden | **done** |
-| T-046 | proxy | **M1** allowsPrivateCode fail-closed | T-044 | packages/proxy/src/route/** | privateMode unknown trust test | missing trust ≠ allows private; privateMode only explicit true | forbidden | **done** |
-| T-047 | proxy | **品質レーン** CORS actual responses + origin allowlist | - | packages/proxy/src/server*, config*, security* | CORS success-path test | success/error/stream same policy; default no open origin reflect | proposed（env/config/API 動作変更。後方互換のみ） | **done** |
+| T-021 | schema | Offering parses one fixed-price fixture | - | packages/schema/**, fixtures/** | parse-offering.test.ts | fixed feed parses | forbidden | **done** |
+| T-022 | proxy | RoutePlan selects sole eligible offering | - | packages/proxy/src/route/** | plan.test.ts | one candidate selected | forbidden | **done** |
+| T-023 | proxy | Executor uses plan.primary | T-022 | packages/proxy/src/route/**, upstream* | executor.test.ts | primary attempt used | forbidden | **done** |
+| T-024 | parser | M2 pricing parser one saved HTML fixture | - | packages/schema/src/pricing-parser*, fixtures/pricing/** | pricing-parser.test.ts | saved HTML parses offline | forbidden | **landed-unverified** (`34a01e1`, #13へ) |
+| T-025 | ci | npm test runs schema and proxy | T-020 | package.json, .github/** | root npm test | both packages test | forbidden | **done** |
+| T-026 | docs | failure taxonomy canonical | - | docs/** | FAILURE_TAXONOMY.md | table canonical | forbidden | **done** |
+| T-027 | proxy | multi-candidate hard filter + soft rank | T-022 | packages/proxy/src/route/** | plan.test.ts | 2+ candidates | forbidden | **done** |
+| T-028 | proxy | Executor walks fallbacks | T-023,T-027 | packages/proxy/src/route/** | executor fallback test | fail→2nd | forbidden | **done** |
+| T-029 | proxy/schema | Static feed loading | - | packages/schema/**, packages/proxy/**, fixtures/** | feed loading test | JSON feed→catalog | proposed | **done** |
+| T-030 | proxy | credential isolation + no POST fallback | T-028 | packages/proxy/src/** | executor/upstream tests | credentials scoped | forbidden | **done** |
+| T-031 | proxy | tenant headers + endpoint credential map | T-030 | packages/proxy/src/** | header tests | origin scoped | forbidden | **done** |
+| T-032 | proxy | local request stats JSONL | T-028 | packages/proxy/src/stats/** | store.test.ts | metadata only | forbidden | **done** |
+| T-033 | proxy | IPv6 private SSRF block | T-020 | packages/proxy/src/security* | security IPv6 | private ranges rejected | forbidden | **done** |
+| T-034 | proxy | M3 DNS resolve-and-pin | T-033 | packages/proxy/src/security*, upstream* | rebind tests | resolved IP pinned/rechecked | forbidden | todo |
+| T-035 | proxy/schema | M3 feed signature verification | T-029 | packages/schema/**, packages/proxy/** | signed feed fixture | invalid/unsigned rejected when required | proposed | todo |
+| T-036 | proxy | circuit breaker | T-028 | packages/proxy/src/route/** | circuit tests | closed/open/half-open | forbidden | **done** |
+| T-037 | proxy | stats CLI / summary | T-032 | packages/proxy/src/stats/** | summary test | no bodies/secrets | proposed | todo |
+| T-038 | docs/proxy | IDE one-shot E2E note | T-032 | specified docs/proxy | manual | user confirms | forbidden | todo |
+| T-039 | schema | M2 model-id + developer normalization | - | packages/schema/src/model-id* | model-id tests | approved contract implemented | proposed | **landed-unverified** (`34a01e1`, #12へ) |
+| T-040 | docs | Design 06 model identity memo | - | docs/design/06* | — | linked contract memo | forbidden | **done** |
+| T-041 | schema | optional thin Lua hook | T-039 | packages/schema/src/**, design/06 | hook test/spike | removable hook | proposed | todo |
+| T-042 | ci/release | single-file release spike | T-025 | package.json, proxy, .github, docs | packaging smoke | approach+checksums | proposed | todo |
+| T-043 | docs | herding / self-reference NFR | - | docs/** | — | risk documented | forbidden | todo |
+| T-044-prep | proxy/schema | M1 request contract prerequisites | T-030 | schema route + proxy route | contract tests | RequestFacts/PreparedRequest | proposed | **done** |
+| T-044 | proxy | M1 request-aware routing + rewrite | T-044-prep | packages/proxy/src/** | route request tests | actual HTTP path routes/rewrite | proposed | **done** |
+| T-045 | proxy | reject unsupported apiCompat | T-044 | packages/proxy/src/route/** | apiCompat test | fail-closed | forbidden | **done** |
+| T-046 | proxy | private trust fail-closed | T-044 | packages/proxy/src/route/** | privateMode test | only explicit true allowed | forbidden | **done** |
+| T-047 | proxy | CORS allowlist all paths | - | packages/proxy/src/** | CORS tests | same policy all responses | proposed | **done** |
+| T-048 | ci | test discovery + proxy build smoke | T-025 | scripts, package files, .github | CI discovery | all tests/build/smoke | forbidden | **done** |
+| T-049 | proxy | minimize unauthenticated health | - | packages/proxy/src/** | leakage test | no full upstream URL | proposed | todo |
+| T-050 | proxy/fixtures | M2 2-provider vertical slice | T-044,T-039,T-024 | proxy, generated feed fixture | real path integration | generated feed→HTTP/executor attempt | proposed | **landed-unverified** (`34a01e1`, #13/#14へ) |
+| T-051 | site | M2 static catalog from exact same feed | T-029,T-050 | docs/catalog, generator, feed fixture | stale-output test | ProxyとPagesが同一feed content | proposed | **landed-unverified** (`34a01e1`, #15へ) |
 
-#### T-047 done_when（issue #3 / P0 セキュリティ）
+### M2監査fix（Issueが作業正本）
 
-- 既定で CORS ヘッダを一切出さない（`Access-Control-Allow-Origin: *` / 任意 Origin 反射を廃止）。
-- `GEKIYASU_CORS_ALLOWLIST`（カンマ区切り origin）に exact match がある場合のみ CORS を返す。
-- `Access-Control-Allow-Credentials: true` は allowlist 一致時のみ。
-- `Access-Control-Allow-Private-Network: true` は allowlist 一致時のみ。
-- preflight / 200 / 401 / 502 / ストリーミング すべての経路で同じポリシー。
-- `providerApiKeys` か `upstreamApiKey` が設定されていて `proxyToken` 未設定 + loopback bind は、**警告ログ**で知らせる（後方互換）。非 loopback bind は **起動失敗**（既存ロジックと一致）。
-- 既存テスト（CORS preflight で Origin 反射を期待しているもの）を、新挙動に追随して書き換える。
-| T-048 | ci | **M3** test discovery or list-sync + proxy build in CI | T-025 | packages/proxy/package.json, .github/** | CI fails on missing test / runs all `*.test.ts` | all `*.test.ts` run; `npm run build` in CI | forbidden | **done** |
-| T-049 | proxy | **品質レーン** minimize unauthenticated /health | - | packages/proxy/src/server*, config*, security* | health leakage test | no full upstreamBaseUrl without token; reject query/fragment in base URL | proposed（/health response contract 縮小。後方互換なし） | todo |
-| T-050 | proxy/fixtures | **M2** vertical slice 2–3 OpenAI-compatible providers | T-044 | packages/proxy/**, fixtures/**, docs/** | vertical slice fixture or manual note | same logical model: price→offering→plan→rewrite for ≥2 providers | proposed | todo（**M2**。要 M1） |
-| T-051 | docs/site | **M2** GitHub Pages min catalog from same feed | T-029 | docs/**, 将来 site/**, fixtures/feeds/** | — | static pages from feed JSON + evidence; not signed production feed; no central relay | proposed | todo（**M2**） |
+| id | area | title | depends_on | owned_paths | done_when | contract_changes | status |
+|---|---|---|---|---|---|---|---|
+| [#12](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/12) | schema/docs | model-id contract review | T-039 landed | model-id*, design/06 | raw/normalized/access semantics合意・test | **proposed** | todo・直列 |
+| [#13](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/13) | parser/feed | saved snapshots→generated feed | #12 | pricing fixtures/parser/generator/feed | provenance付きdeterministic feed | forbidden | todo |
+| [#14](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/14) | proxy | real HTTP/executor vertical proof | #13 | proxy tests/必要最小実装 | injected attemptでendpoint/body証明 | forbidden | blocked |
+| [#15](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/15) | site | exact same feed→static catalog | #13 | docs/catalog + generator/check | stale output検出・same content | forbidden | blocked |
 
-#### マイルストーン対応（正本: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md)）
+依存は **#12 → #13 → #14/#15**。#14と#15だけが#13完了後に並列可。
 
-| M | 完了条件（要約） | タスク |
+---
+
+## マイルストーン対応
+
+| M | 完了条件 | タスク |
 |---|---|---|
-| **M1** 正しく振り分ける | fixture 同一論理モデル → 適合最安 Offering → 正しい upstreamModelId | T-044 ✅, T-045 ✅, T-046 ✅ |
-
-#### T-044（M1 本線・done_when 5 本）
-
-T-044-prep の契約を使い、**要求モデル → 候補絞り込み → hard filter → 最安選択 → upstreamModelId 書換** の縦貫通を赤テスト 5 本で固定する。
-
-**手順（厳守）**:
-
-```text
-RequestFacts.requestedModel
-  ↓
-modelId または aliases が一致する Offering だけを候補化
-  ↓
-tools / vision / streaming 等の hard filter
-  ↓
-残った候補から最安を選択
-  ↓
-選択先ごとに upstreamModelId へ書換（元 Buffer は不変）
-  ↓
-executor が attempt に書き換え済み body を渡して upstream へ
-```
-
-**境界**:
-- 書換は `executeRoutePlan()` 側で attempt を呼ぶ直前に行う。`defaultAttemptUpstream` の中に隠さない。`injected attempt` でも同じ書換後 body が見える。
-- 元 `body: Buffer` は破壊しない。`rewriteModelForOffering(body, target)` は **純粋関数で新しい Buffer を返す**。
-- `unknown model`（候補 0）は fail-closed: code `no_matching_offering` で早期 4xx を返す。
-- 同一性は **厳密一致** のみ。`developer|family|version` の高度化は T-039 へ。
-
-**done_when（赤テスト 5 本）**:
-1. 無関係な安い Offering は **選ばれない**（`requestedModel` に合致する Offering のみ候補）
-2. alias 指定でも、対応 Offering の `upstreamModelId` に書換わる
-3. unknown model は適当な最安 Offering へ送らず、`no_matching_offering` で fail-closed
-4. 元 `Buffer` は不変、Offering ごとに別 body が生成される
-5. `PreparedRequest` 指定時に request stream を **再読込しない**
-
-#### T-044-prep（M1 前提プロポーズ・直列で確定）
-
-M1 本線に入る前に **契約だけ** 確定する 1 コミット。実装は本体 T-044 に残し、ここでは 4 つだけ足す:
-
-1. **`RequestFacts`**（`packages/schema/src/route.ts` 新規エクスポート）
-   ```ts
-   export type RequestFacts = {
-     requestedModel?: string;   // client body の model、または X-Gekiyasu-Model 等の正規化後
-     streaming?: boolean;
-     requiresTools?: boolean;
-     requiresVision?: boolean;
-   };
-   ```
-2. **`PreparedRequest`**（`executor.ts` `ExecutePlanInput` 拡張・後方互換）
-   ```ts
-   export type PreparedRequest = { body?: Buffer; facts: RequestFacts };
-   ```
-   - `preparedBody` 未指定時は executor が従来通り `readBody()` する（既存テストを壊さない）。
-3. **`OfferingTarget.apiCompat`** を `catalog.ts` で保持（`passthrough:default` は `"openai_chat"`、feed の endpoint から `parseFeedJson` 経由で伝搬）。
-4. **`trust unknown` fail-closed**: `RouteCandidate.allowsPrivateCode` が `undefined` の場合、`privateMode=true` で除外。`privateMode=false` 時は除外しない（現状動作）。
-
-**境界（厳守）**:
-- `plan.ts` は HTTP / body / request ヘッダを一切読まない純粋関数のまま。`RequestFacts → HardConstraints` の変換は **server.ts（または新規 `request-facts.ts`）** で 1 回だけ行う。
-- body は **1 回だけ読み、所有権は server → executor へ明示的に渡す**。`PreparedRequest.body` を渡せば executor は再読しない。
-- `rewriteModelForOffering(body, target)` は純粋関数として別ファイルに置き、attempt ごとに元 Buffer から書き換える（元 body の破壊的使い回しはしない）。
-- モデル同一性は **厳密一致** のみ（`requestedModel == logical modelId` または `aliases`）。`developer|family|version` の高度化は T-039 へ残す。
-
-**done_when**:
-- `npm run typecheck` 緑、`npm test` 緑（既存全テスト無変更で通る）
-- `RequestFacts` / `PreparedRequest` を使うテストは T-044 本体で書く（ここでは型の追加 + 既存挙動の維持のみ）
-| **M2** データ縦貫通 | 公式由来の同一 feed を Pages と Proxy が共有 | T-039, T-024, T-050, T-051 |
-| **M3** 安全な自動公開 | 自動更新公開 feed を Proxy が安全に取得・ルーティング | T-035, T-034, T-048 |
-| **品質レーン** | 本線を進めない並列 | T-047, T-049, T-037, T-038, T-042, T-036 done, … |
-
-#### バックログ注記
-
-- **いまの本線:** **M1 / T-044・T-045・T-046 すべて done**。M2 (T-039 / T-024 / T-050 / T-051) と M3 (T-035 / T-034 / T-048) は T-044 完了の上に乗る。
-- **M2** は M1 後が本筋。T-039/T-024 は schema・fixtures なら M1 と path 非重複で先行可（Proxy 非混入）。
-- **M3** は公開フィード開始の必須ゲート。M1 なしでは「安全だが振り分けが嘘」。
-- **品質レーン**はマイルストーン番号を持たない。CORS/health/stats/配布など。
-- T-031 / T-033 / T-036 **done**。T-040 design/06 **done**。
-- Pages（T-051）は M2 の静的カタログ。署名本番は M3。中央中継は禁止のまま。
-
-契約を触りたくなったら **新 id で `contract_changes: proposed`** を1本だけ立て、マージ後に実装タスクを並列化。
+| M1 | fixture同一論理model→適合最安Offering→正しいupstreamModelIdをactual pathへ | T-044–046 ✅ |
+| M2 | 保存source由来のexact same feedをProxyとPagesが利用し、actual HTTP/executor pathを証明 | T-039/024/050/051 + #12–#15（未完） |
+| M3 | candidate feedを署名・DNS pin・CI gateで安全に取得検証 | T-035/034/048（未完） |
 
 ---
 
-## エージェントへの投げ方（コピペ）
+## エージェントへの投げ方
 
 ```text
-タスク: T-0xx
-契約変更: forbidden（packages/schema の公開型を変えるな）
-owned_paths: （台帳どおり）
-やること: expected_red_test を赤→緑だけ。done_when を満たしたらコミット。
-やらない: 横展開、他 package、設計の新規概念、depends_on 未完了の前提
-報告: USER_STATUS_TEMPLATE の短さ。「通った/通らない」
+タスク: IssueまたはTを一つだけ
+契約変更: 台帳どおり
+owned_paths: 台帳/Issueどおり
+やること: expected red testを赤→緑。done_whenの証拠を作る
+やらない: 横展開、未承認contract、depends_on未完了、横断Docs Sync、done宣言
+報告: 変更ファイル、test/typecheck/build、未達条件
 ```
 
 ---
 
-## 統合担当（人間 or 1エージェント）
+## 統合担当
 
-1. `proposed` を先にマージ  
-2. 並列ブランチ/作業を owned_paths で確認  
-3. 全体 `npm test`（各 package）  
-4. 衝突したら **契約側を勝ち** に戻す（勝手な型分岐を捨てる）
+1. `proposed`契約を直列レビュー
+2. `depends_on`とowned_pathsを確認
+3. 全体tests/typecheck/build
+4. fixture→generated artifact→consumerの接続を確認
+5. 実装の自己申告ではなくdone_when証拠で判定
+6. ROADMAP / IMPLEMENTATION_STATUS / 台帳を同期
 
 ---
 
 ## 口癖
 
-- 設計判断は直列、契約済み実装は並列  
-- 1エージェント = 赤1本  
-- 契約を変えるな。変えるなら proposed を直列で  
-- 詳細はリポジトリ。ユーザは大枠だけ
+- 設計判断は直列、契約済み実装は並列
+- 1エージェント = 赤1本
+- コミット済み ≠ done
+- 契約を変えるならproposedを直列で
+- Docs Syncと完了判定は統括担当
