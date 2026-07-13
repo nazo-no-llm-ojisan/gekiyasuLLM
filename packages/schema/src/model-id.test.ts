@@ -192,6 +192,32 @@ describe("parseModelId", () => {
     }
   });
 
+  it("keeps date and region metadata identical across access syntaxes", () => {
+    for (const fixture of [
+      {
+        colon: "anthropic/claude-sonnet-2024-08-06:instruct",
+        colonLess: "anthropic/claude-sonnet-2024-08-06-instruct",
+        access: "instruct",
+        region: undefined,
+      },
+      {
+        colon: "provider/foo@us-east:chat",
+        colonLess: "provider/foo@us-east-chat",
+        access: "chat",
+        region: "us-east",
+      },
+    ] as const) {
+      const colon = parseModelId(fixture.colon);
+      const colonLess = parseModelId(fixture.colonLess);
+
+      assert.equal(colonLess.accessVariant, fixture.access);
+      assert.equal(colonLess.region, fixture.region);
+      assert.equal(colonLess.family, colon.family);
+      assert.equal(colonLess.version, colon.version);
+      assert.equal(colonLess.canonicalKey, colon.canonicalKey);
+    }
+  });
+
   it("fails safe when removing an access suffix would leave an invalid family", () => {
     for (const fixture of [
       { raw: "provider/-chat", family: "-chat" },

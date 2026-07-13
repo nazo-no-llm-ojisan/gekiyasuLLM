@@ -348,9 +348,9 @@ function stripAccessSuffixes(family: string): { family: string; stripped?: strin
  * Parse order (per design doc 06, section 3.1):
  * 1. Extract `:` suffix → access variant
  * 2. Split `provider/rest` (no slash → provider="unknown")
- * 3. Strip `@region` from family
- * 4. Extract date suffix → version candidate
- * 5. Extract colon-less access suffixes (instruct, chat)
+ * 3. Extract colon-less access suffixes (instruct, chat)
+ * 4. Strip `@region` from family
+ * 5. Extract date suffix → version candidate
  * 6. Extract derivative (mini, flash, coder, 27b, etc.)
  * 7. Extract numeric version (exceptions: o1/o3/hy3 are part of family)
  * 8. If version unresolved, use date candidate
@@ -385,19 +385,19 @@ export function parseModelId(raw: string): ParsedModelId {
   }
   const normalizedProvider = normalizeProvider(rawProvider);
 
-  // Step 3: Extract @region from family
-  const { family: afterRegion, region } = extractRegion(rest);
-
-  // Step 4: Extract date suffix → version candidate
-  const { family: afterDate, dateCandidate } = extractDateSuffix(afterRegion);
-
-  // Step 5: Extract colon-less access suffixes before derivative parsing so
-  // `70b-instruct` retains both pieces of metadata.
-  const { family: afterAccess, stripped: colonLessAccess } = stripAccessSuffixes(afterDate);
+  // Step 3: Extract colon-less access before other suffix parsers so dated
+  // and regional forms remain equivalent to explicit colon access.
+  const { family: afterAccess, stripped: colonLessAccess } = stripAccessSuffixes(rest);
   accessVariant ??= colonLessAccess?.toLowerCase();
 
+  // Step 4: Extract @region from family
+  const { family: afterRegion, region } = extractRegion(afterAccess);
+
+  // Step 5: Extract date suffix → version candidate
+  const { family: afterDate, dateCandidate } = extractDateSuffix(afterRegion);
+
   // Step 6: Extract derivative
-  const { family: afterDeriv, derivative } = extractDerivative(afterAccess);
+  const { family: afterDeriv, derivative } = extractDerivative(afterDate);
 
   // Step 7: Extract numeric version
   const { version: numericVersion } = extractVersion(afterDeriv);

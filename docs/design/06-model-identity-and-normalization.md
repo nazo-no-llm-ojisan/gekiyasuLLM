@@ -88,9 +88,9 @@ Developer     重みの開発元（anthropic, openai, z-ai, …）
 1. **`:` 以降を access variant に先取り**（`:free` / `:flex` / `:discounted` 等）  
    → free 経路を通常版と同一 canonical に潰さない（過去バグの再発防止）
 2. 最初の`/`で`rawProvider/rest`を分離（スラッシュ無しは`rawProvider=unknown`）し、`normalizedProvider`を作る
-3. `@region` サフィックス除去（family から）
-4. 日付サフィックス退避 → 後で version 候補
-5. colon 無しのaccess系**単語末尾**（`-instruct` / `-chat`）を先に抽出
+3. colon 無しのaccess系**単語末尾**（`-instruct` / `-chat`）を、他のsuffix parserより先に抽出
+4. `@region` サフィックス除去（family から）
+5. 日付サフィックス退避 → 後で version 候補
 6. **derivative** 抽出（mini / flash / coder / `27b` 等。複合可）
 7. 数値 version 抽出（例外: `o1` / `o3` / `hy3` 等は family の一部として残す）
 8. version 未確定なら日付を version に
