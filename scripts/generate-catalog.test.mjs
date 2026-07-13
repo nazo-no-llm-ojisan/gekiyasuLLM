@@ -14,6 +14,10 @@ const sourceFeedPath = resolve(repoRoot, SOURCE_FEED_REL);
 const catalogDataPath = resolve(repoRoot, "docs/catalog/data.js");
 const feed = JSON.parse(readFileSync(sourceFeedPath, "utf8"));
 
+function normalizeNewlines(value) {
+  return value.replace(/\r\n/g, "\n");
+}
+
 function renderCatalog(testFeed) {
   const html = readFileSync(resolve(repoRoot, "docs/catalog/index.html"), "utf8");
   const script = html.match(/<script>\s*([\s\S]*?)<\/script>/)?.[1];
@@ -51,8 +55,8 @@ describe("catalog stale check", () => {
     const expected = generateDataJs(feed, SOURCE_FEED_REL);
     const actual = readFileSync(catalogDataPath, "utf8");
     assert.strictEqual(
-      actual,
-      expected,
+      normalizeNewlines(actual),
+      normalizeNewlines(expected),
       "data.js is out of sync with source feed. Regenerate: node scripts/generate-catalog.mjs",
     );
   });
