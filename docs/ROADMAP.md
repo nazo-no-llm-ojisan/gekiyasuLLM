@@ -20,27 +20,29 @@
 | 地図 | 位置 |
 |---|---|
 | 大枠 | Phase 1–3 完了。ローカル本線は **M2監査・修正中** |
-| ローカル | **L12 / M1 完了**。保存snapshot→generated feedは **#13完了**、feed trust unknown保持は **#16完了**。actual pathとsame-feed catalogは未完 |
-| 次の契約ゲート | [Issue #12](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/12) model-id contract review |
-| 次の縦貫通監査 | [Issue #14](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/14) actual HTTP/executor proof |
-| 並列可能なsite作業 | [Issue #15](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/15) exact same feed catalog |
+| ローカル | **L12 / M1 完了**。#13 generated feed、#16 trust保持、#14 actual HTTP/executor proof、#15 same-feed catalogは **完了** |
+| 残るM2契約ゲート | [Issue #12](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/12) model-id contract review |
+| 監査済み縦貫通 | [Issue #14](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/14) **done / closed** |
+| 監査済みsite | [Issue #15](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/15) **done / closed** |
 
 ```text
-M1 正しいルーティング  →  M2 データ縦貫通（監査・修正中）
+M1 正しいルーティング  →  M2 データ縦貫通（#12契約監査のみ残る）
      T-044–046              T-039,024,050,051
-                                  ↓
-                         #12契約 / #13完了 / #16完了
-                                  ↓
-                              #14     #15
-                                  ↓
-                Phase 3+ anomaly governance + M3 security gate
-                                  ↓
-                    Phase 4 日次レビュー・公開運用
+                                   ↓
+                    #13 / #16 / #14 / #15 完了
+                                   ↓
+                         #12 model-id contract
+                                   ↓
+                 Phase 3+ anomaly governance + M3 security gate
+                                   ↓
+                     Phase 4 日次レビュー・公開運用
 ```
 
 コミット `fd8fb47` と `62244eb` により、保存した価格fixtureからprovenance付きfeedを決定論的に生成する経路は監査済みとなった。実providerのprivate-code trustは根拠がなければfeedへ出力しない。
 
-コミット `2adcefc` と `03c56da` により、feed由来providerのmissing trustはProxyでも`undefined`のまま保持され、private modeではexplicit `true`だけを許可する。#16は完了し、#14の安全上のblockは解除された。ただしactual HTTP/executor pathとsame-feed catalogが未証明のため、M2全体はまだ`done`ではない。
+コミット `2adcefc` と `03c56da` により、feed由来providerのmissing trustはProxyでも`undefined`のまま保持され、private modeではexplicit `true`だけを許可する。
+
+コミット `f278593`–`60c7631`、`00c2d7f`、`031b92c`、統合コミット `e4ac4d0`、追補 `01d6521` により、actual HTTP→executor attemptの縦貫通と、ProxyとPagesがexact same feedを使う静的catalog生成・stale検出を監査完了した。GitHub status/checkはmain先端でも空のため、CI greenとは表現しない。M2全体は#12の契約監査が残るため、まだ`done`ではない。
 
 ---
 
