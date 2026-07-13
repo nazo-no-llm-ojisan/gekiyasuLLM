@@ -101,6 +101,7 @@ describe("issue #14 actual HTTP/executor vertical proof", () => {
       offeringId: string;
       baseUrl: string;
       auth: string;
+      originalBody: Buffer | undefined;
       body: Buffer | undefined;
     }> = [];
     const attempt: AttemptFn = async (target, context) => {
@@ -108,6 +109,7 @@ describe("issue #14 actual HTTP/executor vertical proof", () => {
         offeringId: target.id,
         baseUrl: target.baseUrl,
         auth: context.auth,
+        originalBody: context.originalBody,
         body: context.body,
       });
       return {
@@ -141,9 +143,14 @@ describe("issue #14 actual HTTP/executor vertical proof", () => {
         assert.equal(observed[0]!.baseUrl, "https://openrouter.ai/api/v1");
         assert.equal(observed[0]!.auth, "Bearer offline-openrouter-key");
         assert.equal(
+          (JSON.parse(observed[0]!.originalBody!.toString("utf8")) as { model: string }).model,
+          "gpt-4o",
+        );
+        assert.equal(
           (JSON.parse(observed[0]!.body!.toString("utf8")) as { model: string }).model,
           "openai/gpt-4o",
         );
+        assert.notStrictEqual(observed[0]!.body, observed[0]!.originalBody);
         assert.deepEqual(originalBody, originalSnapshot);
         await response.arrayBuffer();
       },
@@ -189,6 +196,32 @@ describe("issue #14 actual HTTP/executor vertical proof", () => {
             "synthetic-eligible:proof-model:standard",
           ]);
           await response.arrayBuffer();
+        },
+      );
+    });
+
+    it(`makes zero attempts when the only match lacks ${capabilityCase.name}`, async () => {
+      let attemptCount = 0;
+
+      await withInjectedServer(
+        syntheticServerConfig(),
+        {
+          attempt: async () => {
+            attemptCount += 1;
+            throw new Error("capability rejection must happen before attempt");
+          },
+        },
+        async (baseUrl) => {
+          const response = await postChat(baseUrl, {
+            model: "false-only-model",
+            messages: [],
+            ...capabilityCase.body,
+          });
+          const payload = (await response.json()) as { error?: { code?: string } };
+
+          assert.equal(response.status, 503);
+          assert.equal(payload.error?.code, "no_eligible_offering");
+          assert.equal(attemptCount, 0);
         },
       );
     });
