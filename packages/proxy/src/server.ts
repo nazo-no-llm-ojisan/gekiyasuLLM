@@ -177,34 +177,6 @@ export function createServer(
       const startedMs = Date.now();
       const method = req.method ?? "GET";
 
-      let plan;
-      try {
-        plan = buildRoutePlan({
-          candidates: candidatesFromCatalog(catalog),
-          preferences: { preferFree: true },
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        sendJson(res, 503, {
-          error: {
-            message,
-            type: "proxy_error",
-            code: "no_eligible_offering",
-          },
-        }, req);
-        await recordRouteStat(stats, {
-          method,
-          path,
-          startedMs,
-          attempts: [],
-          status: 503,
-          errorCode: "no_eligible_offering",
-        });
-        return;
-      }
-
-      res.setHeader("x-gekiyasu-route-plan", describeExecution({ plan }));
-
       // T-044 / issue #2: buffer the body once in the request layer and
       // pass it through to the executor as `PreparedRequest`. The executor
       // will not re-read from `req` (executor.prepared.body is checked
@@ -240,6 +212,39 @@ export function createServer(
         contentType: typeof contentType === "string" ? contentType : undefined,
         body,
       });
+
+      let plan;
+      try {
+        plan = buildRoutePlan({
+          candidates: candidatesFromCatalog(catalog),
+          constraints: {
+            requireTools: facts.requiresTools,
+            requireVision: facts.requiresVision,
+            requireStreaming: facts.streaming,
+          },
+          preferences: { preferFree: true },
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        sendJson(res, 503, {
+          error: {
+            message,
+            type: "proxy_error",
+            code: "no_eligible_offering",
+          },
+        }, req);
+        await recordRouteStat(stats, {
+          method,
+          path,
+          startedMs,
+          attempts: [],
+          status: 503,
+          errorCode: "no_eligible_offering",
+        });
+        return;
+      }
+
+      res.setHeader("x-gekiyasu-route-plan", describeExecution({ plan }));
 
       try {
         const result = await executeRoutePlan({

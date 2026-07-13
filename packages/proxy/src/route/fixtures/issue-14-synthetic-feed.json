@@ -1,0 +1,116 @@
+{
+  "feed_version": "test-0.1.0",
+  "as_of": "2026-07-13T00:00:00Z",
+  "endpoints": [
+    {
+      "id": "synthetic-ineligible:api",
+      "providerId": "synthetic-ineligible",
+      "baseUrl": "https://ineligible.synthetic.invalid/v1",
+      "apiCompat": "openai_chat"
+    },
+    {
+      "id": "synthetic-eligible:api",
+      "providerId": "synthetic-eligible",
+      "baseUrl": "https://eligible.synthetic.invalid/v1",
+      "apiCompat": "openai_chat"
+    }
+  ],
+  "providers": [
+    {
+      "id": "synthetic-ineligible",
+      "displayName": "Synthetic ineligible provider",
+      "synthetic": true,
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "trust": {
+        "allowsPrivateCode": {
+          "value": false,
+          "evidence": {
+            "sourceUrl": "https://fixtures.invalid/issue-14",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed",
+            "notes": "synthetic fixture only"
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-eligible",
+      "displayName": "Synthetic eligible provider",
+      "synthetic": true,
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "trust": {
+        "allowsPrivateCode": {
+          "value": true,
+          "evidence": {
+            "sourceUrl": "https://fixtures.invalid/issue-14",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed",
+            "notes": "synthetic fixture only"
+          }
+        }
+      }
+    }
+  ],
+  "offerings": [
+    {
+      "id": "synthetic-ineligible:proof-model:cheap",
+      "modelId": "synthetic-ineligible/proof-model",
+      "aliases": ["proof-model"],
+      "providerId": "synthetic-ineligible",
+      "endpointId": "synthetic-ineligible:api",
+      "upstreamModelId": "ineligible-upstream-model",
+      "declaredCapabilities": {
+        "streaming": false,
+        "tools": false,
+        "vision": false
+      },
+      "status": "active",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "pricing": {
+        "currency": { "normalized": "USD" },
+        "asOf": "2026-07-13",
+        "inputPerMillion": { "normalized": 0.1 },
+        "outputPerMillion": { "normalized": 0.1 }
+      }
+    },
+    {
+      "id": "synthetic-eligible:proof-model:standard",
+      "modelId": "synthetic-eligible/proof-model",
+      "aliases": ["proof-model"],
+      "providerId": "synthetic-eligible",
+      "endpointId": "synthetic-eligible:api",
+      "upstreamModelId": "eligible-upstream-model",
+      "declaredCapabilities": {
+        "streaming": true,
+        "tools": true,
+        "vision": true
+      },
+      "status": "active",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "pricing": {
+        "currency": { "normalized": "USD" },
+        "asOf": "2026-07-13",
+        "inputPerMillion": { "normalized": 1 },
+        "outputPerMillion": { "normalized": 1 }
+      }
+    }
+  ]
+}

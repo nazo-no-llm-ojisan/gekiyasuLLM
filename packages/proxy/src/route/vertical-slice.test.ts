@@ -28,6 +28,7 @@ const verticalSliceFeedPath = join(
   here,
   "../../../../fixtures/feeds/vertical-slice-2providers.json",
 );
+const syntheticFeedPath = join(here, "fixtures/issue-14-synthetic-feed.json");
 
 /**
  * Helper: load catalog from the vertical slice fixture.
@@ -58,6 +59,18 @@ function verticalSliceServerConfig(): ProxyConfig {
     circuitOpenSeconds: 300,
     corsAllowlist: [],
     feedFile: verticalSliceFeedPath,
+  };
+}
+
+function syntheticServerConfig(): ProxyConfig {
+  return {
+    ...verticalSliceServerConfig(),
+    upstreamApiKey: undefined,
+    providerApiKeys: {
+      "synthetic-ineligible": "offline-ineligible-key",
+      "synthetic-eligible": "offline-eligible-key",
+    },
+    feedFile: syntheticFeedPath,
   };
 }
 
@@ -136,6 +149,45 @@ describe("vertical slice: gpt-4o via 2 providers (T-050)", () => {
         "openai/gpt-4o",
       );
       assert.deepEqual(originalBody, originalSnapshot);
+    });
+  });
+
+  it("applies tools, vision, and streaming facts before the injected attempt", async () => {
+    const observedOfferingIds: string[] = [];
+    const attempt: AttemptFn = async (target) => {
+      observedOfferingIds.push(target.id);
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      };
+    };
+
+    await withInjectedServer(syntheticServerConfig(), attempt, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          authorization: "Bearer proxy-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "proof-model",
+          stream: true,
+          tools: [{ type: "function", function: { name: "lookup" } }],
+          messages: [{
+            role: "user",
+            content: [{ type: "image_url", image_url: { url: "data:image/png;base64,AA==" } }],
+          }],
+        }),
+      });
+
+      assert.equal(response.status, 200);
+      assert.deepEqual(observedOfferingIds, [
+        "synthetic-eligible:proof-model:standard",
+      ]);
     });
   });
 
