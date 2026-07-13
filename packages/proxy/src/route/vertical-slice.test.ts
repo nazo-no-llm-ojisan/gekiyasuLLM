@@ -11,6 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import type { ProxyConfig } from "../config.js";
+import { createServer } from "../server.js";
 import {
   buildOfferingCatalog,
   candidatesFromCatalog,
@@ -20,6 +21,7 @@ import {
   buildRoutePlan,
 } from "./plan.js";
 import { rewriteModelForOffering } from "./body-rewrite.js";
+import type { AttemptFn } from "./executor.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const verticalSliceFeedPath = join(
@@ -39,6 +41,44 @@ function loadVerticalSliceCatalog() {
   return buildOfferingCatalog(config);
 }
 
+function verticalSliceServerConfig(): ProxyConfig {
+  return {
+    host: "127.0.0.1",
+    port: 0,
+    upstreamBaseUrl: "https://api.openai.com/v1",
+    allowedUpstreamHosts: ["api.openai.com"],
+    upstreamApiKey: "offline-openai-key",
+    proxyToken: "proxy-token",
+    maxBodyBytes: 1_000_000,
+    upstreamTimeoutMs: 1_000,
+    allowPlaceholderApiKeySwap: true,
+    providerApiKeys: { openrouter: "offline-openrouter-key" },
+    statsFile: undefined,
+    circuitFailureThreshold: 3,
+    circuitOpenSeconds: 300,
+    corsAllowlist: [],
+    feedFile: verticalSliceFeedPath,
+  };
+}
+
+async function withInjectedServer<T>(
+  config: ProxyConfig,
+  attempt: AttemptFn,
+  fn: (baseUrl: string) => Promise<T>,
+): Promise<T> {
+  const server = createServer(config, { attempt });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await fn(`http://127.0.0.1:${address.port}`);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+}
+
 function runPlannedRequest(
   makePlan: () => ReturnType<typeof buildRoutePlan>,
   execute: (plan: ReturnType<typeof buildRoutePlan>) => void,
@@ -47,6 +87,58 @@ function runPlannedRequest(
 }
 
 describe("vertical slice: gpt-4o via 2 providers (T-050)", () => {
+  it("routes generated-feed HTTP requests through the injected executor attempt", async () => {
+    const observed: Array<{
+      offeringId: string;
+      baseUrl: string;
+      auth: string;
+      body: Buffer | undefined;
+    }> = [];
+    const attempt: AttemptFn = async (target, context) => {
+      observed.push({
+        offeringId: target.id,
+        baseUrl: target.baseUrl,
+        auth: context.auth,
+        body: context.body,
+      });
+      return {
+        kind: "ok",
+        offeringId: target.id,
+        response: new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      };
+    };
+    const originalBody = Buffer.from(JSON.stringify({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: "offline proof" }],
+    }));
+    const originalSnapshot = Buffer.from(originalBody);
+
+    await withInjectedServer(verticalSliceServerConfig(), attempt, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          authorization: "Bearer proxy-token",
+          "content-type": "application/json",
+        },
+        body: originalBody,
+      });
+
+      assert.equal(response.status, 200);
+      assert.equal(observed.length, 1);
+      assert.equal(observed[0]!.offeringId, "openrouter:gpt-4o:discount");
+      assert.equal(observed[0]!.baseUrl, "https://openrouter.ai/api/v1");
+      assert.equal(observed[0]!.auth, "Bearer offline-openrouter-key");
+      assert.equal(
+        (JSON.parse(observed[0]!.body!.toString("utf8")) as { model: string }).model,
+        "openai/gpt-4o",
+      );
+      assert.deepEqual(originalBody, originalSnapshot);
+    });
+  });
+
   it("catalog loads both gpt-4o offerings from the fixture", () => {
     const catalog = loadVerticalSliceCatalog();
     // 3 entries: passthrough + 2 feed offerings

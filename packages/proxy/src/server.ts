@@ -5,7 +5,11 @@ import {
   candidatesFromCatalog,
 } from "./route/catalog.js";
 import { createCircuitBreaker } from "./route/circuit.js";
-import { describeExecution, executeRoutePlan } from "./route/executor.js";
+import {
+  describeExecution,
+  executeRoutePlan,
+  type AttemptFn,
+} from "./route/executor.js";
 import { buildRoutePlan } from "./route/plan.js";
 import { extractRequestFacts } from "./route/request-facts.js";
 import { checkProxyToken, describeAuthShape } from "./security.js";
@@ -22,6 +26,10 @@ export type RunningServer = {
   server: http.Server;
   url: string;
   close: () => Promise<void>;
+};
+
+export type ServerDependencies = {
+  attempt?: AttemptFn;
 };
 
 function buildCorsHeaders(allowlist: string[]): (req?: http.IncomingMessage) => Record<string, string> {
@@ -68,7 +76,10 @@ async function recordRouteStat(
   }
 }
 
-export function createServer(config: ProxyConfig): http.Server {
+export function createServer(
+  config: ProxyConfig,
+  dependencies: ServerDependencies = {},
+): http.Server {
   const catalog = buildOfferingCatalog(config);
   const circuit = createCircuitBreaker({
     failureThreshold: config.circuitFailureThreshold,
@@ -240,6 +251,7 @@ export function createServer(config: ProxyConfig): http.Server {
           pathWithQuery,
           circuit,
           prepared: { body, facts },
+          attempt: dependencies.attempt,
         });
         await recordRouteStat(stats, {
           method,
