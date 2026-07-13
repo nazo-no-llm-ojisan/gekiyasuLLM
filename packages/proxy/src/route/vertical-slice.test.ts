@@ -39,6 +39,13 @@ function loadVerticalSliceCatalog() {
   return buildOfferingCatalog(config);
 }
 
+function runPlannedRequest(
+  makePlan: () => ReturnType<typeof buildRoutePlan>,
+  execute: (plan: ReturnType<typeof buildRoutePlan>) => void,
+): void {
+  execute(makePlan());
+}
+
 describe("vertical slice: gpt-4o via 2 providers (T-050)", () => {
   it("catalog loads both gpt-4o offerings from the fixture", () => {
     const catalog = loadVerticalSliceCatalog();
@@ -118,39 +125,27 @@ describe("vertical slice: gpt-4o via 2 providers (T-050)", () => {
     assert.deepEqual(parsed.messages, [{ role: "user", content: "Hello" }]);
   });
 
-  it("when privateMode=true, openrouter is rejected and openai-direct wins", () => {
+  it("when privateMode=true, unknown and explicit false trust make no upstream attempt", () => {
     const catalog = loadVerticalSliceCatalog();
-    const allCandidates = candidatesFromCatalog(catalog);
-    const gpt4oCandidates = selectCandidatesForRequestedModel(
-      allCandidates,
+    const candidates = selectCandidatesForRequestedModel(
+      candidatesFromCatalog(catalog),
       "gpt-4o",
     );
+    let executorSpyCount = 0;
 
-    const plan = buildRoutePlan({
-      candidates: gpt4oCandidates,
-      constraints: { privateMode: true },
-      preferences: { preferFree: true },
-    });
-
-    // openrouter has allowsPrivateCode=false, so it's rejected in privateMode
-    // openai-direct has allowsPrivateCode=true, so it wins
-    assert.equal(plan.primary, "openai-direct:gpt-4o:standard");
-    assert.deepEqual(plan.fallbacks, []);
-
-    // Body rewrite should use openai-direct's upstreamModelId
-    const chosen = catalog.get(plan.primary)!;
-    const clientBody = Buffer.from(
-      JSON.stringify({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: "Hello" }],
-      }),
-      "utf8",
+    assert.throws(
+      () => runPlannedRequest(
+        () => buildRoutePlan({
+          candidates,
+          constraints: { privateMode: true },
+          preferences: { preferFree: true },
+        }),
+        () => {
+          executorSpyCount += 1;
+        },
+      ),
+      /No eligible offerings.*private_mode/,
     );
-    const rewritten = rewriteModelForOffering(clientBody, {
-      upstreamModelId: chosen.upstreamModelId!,
-    });
-    const parsed = JSON.parse(rewritten.toString("utf8"));
-    // Upstream should receive "gpt-4o" (OpenAI direct model id)
-    assert.equal(parsed.model, "gpt-4o");
+    assert.equal(executorSpyCount, 0);
   });
 });
