@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, before, after } from "node:test";
+import { runInNewContext } from "node:vm";
 import { generateDataJs } from "./generate-catalog.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -12,6 +13,38 @@ const SOURCE_FEED_REL = "fixtures/feeds/vertical-slice-2providers.json";
 const sourceFeedPath = resolve(repoRoot, SOURCE_FEED_REL);
 const catalogDataPath = resolve(repoRoot, "docs/catalog/data.js");
 const feed = JSON.parse(readFileSync(sourceFeedPath, "utf8"));
+
+function renderCatalog(testFeed) {
+  const html = readFileSync(resolve(repoRoot, "docs/catalog/index.html"), "utf8");
+  const script = html.match(/<script>\s*([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(script, "catalog inline script must exist");
+
+  function createElement(tagName) {
+    return {
+      tagName: tagName.toUpperCase(),
+      children: [],
+      textContent: "",
+      appendChild(child) {
+        this.children.push(child);
+        return child;
+      },
+    };
+  }
+
+  const meta = createElement("div");
+  const tbody = createElement("tbody");
+  const document = {
+    getElementById(id) {
+      if (id === "meta") return meta;
+      if (id === "catalog-body") return tbody;
+      return null;
+    },
+    createElement,
+  };
+
+  runInNewContext(script, { document, FEED_DATA: testFeed, URL });
+  return { meta, tbody };
+}
 
 describe("catalog stale check", () => {
   it("docs/catalog/data.js is in sync with source feed", () => {
@@ -99,5 +132,87 @@ describe("catalog stale detection round-trip", () => {
     const first = generateDataJs(feed, SOURCE_FEED_REL);
     const second = generateDataJs(feed, SOURCE_FEED_REL);
     assert.strictEqual(first, second, "generator must be deterministic");
+  });
+});
+
+describe("catalog rendering", () => {
+  it("renders missing optional prices as unavailable", () => {
+    const { tbody } = renderCatalog({
+      feed_version: "test",
+      as_of: "2026-07-13",
+      providers: [],
+      offerings: [{
+        id: "test:missing-price",
+        modelId: "test/missing-price",
+        providerId: "test",
+        endpointId: "test:api",
+        upstreamModelId: "missing-price",
+        status: "active",
+        declaredCapabilities: {},
+        pricing: {
+          currency: { normalized: "USD" },
+          asOf: "2026-07-13",
+        },
+      }],
+    });
+
+    assert.equal(tbody.children.length, 1);
+    assert.equal(tbody.children[0].children[2].textContent, "-");
+    assert.equal(tbody.children[0].children[3].textContent, "-");
+  });
+
+  it("does not link evidence URLs with an unsafe protocol", () => {
+    const unsafeUrl = "javascript:alert('catalog')";
+    const { tbody } = renderCatalog({
+      feed_version: "test",
+      as_of: "2026-07-13",
+      providers: [],
+      offerings: [{
+        id: "test:unsafe-evidence",
+        modelId: "test/unsafe-evidence",
+        providerId: "test",
+        endpointId: "test:api",
+        upstreamModelId: "unsafe-evidence",
+        status: "active",
+        declaredCapabilities: {},
+        pricing: {
+          currency: { normalized: "USD" },
+          asOf: "2026-07-13",
+          evidence: { sourceUrl: unsafeUrl },
+        },
+      }],
+    });
+
+    const evidenceCell = tbody.children[0].children[7];
+    assert.equal(evidenceCell.children.length, 0);
+    assert.equal(evidenceCell.textContent, unsafeUrl);
+  });
+
+  it("links HTTP evidence URLs", () => {
+    const sourceUrl = "https://evidence.example/source";
+    const { tbody } = renderCatalog({
+      feed_version: "test",
+      as_of: "2026-07-13",
+      providers: [],
+      offerings: [{
+        id: "test:safe-evidence",
+        modelId: "test/safe-evidence",
+        providerId: "test",
+        endpointId: "test:api",
+        upstreamModelId: "safe-evidence",
+        status: "active",
+        declaredCapabilities: {},
+        pricing: {
+          currency: { normalized: "USD" },
+          asOf: "2026-07-13",
+          evidence: { sourceUrl },
+        },
+      }],
+    });
+
+    const evidenceCell = tbody.children[0].children[7];
+    const link = evidenceCell.children[0].children[0];
+    assert.equal(link.tagName, "A");
+    assert.equal(link.href, sourceUrl);
   });
 });
