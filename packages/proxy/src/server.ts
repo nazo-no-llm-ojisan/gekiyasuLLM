@@ -1,4 +1,5 @@
 import http from "node:http";
+import type { HardConstraints } from "@gekiyasu/schema";
 import type { ProxyConfig } from "./config.js";
 import {
   buildOfferingCatalog,
@@ -33,6 +34,7 @@ export type RunningServer = {
 
 export type ServerDependencies = {
   attempt?: AttemptFn;
+  routingConstraints?: HardConstraints;
 };
 
 function buildCorsHeaders(allowlist: string[]): (req?: http.IncomingMessage) => Record<string, string> {
@@ -244,9 +246,13 @@ export function createServer(
         plan = buildRoutePlan({
           candidates: requestCandidates,
           constraints: {
-            requireTools: facts.requiresTools,
-            requireVision: facts.requiresVision,
-            requireStreaming: facts.streaming,
+            ...dependencies.routingConstraints,
+            requireTools:
+              facts.requiresTools ?? dependencies.routingConstraints?.requireTools,
+            requireVision:
+              facts.requiresVision ?? dependencies.routingConstraints?.requireVision,
+            requireStreaming:
+              facts.streaming ?? dependencies.routingConstraints?.requireStreaming,
           },
           preferences: { preferFree: true },
         });

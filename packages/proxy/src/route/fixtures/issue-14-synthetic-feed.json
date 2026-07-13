@@ -13,6 +13,12 @@
       "providerId": "synthetic-eligible",
       "baseUrl": "https://eligible.synthetic.invalid/v1",
       "apiCompat": "openai_chat"
+    },
+    {
+      "id": "synthetic-unknown:api",
+      "providerId": "synthetic-unknown",
+      "baseUrl": "https://unknown.synthetic.invalid/v1",
+      "apiCompat": "openai_chat"
     }
   ],
   "providers": [
@@ -59,13 +65,23 @@
           }
         }
       }
+    },
+    {
+      "id": "synthetic-unknown",
+      "displayName": "Synthetic unknown-trust provider",
+      "synthetic": true,
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      }
     }
   ],
   "offerings": [
     {
       "id": "synthetic-ineligible:proof-model:cheap",
       "modelId": "synthetic-ineligible/proof-model",
-      "aliases": ["proof-model"],
+      "aliases": ["proof-model", "private-model", "false-only-model"],
       "providerId": "synthetic-ineligible",
       "endpointId": "synthetic-ineligible:api",
       "upstreamModelId": "ineligible-upstream-model",
@@ -90,7 +106,7 @@
     {
       "id": "synthetic-eligible:proof-model:standard",
       "modelId": "synthetic-eligible/proof-model",
-      "aliases": ["proof-model"],
+      "aliases": ["proof-model", "private-model"],
       "providerId": "synthetic-eligible",
       "endpointId": "synthetic-eligible:api",
       "upstreamModelId": "eligible-upstream-model",
@@ -110,6 +126,31 @@
         "asOf": "2026-07-13",
         "inputPerMillion": { "normalized": 1 },
         "outputPerMillion": { "normalized": 1 }
+      }
+    },
+    {
+      "id": "synthetic-unknown:private-model:cheap",
+      "modelId": "synthetic-unknown/private-model",
+      "aliases": ["private-model", "unknown-only-model"],
+      "providerId": "synthetic-unknown",
+      "endpointId": "synthetic-unknown:api",
+      "upstreamModelId": "unknown-upstream-model",
+      "declaredCapabilities": {
+        "streaming": true,
+        "tools": true,
+        "vision": true
+      },
+      "status": "active",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "pricing": {
+        "currency": { "normalized": "USD" },
+        "asOf": "2026-07-13",
+        "inputPerMillion": { "normalized": 0.05 },
+        "outputPerMillion": { "normalized": 0.05 }
       }
     }
   ]
