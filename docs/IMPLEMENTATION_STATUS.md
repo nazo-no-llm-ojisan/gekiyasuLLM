@@ -1,100 +1,143 @@
 # 実装状況（設計との同期）
 
-**○ = 設計上の目標 / 実装 = いまのコード。** チャットよりこのファイルが正。
+**設計目標、コード着地、監査済み完了を区別する。** チャットや実装担当の自己申告より本ファイルが正。
 
-**ピン:** [ROADMAP.md](./ROADMAP.md) · 失敗分類: [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)
+**ピン:** [ROADMAP.md](./ROADMAP.md) · 台帳: [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md) · 失敗分類: [FAILURE_TAXONOMY.md](./FAILURE_TAXONOMY.md)
 
-最終更新: 2026-07-12（次セクション L13〜 を ROADMAP_LOCAL に起票後）
+最終更新: 2026-07-13（コミット`34a01e1`のM2監査とIssue #12–#15を反映）
+
+## 状態語
+
+| 状態 | 意味 |
+|---|---|
+| 未実装 | 対象コード・fixtureがない |
+| 着地・未監査 | 実装コミットはあるが、契約・境界・done_whenの証拠が不足 |
+| 部分 | 一部の境界だけ成立 |
+| 済 | 統括監査と全体検証を通過 |
 
 ## 総評
 
 | 層 | 状態 |
 |---|---|
-| 設計 docs | 先行・厚い。ローカル本線 **M1–M3** は [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) |
-| Proxy | **中継 + 境界 + plan/filter/fallback + フィード + CostEstimate + credential isolation + ローカル統計 JSONL + circuit + fail-closed CORS** |
-| ルーティング | **M1 完了** — request model → 候補絞り込み → hard filter → 最安 → `upstreamModelId` 書換（実 HTTP 経路で動作）。`apiCompat` / `allowsPrivateCode` fail-closed。GET/HEAD fallback 済。POST fallback 禁止 |
-| フィード収集 | 未（静的ファイル読込は L8 済） |
-| Dashboard | 静的デモ（`/dashboard/`）。公開カタログは L24 Pages 予定 |
-| 本番利用 | **不可**。公開フィードは M3 / T-035 署名 + T-034 DNS pin 前は不可 |
-| CI | **Actions あり**（test は `scripts/run-tests.mjs` で自動検出 — T-048）。`npm run build` + `dist/index.js` 起動 → `/health` スモークも CI に追加済み |
+| 設計docs | ローカル本線M1–M3、Phase 3+ anomaly governance、Phase 4日次reviewを分離済み |
+| Proxy | 中継 + 境界 + plan/filter/fallback + 静的feed + CostEstimate + credential isolation + stats + circuit + fail-closed CORS |
+| ルーティング | **M1済** — request model→候補→hard filter→最安→`upstreamModelId` rewriteが実HTTP経路で動作 |
+| M2収集・正規化 | **着地・未監査** — model-id parserと保存HTML parserあり。契約とfeed接続は#12/#13で修正 |
+| M2 vertical slice | **着地・未監査** — helper結合testあり。actual HTTP/executor attempt証明は#14 |
+| M2静的catalog | **着地・未監査** — prototypeあり。Proxyとexact same feedの機械生成は#15 |
+| Phase 3+ | 未実装 — schema / ledger / active projection / overlay |
+| Phase 4 | 未実装 — review queue / evidence collector / operator UI / daily publication |
+| 本番利用 | **不可** — M2未完、M3署名/DNS pin未完、Phase 3+ publication governance未完 |
+| CI | Actions、recursive test discovery、proxy build + dist smokeあり（T-048済） |
+
+## M2監査結果
+
+コミット `34a01e1` は T-039 / T-024 / T-050 / T-051 のコード候補を一括で追加した。次の理由で各TとM2を`done`にしない。
+
+```text
+saved OpenAI HTML → parser test              （feedへ未接続）
+hand-authored vertical-slice feed → route helper tests
+sample-feed.json → manually copied data.js → static catalog
+```
+
+不足:
+
+1. model-idのraw/normalized provider、colon-less access suffix、rule table契約
+2. 保存snapshotから価格・provenance付きfeedを決定論的に生成する経路
+3. generated feedを使ったactual HTTP/executor/injected attemptの証明
+4. ProxyとPagesがexact same feed contentを使うgenerator/check
+5. 実providerのprivate-code trustをgeneric policy URLだけで`confirmed`にしない境界
+
+修正順:
+
+```text
+#12 model-id contract
+  ↓
+#13 snapshots → generated feed
+  ├─ #14 actual HTTP/executor vertical test
+  └─ #15 exact same feed → static catalog
+```
 
 ## セキュリティ
 
 | 項目 | 実装 |
 |---|---|
-| F-SEC-01 キー保管 | 部分（env / Bearer / `providerApiKeys`。キーチェーン・暗号化ファイルは未） |
+| F-SEC-01 キー保管 | 部分（env / Bearer / `providerApiKeys`。keychain/暗号化fileは未） |
 | F-SEC-02 redaction | 未 |
 | F-SEC-03 private path | 未 |
-| F-SEC-04 allowlist | 上流 host + redirect 再検査 + 私有IPv4 + **IPv6 ULA/link-local/v4-mapped 私有** (T-033) |
-| F-SEC-05 feed 署名 | 未 |
+| F-SEC-04 allowlist | 上流host + redirect再検査 + 私有IPv4 + IPv6 ULA/link-local/v4-mapped私有 |
+| F-SEC-05 feed署名 | 未（T-035） |
 | F-SEC-08 自動実行しない | 済 |
-| `/v1/v1` join | 済 `joinUpstreamUrl` |
 | redirect SSRF | 済 `redirect: "manual"` |
-| 非loopback | 済 token 必須（または危険フラグ） |
-| body 上限 | 済 413（destroy 前に reject） |
-| stream backpressure | 済 pipeline + client abort → upstream abort |
-| **client Authorization の送信先** | **済** — `config.upstreamBaseUrl` の **exact origin 一致時のみ** client key を転送。別 origin は `providerApiKeys[providerId]` のみ（無ければ `credential_unavailable` で送信前 skip） |
-| **upstream request headers** | **済** — allowlist（`content-type` / `accept` 等）。`authorization` / `cookie` / `x-api-key` / `x-gekiyasu-token` / `proxy-authorization` は client からコピーしない |
-| **placeholder 置換** | **済** — loopback かつ configured upstream origin のみ。別 origin に global key を送らない |
-| **tenant / correlation headers** | **済 (T-031)** — `openai-organization` / `openai-project` / `idempotency-key` は **configured upstream origin のみ**転送。foreign origin では drop |
-| **`Content-Encoding` リーク防止** | **済 (issue #1)** — `copyResponseHeaders`（`executor.ts`）と `HOP_BY_HOP`（`upstream.ts`）で `content-encoding` を必ず strip。undici が自動展開した本文に元の `Content-Encoding: br` が残る問題を根治。ストリーム / 書換経路ともに同じ規則。回帰テスト: `response header hygiene after undici decompression` |
-| **`Content-Length` strip** | **済** — undici 展開後の本体長は wire の `Content-Length` と一致しないため、hop-by-hop として落とす |
-| **`/v1/models` 形正規化** | **済** — `normalizeModelsResponseJson` で `{object:"list", data:[…{object:"model", owned_by}…]}` に揃える。`owned_by` 欠落時は `provider` フォールバック → `upstream` |
+| 非loopback | token必須または明示危険flag |
+| body上限 | 済 413 |
+| stream backpressure | 済 pipeline + client abort |
+| client Authorization送信先 | configured exact originのみ。別originはprovider keyのみ |
+| upstream headers | allowlist。authorization/cookie/x-api-key等をclientからコピーしない |
+| tenant headers | configured originのみ（T-031） |
+| Content-Encoding/Length | undici展開後の不整合を防ぐためstrip済み |
+| `/v1/models`形 | OpenAI風listへ正規化済み |
+| real-provider private-code trust fixture | **要修正 #13**。根拠不足の`confirmed: true`を完了証拠にしない |
 
 ## ルーティング
 
 | 項目 | 実装 |
 |---|---|
-| RoutePlan filter+rank | 済（`requestFacts` 連動の request-aware 候補絞り込みを含む） |
-| **request model → offering 候補化** | **済（M1 / T-044）** — `server.ts` で `extractRequestFacts` → `PreparedRequest` 経由で `executeRoutePlan` へ |
-| **upstreamModelId への body 書換** | **済（M1 / T-044）** — `body-rewrite.ts` 純粋関数。attempt ごとに元 Buffer から書換（破壊なし） |
-| tools/vision/stream/private を request から hard filter | **済（M1 / T-044）** — `extractRequestFacts` が `requiresTools` / `requiresVision` / `streaming` を返す。`filterCandidates` が hard filter 適用 |
-| apiCompat fail-closed（非 OpenAI 除外） | **済（M1 / T-045）** — `openai_chat` 以外・宣言ありは `api_compat_unsupported` で除外 |
-| allowsPrivateCode fail-closed | **済（M1 / T-046）** — `privateMode=true` かつ `!== true`（unknown / false 両方）で除外 |
-| Executor plan.primary | 済 |
-| Executor fallbacks | **済（GET/HEAD のみ）** — 408/429/5xx/timeout/network 等で次候補。**POST 等は fallback 禁止** |
-| Circuit breaker (T-036) | **済** — per-offering closed/open/half-open。server 寿命で共有。`GEKIYASU_CIRCUIT_FAILURES` / `GEKIYASU_CIRCUIT_OPEN_SECONDS` |
-| CostEstimate 最小 | **済**（input/output 等。L9） |
-| maxCostPerRequest | estimatedCostPerRequest のみ（$/M と混同しない） |
-| preferLowCachePrice | 死コードバグ修正。既定は inputPerMillion で安定ソート |
-| 静的フィード → catalog | **済**（L8。`GEKIYASU_FEED_FILE`）。feed host の自動 allowlist 追加あり → **M3 / T-035** で分離 |
-| ローカル統計 (L10) | **済** — append-only JSONL。本文・キーなし |
+| RoutePlan filter+rank | 済 |
+| request model→Offering候補 | 済（M1/T-044） |
+| upstreamModelId body rewrite | 済（M1/T-044、元Buffer不変） |
+| tools/vision/stream/private hard filter | 済 |
+| apiCompat fail-closed | 済（T-045） |
+| allowsPrivateCode fail-closed | 済（T-046） |
+| Executor primary/fallback | 済。GET/HEADのみfallback、POST禁止 |
+| Circuit breaker | 済（T-036） |
+| CostEstimate最小 | 済 |
+| 静的feed→catalog | 済（L8）。公開feed securityはM3 |
+| local stats | 済（L10） |
 
-## 次（起票済み・台帳）
+## M2構成要素
 
-正本のチケット表: [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md) · ローカル表示: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md)「起票済みバックログ」。
+| ID | 現状 | 次 |
+|---|---|---|
+| T-039 | model-id実装着地・未監査 | #12で契約レビュー |
+| T-024 | OpenAI風HTML parser着地・未監査 | #13でfeed生成へ接続 |
+| T-050 | 2-provider fixture/helper test着地・未監査 | #13後、#14でactual path証明 |
+| T-051 | static catalog prototype着地・未監査 | #13後、#15でsame-feed generator |
+
+## 次（正本Issue/台帳）
+
+| 順 | 作業 | 状態 |
+|---|---|---|
+| 1 | [#12 model-id normalization contract](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/12) | todo・直列 |
+| 2 | [#13 saved snapshots→generated feed](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/13) | #12待ち |
+| 3a | [#14 actual HTTP/executor vertical proof](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/14) | #13待ち |
+| 3b | [#15 exact same feed static catalog](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/15) | #13待ち |
+
+#14と#15だけは#13完了後に並列可。
+
+## その他バックログ
 
 | ID | 内容 | 状態 |
 |---|---|---|
-| **T-033** | IPv6 ULA / link-local / v4-mapped SSRF ブロック | **done** |
-| **T-031** | tenant headers origin-scope + endpoint credential map | **done** |
-| **T-036** | circuit breaker | **done** |
-| **T-034** | DNS rebinding / resolve-and-pin | todo（公開フィード前） |
-| **T-035** | feed 署名検証 (F-SEC-05) | todo（**公開フィード必須ゲート**） |
-| **T-037** | stats CLI / 集計 | todo |
-| **T-038** | IDE 一通 docs | todo（利用者任意） |
-| **T-040** | design/06 モデル同定・正規化契約 | **done** |
-| **T-039** | model-id / developer pure TS | todo（収集。Proxy 非混入） |
-| **T-041** | model identity Lua hook 評価 | todo（T-039 後。pure TS 既定、wasmoon 等は薄く評価） |
-| **T-042** | 単一実行ファイル / Releases | todo（SEA/pkg、checksum、WASM 同梱は採用時確認） |
-| **T-043** | 観測対象への反作用 NFR | todo（docs。herding / 自己参照リスク） |
+| T-034 | DNS resolve-and-pin | todo（M3） |
+| T-035 | feed署名検証 | todo（M3） |
+| T-037 | stats CLI | todo |
+| T-038 | IDE一通docs | todo |
+| T-041 | optional Lua hook | #12/T-039確定後 |
+| T-042 | single-file release | todo |
+| T-043 | herding NFR | todo |
+| T-049 | health情報最小化 | todo |
 
-| 項目（未採番・メモ） | メモ |
-|---|---|
-| POST fallback opt-in | idempotency + 明示 opt-in 後 |
-| redaction / audit | 境界・運用 |
-| deprecated 整理 | `proxyRequest` / `pickAuthHeader` / `resolvePrimaryTarget` 削除済み（9378f95）。`assertSafeUpstreamBaseUrl` は `loadConfig` の bootstrap チェック用途で残置 |
-| CI test 明示列挙 / build smoke | **M3 / T-048** — `scripts/run-tests.mjs` による自動検出 + CI で `npm run build` + `dist/index.js` スモーク完了 |
-| CORS actual response | **品質レーン T-047** |
-| health が upstream URL 全文 | **品質レーン T-049** |
-| `Accept-Encoding: identity` で上流圧縮を禁止 | **未採用**（issue #1 検討）。上流が br/gzip/zstd で返してきても proxy 側で strip する前提（`copyResponseHeaders` + `HOP_BY_HOP`）で根治済み。`identity` を強制すると (a) 巨大 `/v1/models` で帯域が増える、(b) 一部 upstream は `Accept-Encoding: identity` を尊重せず依然 br を返す、(c) proxy 層で再度展開する必要はない。再開しない。`curl` で `Accept-Encoding: identity` を渡すのは個人診断用としては有用。 |
+## Docs Sync規則
 
-本線: [ROADMAP_LOCAL.md](./ROADMAP_LOCAL.md) **M1–M3** · 台帳 [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md)。
+- 実装担当は局所docsと実行手順を更新してよい
+- 横断ROADMAP、IMPLEMENTATION_STATUS、台帳status、Milestone完了は統括・Docs Sync担当だけが更新する
+- 実装コミット、test追加、prototype表示だけでは`done`にしない
+- `proposed`契約をレビューしてから下流を並列化する
 
-## 外部監査メモ（2026-07-12）
+## 監査メモ（2026-07-13）
 
-- 個人 loopback MVP は条件付き可。まだ「最安候補を選ぶ中継器」。
-- **本線は依存グラフ:** **M1**（T-044–046）→ **M2**（T-039/024/050/051）→ **M3**（T-035/034/048）。品質レーンは並列。
-- CORS/health/circuit は本線から外す（ロードマップ線形化の再発防止）。
-
-**P0/P1 正本コミット:** `e2b3d14`。  
+- 個人loopback MVPとM1は成立
+- M2は「部品着地」まで。evidence-backed exact-same-feed verticalは未成立
+- 本線は M2 audit fixes → Phase 3+ / M3 → Phase 4
+- CORS/health/circuit等の品質レーンを本線完了と混同しない
