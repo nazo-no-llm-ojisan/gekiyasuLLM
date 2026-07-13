@@ -1,7 +1,7 @@
 # 06 — モデル同定・正規化（収集層の契約メモ）
 
-**版:** 0.1-draft  
-**日付:** 2026-07-12  
+**版:** 0.2-proposed
+**日付:** 2026-07-13
 
 **目的:** 将来のフィード収集・Offering 正規化で使う **同一モデル同定・価格メタの扱い** を、Proxy 実行経路と混同せず固定する。
 
@@ -15,8 +15,8 @@
 |---|---|
 | 知識の源泉 | メンテナ私有の multi-router モデル観測ツール（**非公開**。本 monorepo 外） |
 | 公開リポとの関係 | **依存・submodule・raw データの取り込みはしない** |
-| コード化 | 必要になったら **TypeScript で in-tree 再実装**（`@gekiyasu/schema` または将来 `collectors`） |
-| 本ファイル | **契約・規則のメモ**。図鑑 UI・画像・仕掛かりバグ修正は対象外 |
+| コード化 | `packages/schema/src/model-id.ts` の pure TypeScript 実装を正本とする |
+| 本ファイル | 公開型・正規化規則・保守条件の局所契約。図鑑 UI・画像・仕掛かりバグ修正は対象外 |
 
 秘密・生 API レスポンス・私有リポのパスを正本としてコミットしない。
 
@@ -64,11 +64,22 @@ Developer     重みの開発元（anthropic, openai, z-ai, …）
 
 ルーターが選ぶ主キーは引き続き **Offering ID**。
 
+`ParsedModelId` の provider 関連fieldは次の意味で固定する。
+
+| field | 契約 |
+|---|---|
+| `rawProvider` | 最初の `/` より前の入力断片をそのまま保持する。`/`なしは`unknown` |
+| `normalizedProvider` | `rawProvider`から先頭`~`、大小文字・空白、既存aliasを正規化した値 |
+| `provider` | `rawProvider`と常に同値の互換alias。**deprecated**であり、normalized値として読んではならない |
+| `developer` | 重みの開発元。hosting/`unknown`はfamily表から解決し、direct providerは`normalizedProvider`を使う |
+
+`provider`の削除時期やversionは本契約では定めない。新規コードは目的に応じて`rawProvider`または`normalizedProvider`を使用する。
+
 ---
 
-## 3. 移植候補の規則（実装時の契約）
+## 3. 実装済みの正規化契約
 
-コードは未移植。**実装するときはこの節がテスト仕様の種**になる。
+実装は`packages/schema/src/model-id.ts`、公開exportは`packages/schema/src/index.ts`、契約fixtureは`packages/schema/src/model-id.test.ts`に置く。
 
 ### 3.1 Model ID パース順序
 
@@ -76,35 +87,58 @@ Developer     重みの開発元（anthropic, openai, z-ai, …）
 
 1. **`:` 以降を access variant に先取り**（`:free` / `:flex` / `:discounted` 等）  
    → free 経路を通常版と同一 canonical に潰さない（過去バグの再発防止）
-2. `provider/rest` 分離（スラッシュ無しは provider=`unknown`）
+2. 最初の`/`で`rawProvider/rest`を分離（スラッシュ無しは`rawProvider=unknown`）し、`normalizedProvider`を作る
 3. `@region` サフィックス除去（family から）
 4. 日付サフィックス退避 → 後で version 候補
-5. **derivative** 抽出（mini / flash / coder / `27b` 等。複合可）
-6. colon 無しの access 系末尾（instruct / chat 等）
+5. colon 無しのaccess系**単語末尾**（`-instruct` / `-chat`）を先に抽出
+6. **derivative** 抽出（mini / flash / coder / `27b` 等。複合可）
 7. 数値 version 抽出（例外: `o1` / `o3` / `hy3` 等は family の一部として残す）
 8. version 未確定なら日付を version に
 
+colon形式とcolon無し形式は同じ`accessVariant`を生成する。たとえば`foo:instruct`と`foo-instruct`は同じcanonical keyを持つ。access除去でfamilyが空になる、または区切り文字で終わる場合は抽出せず、元の未知familyとしてfail-safeに保持する。モデル名途中の`chat`/`instruct`はaccessとして扱わない。
+
 ### 3.2 Developer 解決
 
-1. provider 名の表記ゆれ正規化（エイリアス表）
-2. provider が **インフラ/ホスティング**（fireworks, groq, bedrock, …）なら **family から developer を推論**
-3. そうでなければ正規化済み provider を developer とする
+1. `rawProvider`から`normalizedProvider`を作る（先頭`~`除去、lowercase/trim、エイリアス表）
+2. `normalizedProvider`が **インフラ/ホスティング**（fireworks, groq, bedrock, …）なら **family から developer を解決**
+3. そうでなければ`normalizedProvider`をdeveloperとする
 4. 推論不能は `unknown`（黙って別 Species に分裂させないようログ・品質用）
 
 **ねらい:** 同一重みを複数ホストが載せても Model が分裂しない。
 
-### 3.3 Canonical key（案）
+### 3.3 Canonical key
 
 ```text
 developer|family|version|derivative
 ```
 
-- access variant は **含めない**（Form / Offering 側）
-- provider の `~` プレフィックス（エイリアスマーカー）は除去してから扱う
+- 構成順は正確に`developer|family|version|derivative`
+- access variant、raw/normalized provider、regionは**含めない**
+- 欠けたversion/derivativeは空文字としてpipe位置を維持する
+- accessだけが異なるIDは同じcanonical keyを持ち、`accessVariant`だけが異なる
 
 Offering ID は別体系（例: `openrouter:…:free`）。混同しない。
 
-### 3.4 フラグ（正規化時）
+| raw ID | rawProvider | normalizedProvider | developer | family / version / derivative | accessVariant | canonicalKey |
+|---|---|---|---|---|---|---|
+| `zhipu/glm-5.2` | `zhipu` | `z-ai` | `z-ai` | `glm-5.2` / `5.2` / - | - | `z-ai|glm-5.2|5.2|` |
+| `~openai/gpt-4o` | `~openai` | `openai` | `openai` | `gpt-4o` / `4o` / - | - | `openai|gpt-4o|4o|` |
+| `gpt-4o` | `unknown` | `unknown` | `openai` | `gpt-4o` / `4o` / - | - | `openai|gpt-4o|4o|` |
+| `fireworks/glm-5.2:flex` | `fireworks` | `fireworks` | `z-ai` | `glm-5.2` / `5.2` / - | `flex` | `z-ai|glm-5.2|5.2|` |
+| `meta-llama/llama-3.1-70b-instruct` | `meta-llama` | `meta-llama` | `meta-llama` | `llama-3.1` / `3.1` / `70b` | `instruct` | `meta-llama|llama-3.1|3.1|70b` |
+
+### 3.4 Rule tableの保守契約
+
+provider aliases、hosting provider、family-to-developer、derivative、access suffixは`model-id.ts`内のTypeScript定数・正規表現として維持する。外部設定、provider registry、plugin、動的rule engineは導入しない。
+
+- provider aliasは観測済みの表記ゆれだけを正規化し、modelの実体同一性を主張しない
+- hosting provider追加は、その主体が複数developerのmodelを提供し、family解決が必要な場合に限る
+- family-to-developer追加は根拠があるfamilyだけとし、名前の類似だけでdeveloperを推測しない
+- derivative/access ruleは単語末尾の構文を対象とし、抽出したmetadataを結果から消失させない
+- entry/rule追加時はraw入力、provider三字段、developer、family/version/derivative/access、canonical keyを確認するunit fixtureを追加する
+- raw表現は証拠保持用、canonical keyはModel identity用であり、相互に代用しない
+
+### 3.5 フラグ（正規化時）
 
 | フラグ | 判定の種（例） |
 |---|---|
@@ -114,7 +148,7 @@ Offering ID は別体系（例: `openrouter:…:free`）。混同しない。
 
 gekiyasu Offering の `free` やキャンペーン表現に写像する。
 
-### 3.5 価格・キャッシュ指標（収集後分析）
+### 3.6 価格・キャッシュ指標（収集後分析）
 
 | 指標 | 概要 |
 |---|---|
@@ -126,7 +160,7 @@ gekiyasu Offering の `free` やキャンペーン表現に写像する。
 用途: フィード品質、[CORRECTIONS.md](../CORRECTIONS.md) の種、CostEstimate の cache 拡張。  
 **Proxy の L9 最小見積を置き換えない。** 拡張時の式の参照。
 
-### 3.6 数値クリーニング
+### 3.7 数値クリーニング
 
 - `clean_float` / `clean_int`（`1.1M` / `256K`、空・`—`・null は欠測）
 - 0 と欠測を混同しない
@@ -147,24 +181,20 @@ gekiyasu に載せるなら **ローカル専用・gitignore**。公開フィー
 
 ---
 
-## 5. 実装ロードマップとの関係
+## 5. 実装と将来拡張の境界
 
 | 時期 | やること |
 |---|---|
-| **今** | 本メモのみ（契約）。Proxy 本線（T-033 等）と並列で触らない |
-| **次（任意）** | `packages/schema` に pure 関数 + 単体テスト（パース・developer・cache 式） |
-| **次の評価** | pure TS matcher を既定にしたまま、wasmoon 等による薄い Lua hook を T-041 として評価（使わなければ外せる） |
+| **現在** | `packages/schema`のpure TypeScript parserとunit fixtureを局所契約とする |
+| **rule更新** | TypeScript定数と対応fixtureを同じ変更で更新する |
 | **フィード本格化** | collectors: Fetcher/Parser、アノマリー → フィード生成。T-024 周辺と合流可 |
 | **公開フィード前** | 署名 T-035。収集成果の改ざん耐性 |
 
-台帳: 実装着手時は `T-039`（model-id / developer normalize pure TS）等を立てる。  
-**contract_changes:** 公開型を増やすなら `proposed`。
+本契約はProxy hot path、feed generator、Offering IDを変更しない。公開型の変更は統括レビューまで`proposed`として扱う。
 
 ### 5.1 Lua hook 評価（任意・薄く）
 
-同定ロジックはまず pure TypeScript で持つ。日常更新は aliases / infra providers / derivative patterns / thresholds などの JSON/YAML データを編集する。Lua hook は、データ更新だけでは足りない判定を試すための小さな拡張点として評価する。
-
-候補は `wasmoon`。ただし hook は入力（raw model records + rule data）と出力（canonical key / flags / reasons）を固定し、TS 実装と差し替え可能にする。最初から全 matcher を Lua 化しない。公開フィードや Proxy hot path へ混ぜる前に、オフライン収集層でのみ検証する。
+Issue #12ではLua hook、外部rule data、plugin systemを導入しない。将来それらを評価する場合も、本節の公開fieldとcanonical keyを暗黙に変更してはならない。
 
 ---
 
@@ -180,4 +210,5 @@ gekiyasu に載せるなら **ローカル専用・gitignore**。公開フィー
 
 | 日付 | 内容 |
 |---|---|
+| 2026-07-13 | Issue #12 proposed contract。raw/normalized provider、deprecated互換alias、colon-less access保持、canonical key、rule保守条件を実装と同期 |
 | 2026-07-12 | 初版。メンテナ私有観測ツールの経験を契約メモとして固定。コード未移植 |

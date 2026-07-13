@@ -206,6 +206,103 @@ describe("parseModelId", () => {
     }
   });
 
+  it("does not detect chat or instruct inside a model name", () => {
+    for (const raw of [
+      "provider/chat-foo",
+      "provider/foo-chat-model",
+      "provider/instructive-model",
+      "provider/foo-instruct-v2",
+    ]) {
+      const parsed = parseModelId(raw);
+
+      assert.equal(parsed.accessVariant, undefined);
+      assert.equal(parsed.family, raw.slice(raw.indexOf("/") + 1));
+    }
+  });
+
+  it("keeps the canonical identity contract across provider and model forms", () => {
+    const fixtures = [
+      {
+        label: "direct provider",
+        raw: "openai/gpt-4o",
+        normalizedProvider: "openai",
+        developer: "openai",
+        canonicalKey: "openai|gpt-4o|4o|",
+      },
+      {
+        label: "hosted provider",
+        raw: "fireworks/glm-5.2",
+        normalizedProvider: "fireworks",
+        developer: "z-ai",
+        canonicalKey: "z-ai|glm-5.2|5.2|",
+      },
+      {
+        label: "provider-less unknown",
+        raw: "some-random-model",
+        normalizedProvider: "unknown",
+        developer: "unknown",
+        canonicalKey: "unknown|some-random-model||",
+      },
+      {
+        label: "unrecognized provider remains unrecognized",
+        raw: "mystery/gpt-4o",
+        normalizedProvider: "mystery",
+        developer: "mystery",
+        canonicalKey: "mystery|gpt-4o|4o|",
+      },
+      {
+        label: "provider alias",
+        raw: "zhipu/glm-5.2",
+        normalizedProvider: "z-ai",
+        developer: "z-ai",
+        canonicalKey: "z-ai|glm-5.2|5.2|",
+      },
+      {
+        label: "family-to-developer mapping",
+        raw: "unknown/gpt-4o",
+        normalizedProvider: "unknown",
+        developer: "openai",
+        canonicalKey: "openai|gpt-4o|4o|",
+      },
+      {
+        label: "date version",
+        raw: "anthropic/claude-sonnet-2024-08-06",
+        normalizedProvider: "anthropic",
+        developer: "anthropic",
+        canonicalKey: "anthropic|claude-sonnet|2024-08-06|",
+      },
+      {
+        label: "derivative",
+        raw: "openai/gpt-4o-mini",
+        normalizedProvider: "openai",
+        developer: "openai",
+        canonicalKey: "openai|gpt-4o|4o|mini",
+      },
+      {
+        label: "access variant",
+        raw: "openai/gpt-4o-mini-instruct",
+        normalizedProvider: "openai",
+        developer: "openai",
+        canonicalKey: "openai|gpt-4o|4o|mini",
+      },
+      {
+        label: "alias marker",
+        raw: "~openai/gpt-4o",
+        normalizedProvider: "openai",
+        developer: "openai",
+        canonicalKey: "openai|gpt-4o|4o|",
+      },
+    ] as const;
+
+    for (const fixture of fixtures) {
+      const parsed = parseModelId(fixture.raw);
+
+      assert.equal(parsed.normalizedProvider, fixture.normalizedProvider, fixture.label);
+      assert.equal(parsed.developer, fixture.developer, fixture.label);
+      assert.equal(parsed.canonicalKey, fixture.canonicalKey, fixture.label);
+    }
+  });
+
   it("tilde prefix on provider is stripped", () => {
     const parsed = parseModelId("~openai/gpt-4o");
 

@@ -13,9 +13,9 @@ export type ParsedModelId = {
   family: string;
   /** Version string if extracted, e.g. "4o", "5.2". */
   version?: string;
-  /** Derivative suffix if present, e.g. "mini", "coder", "70b-instruct". */
+  /** Derivative suffix if present, e.g. "mini", "coder", "70b". */
   derivative?: string;
-  /** Access variant from colon suffix, e.g. "free", "flex". */
+  /** Access variant from a colon or terminal dash suffix, e.g. "free", "chat". */
   accessVariant?: string;
   /** Region if extracted from @region suffix, e.g. "us-east". */
   region?: string;
@@ -26,6 +26,24 @@ export type ParsedModelId = {
   /** Original raw model ID string. */
   rawId: string;
 };
+
+/**
+ * Rule-table maintenance contract:
+ *
+ * - Provider aliases normalize documented spellings only; they do not assert
+ *   that two model families or offerings behave identically.
+ * - Infrastructure entries identify hosting providers whose developer must be
+ *   inferred from an evidence-backed family mapping.
+ * - Family mappings must not be extended from name similarity alone.
+ * - Derivative and access rules match terminal syntax only and must preserve
+ *   every extracted component in ParsedModelId.
+ * - Every rule addition requires a focused unit fixture covering the raw input,
+ *   normalized provider, developer, parsed components, and canonical key.
+ *
+ * These rules remain TypeScript constants deliberately: parsing is pure and
+ * offline, and Issue #12 does not introduce runtime registries or plugins.
+ * Raw representations must never be substituted for canonical identity fields.
+ */
 
 // ── Alias table: provider name normalization ──────────────────────────────────
 
@@ -303,8 +321,8 @@ function inferDeveloperFromFamily(family: string): string | undefined {
 }
 
 /**
- * Strip colon-less access suffixes from family string.
- * These are words like "instruct", "chat" that appear at the end without a colon.
+ * Extract a colon-less access suffix from the end of a valid family string.
+ * Words in the middle and removals that leave an empty/invalid family are ignored.
  */
 function stripAccessSuffixes(family: string): { family: string; stripped?: string } {
   const accessPattern = /-(instruct|chat)$/i;
