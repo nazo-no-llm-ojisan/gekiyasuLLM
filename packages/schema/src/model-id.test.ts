@@ -178,6 +178,20 @@ describe("parseModelId", () => {
     }
   });
 
+  it("separates colon-less access from derivative suffixes", () => {
+    for (const fixture of [
+      { base: "meta-llama/llama-3.1-70b", access: "instruct", derivative: "70b" },
+      { base: "openai/gpt-4o-mini", access: "chat", derivative: "mini" },
+    ] as const) {
+      const colon = parseModelId(`${fixture.base}:${fixture.access}`);
+      const colonLess = parseModelId(`${fixture.base}-${fixture.access}`);
+
+      assert.equal(colonLess.derivative, fixture.derivative);
+      assert.equal(colonLess.accessVariant, fixture.access);
+      assert.equal(colonLess.canonicalKey, colon.canonicalKey);
+    }
+  });
+
   it("tilde prefix on provider is stripped", () => {
     const parsed = parseModelId("~openai/gpt-4o");
 

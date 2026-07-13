@@ -328,8 +328,8 @@ function stripAccessSuffixes(family: string): { family: string; stripped?: strin
  * 2. Split `provider/rest` (no slash → provider="unknown")
  * 3. Strip `@region` from family
  * 4. Extract date suffix → version candidate
- * 5. Extract derivative (mini, flash, coder, 27b, etc.)
- * 6. Strip colon-less access suffixes (instruct, chat)
+ * 5. Extract colon-less access suffixes (instruct, chat)
+ * 6. Extract derivative (mini, flash, coder, 27b, etc.)
  * 7. Extract numeric version (exceptions: o1/o3/hy3 are part of family)
  * 8. If version unresolved, use date candidate
  */
@@ -362,21 +362,22 @@ export function parseModelId(raw: string): ParsedModelId {
   // Step 4: Extract date suffix → version candidate
   const { family: afterDate, dateCandidate } = extractDateSuffix(afterRegion);
 
-  // Step 5: Extract derivative
-  const { family: afterDeriv, derivative } = extractDerivative(afterDate);
-
-  // Step 6: Strip colon-less access suffixes (instruct, chat)
-  const { family: afterAccess, stripped: colonLessAccess } = stripAccessSuffixes(afterDeriv);
+  // Step 5: Extract colon-less access suffixes before derivative parsing so
+  // `70b-instruct` retains both pieces of metadata.
+  const { family: afterAccess, stripped: colonLessAccess } = stripAccessSuffixes(afterDate);
   accessVariant ??= colonLessAccess?.toLowerCase();
 
+  // Step 6: Extract derivative
+  const { family: afterDeriv, derivative } = extractDerivative(afterAccess);
+
   // Step 7: Extract numeric version
-  const { version: numericVersion } = extractVersion(afterAccess);
+  const { version: numericVersion } = extractVersion(afterDeriv);
 
   // Step 8: Resolve version — prefer numeric, fall back to date
   const version = numericVersion ?? dateCandidate;
 
   // Family is the full remaining string after all extractions
-  const family = afterAccess;
+  const family = afterDeriv;
 
   // Developer resolution (section 3.2)
   const developer = resolveDeveloper(normalizedProvider, family);
