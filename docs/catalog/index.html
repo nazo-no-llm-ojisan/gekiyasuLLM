@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>gekiyasuLLM - モデルカタログ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .disclaimer {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+    }
+    .meta {
+      font-size: 0.8rem;
+      color: #666;
+      margin-bottom: 1rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background: #f5f5f5;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    td.price {
+      text-align: right;
+      white-space: nowrap;
+    }
+    .status-active { color: #16a34a; font-weight: 600; }
+    .status-degraded { color: #d97706; font-weight: 600; }
+    .status-discontinued { color: #dc2626; font-weight: 600; }
+    .status-unknown { color: #6b7280; font-weight: 600; }
+    .cap { display: inline-block; background: #e5e7eb; border-radius: 3px; padding: 0.1rem 0.4rem; font-size: 0.75rem; margin-right: 0.25rem; }
+    .cap-yes { background: #dcfce7; color: #166534; }
+    .cap-no { background: #fee2e2; color: #991b1b; }
+    footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid #ddd;
+      font-size: 0.8rem;
+      color: #666;
+    }
+    footer a { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>gekiyasuLLM モデルカタログ</h1>
+
+  <div class="disclaimer">
+    <strong>注意:</strong> これはサンプルデータから生成された静的カタログです。
+    署名付きプロダクションフィードではありません。
+    リクエストの中継は行いません。
+  </div>
+
+  <div class="meta" id="meta"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>モデル名</th>
+        <th>プロバイダ</th>
+        <th>入力 (USD/1M tokens)</th>
+        <th>出力 (USD/1M tokens)</th>
+        <th>ステータス</th>
+        <th>機能</th>
+      </tr>
+    </thead>
+    <tbody id="catalog-body"></tbody>
+  </table>
+
+  <footer>
+    <p>データソース: <code>fixtures/feeds/sample-feed.json</code></p>
+    <p>gekiyasuLLM &mdash; <a href="https://github.com">GitHub</a></p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script>
+    (function () {
+      var feed = FEED_DATA;
+
+      // Meta info
+      var meta = document.getElementById("meta");
+      meta.textContent =
+        "フィードバージョン: " + feed.feed_version +
+        " | 基準日時: " + feed.as_of +
+        " | オファリング数: " + feed.offerings.length;
+
+      // Build provider lookup
+      var providerMap = {};
+      if (feed.providers) {
+        feed.providers.forEach(function (p) {
+          providerMap[p.id] = p;
+        });
+      }
+
+      // Render offerings
+      var tbody = document.getElementById("catalog-body");
+      feed.offerings.forEach(function (off) {
+        var tr = document.createElement("tr");
+
+        // Model name
+        var tdName = document.createElement("td");
+        tdName.textContent = off.marketingName || off.upstreamModelId;
+        tr.appendChild(tdName);
+
+        // Provider
+        var tdProv = document.createElement("td");
+        var prov = providerMap[off.providerId];
+        tdProv.textContent = prov ? prov.displayName : off.providerId;
+        tr.appendChild(tdProv);
+
+        // Input price
+        var tdIn = document.createElement("td");
+        tdIn.className = "price";
+        tdIn.textContent = off.pricing ? off.pricing.inputPerMillion.raw : "-";
+        tr.appendChild(tdIn);
+
+        // Output price
+        var tdOut = document.createElement("td");
+        tdOut.className = "price";
+        tdOut.textContent = off.pricing ? off.pricing.outputPerMillion.raw : "-";
+        tr.appendChild(tdOut);
+
+        // Status
+        var tdStatus = document.createElement("td");
+        var status = off.status || "unknown";
+        tdStatus.className = "status-" + status;
+        var statusLabels = {
+          active: "利用可能",
+          degraded: "性能低下",
+          discontinued: "終了",
+          unknown: "不明"
+        };
+        tdStatus.textContent = statusLabels[status] || status;
+        tr.appendChild(tdStatus);
+
+        // Capabilities
+        var tdCaps = document.createElement("td");
+        if (off.declaredCapabilities) {
+          var caps = off.declaredCapabilities;
+          ["streaming", "tools", "vision", "jsonMode", "reasoning"].forEach(function (key) {
+            if (caps[key] !== undefined) {
+              var span = document.createElement("span");
+              span.className = "cap " + (caps[key] ? "cap-yes" : "cap-no");
+              span.textContent = key + (caps[key] ? " \u2713" : " \u2717");
+              tdCaps.appendChild(span);
+            }
+          });
+        }
+        tr.appendChild(tdCaps);
+
+        tbody.appendChild(tr);
+      });
+    })();
+  </script>
+</body>
+</html>

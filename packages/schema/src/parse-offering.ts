@@ -126,6 +126,11 @@ export function parseOfferingJson(input: unknown): ParsedOffering {
   if (typeof input.marketingName === "string") {
     offering.marketingName = input.marketingName;
   }
+  if (Array.isArray(input.aliases)) {
+    offering.aliases = input.aliases.filter(
+      (a: unknown) => typeof a === "string" && a.length > 0,
+    );
+  }
   if (
     input.status === "active" ||
     input.status === "degraded" ||

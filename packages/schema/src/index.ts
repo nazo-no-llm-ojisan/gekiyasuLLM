@@ -10,6 +10,10 @@ export { parseOfferingJson } from "./parse-offering.js";
 export type { ParsedOffering } from "./parse-offering.js";
 export { parseFeedJson } from "./feed.js";
 export type { GekiyasuFeed } from "./feed.js";
+export { parseModelId, resolveDeveloper } from "./model-id.js";
+export type { ParsedModelId } from "./model-id.js";
+export { parseOpenAIPricingHtml } from "./pricing-parser.js";
+export type { ParsedPricing } from "./pricing-parser.js";
 
 /** Fixed default listen port for gekiyasuLLMProxy (project-wide). */
 export const DEFAULT_PROXY_PORT = 16191 as const;

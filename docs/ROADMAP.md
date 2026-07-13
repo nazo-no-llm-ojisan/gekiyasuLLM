@@ -9,6 +9,7 @@
 | 設計とコードのギャップ表 | [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) |
 | 並列タスク台帳 T-0xx | [PARALLEL_AGENTS.md](./PARALLEL_AGENTS.md) |
 | 短いユーザ報告 | [USER_STATUS_TEMPLATE.md](./USER_STATUS_TEMPLATE.md) |
+| 静的モデルカタログ | [catalog/index.html](./catalog/index.html) |
 
 ---
 
@@ -39,6 +40,7 @@ docs/
   PARALLEL_AGENTS.md      ← T 番号・owned_paths・done_when
   IMPLEMENTATION_STATUS.md← 機能ごとの実装/未実装
   design/                 ← 厚い設計
+  catalog/                ← 静的モデルカタログ（GitHub Pages 用）
 ```
 
 - **L** = 到達段階の履歴（L0–L12 完了）  

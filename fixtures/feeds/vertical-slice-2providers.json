@@ -1,0 +1,168 @@
+{
+  "feed_version": "0.1.0",
+  "as_of": "2026-07-13T00:00:00Z",
+  "endpoints": [
+    {
+      "id": "openai-direct:api",
+      "providerId": "openai-direct",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiCompat": "openai_chat"
+    },
+    {
+      "id": "openrouter:api",
+      "providerId": "openrouter",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiCompat": "openai_chat"
+    }
+  ],
+  "providers": [
+    {
+      "id": "openai-direct",
+      "displayName": "OpenAI Direct",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "trust": {
+        "allowsPrivateCode": {
+          "value": true,
+          "evidence": {
+            "sourceUrl": "https://openai.com/policies",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        }
+      }
+    },
+    {
+      "id": "openrouter",
+      "displayName": "OpenRouter",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "trust": {
+        "allowsPrivateCode": {
+          "value": false,
+          "evidence": {
+            "sourceUrl": "https://openrouter.ai/terms",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        }
+      }
+    }
+  ],
+  "offerings": [
+    {
+      "id": "openai-direct:gpt-4o:standard",
+      "modelId": "openai-direct/gpt-4o",
+      "providerId": "openai-direct",
+      "endpointId": "openai-direct:api",
+      "upstreamModelId": "gpt-4o",
+      "marketingName": "GPT-4o (Direct)",
+      "aliases": ["gpt-4o"],
+      "declaredCapabilities": {
+        "streaming": true,
+        "tools": true,
+        "vision": true
+      },
+      "status": "active",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "pricing": {
+        "currency": {
+          "raw": "USD",
+          "normalized": "USD",
+          "evidence": {
+            "sourceUrl": "https://openai.com/pricing",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        },
+        "asOf": "2026-07-13",
+        "inputPerMillion": {
+          "raw": "$2.50 / 1M",
+          "normalized": 2.5,
+          "evidence": {
+            "sourceUrl": "https://openai.com/pricing",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        },
+        "outputPerMillion": {
+          "raw": "$10.00 / 1M",
+          "normalized": 10.0,
+          "evidence": {
+            "sourceUrl": "https://openai.com/pricing",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        }
+      }
+    },
+    {
+      "id": "openrouter:gpt-4o:discount",
+      "modelId": "openrouter/gpt-4o",
+      "providerId": "openrouter",
+      "endpointId": "openrouter:api",
+      "upstreamModelId": "openai/gpt-4o",
+      "marketingName": "GPT-4o via OpenRouter (Discount)",
+      "aliases": ["gpt-4o"],
+      "declaredCapabilities": {
+        "streaming": true,
+        "tools": true,
+        "vision": true
+      },
+      "status": "active",
+      "relationships": {
+        "sponsored": false,
+        "affiliate": false,
+        "editorial_rank_influence": "none"
+      },
+      "pricing": {
+        "currency": {
+          "raw": "USD",
+          "normalized": "USD",
+          "evidence": {
+            "sourceUrl": "https://openrouter.ai/pricing",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        },
+        "asOf": "2026-07-13",
+        "inputPerMillion": {
+          "raw": "$2.40 / 1M",
+          "normalized": 2.4,
+          "evidence": {
+            "sourceUrl": "https://openrouter.ai/pricing",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        },
+        "outputPerMillion": {
+          "raw": "$9.60 / 1M",
+          "normalized": 9.6,
+          "evidence": {
+            "sourceUrl": "https://openrouter.ai/pricing",
+            "retrievedAt": "2026-07-13T00:00:00Z",
+            "sourceType": "manual",
+            "confidence": "confirmed"
+          }
+        }
+      }
+    }
+  ]
+}
