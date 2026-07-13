@@ -62,7 +62,7 @@ export function buildOfferingCatalog(
       }
 
       const provider = providerMap.get(off.providerId);
-      const allowsPrivateCode = provider?.trust?.allowsPrivateCode?.value ?? true;
+      const allowsPrivateCode = provider?.trust?.allowsPrivateCode?.value;
 
       const inputCost = off.pricing?.inputPerMillion?.normalized ?? 0;
       const outputCost = off.pricing?.outputPerMillion?.normalized ?? 0;
