@@ -95,7 +95,7 @@ Developer     重みの開発元（anthropic, openai, z-ai, …）
 7. 数値 version 抽出（例外: `o1` / `o3` / `hy3` 等は family の一部として残す）
 8. version 未確定なら日付を version に
 
-colon形式とcolon無し形式は同じ`accessVariant`を生成する。たとえば`foo:instruct`と`foo-instruct`は同じcanonical keyを持つ。access除去でfamilyが空になる、または区切り文字で終わる場合は抽出せず、元の未知familyとしてfail-safeに保持する。モデル名途中の`chat`/`instruct`はaccessとして扱わない。
+colon形式とcolon無し形式は同じ`accessVariant`を生成する。たとえば`foo:instruct`と`foo-instruct`は同じcanonical keyを持つ。access、region、date、derivativeの除去でfamilyが空になる、または区切り文字で終わる場合はそのmetadataを抽出せず、元の未知familyとしてfail-safeに保持する。モデル名途中の`chat`/`instruct`はaccessとして扱わない。
 
 ### 3.2 Developer 解決
 

@@ -232,6 +232,25 @@ describe("parseModelId", () => {
     }
   });
 
+  it("never empties a family through later metadata extraction", () => {
+    for (const fixture of [
+      { raw: "provider/-mini:chat", family: "-mini", access: "chat" },
+      { raw: "provider/-mini-chat", family: "-mini", access: "chat" },
+      { raw: "provider/2024-08-06:chat", family: "2024-08-06", access: "chat" },
+      { raw: "provider/2024-08-06-chat", family: "2024-08-06", access: "chat" },
+      { raw: "provider/@us-east:chat", family: "@us-east", access: "chat" },
+      { raw: "provider/@us-east-chat", family: "@us-east", access: "chat" },
+    ] as const) {
+      const parsed = parseModelId(fixture.raw);
+
+      assert.equal(parsed.family, fixture.family);
+      assert.equal(parsed.accessVariant, fixture.access);
+      assert.equal(parsed.region, undefined);
+      assert.equal(parsed.version, undefined);
+      assert.equal(parsed.derivative, undefined);
+    }
+  });
+
   it("does not detect chat or instruct inside a model name", () => {
     for (const raw of [
       "provider/chat-foo",

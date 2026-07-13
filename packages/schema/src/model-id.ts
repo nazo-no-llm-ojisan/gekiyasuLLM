@@ -213,6 +213,11 @@ const FAMILY_PREFIX_PATTERNS = [
   /^(grok-\d+)(?:-|$)/, // grok-2, grok-3
 ];
 
+/** A suffix extraction is safe only when it leaves a non-empty model token. */
+function hasValidFamilyRemainder(family: string): boolean {
+  return /[a-z0-9]$/i.test(family);
+}
+
 /**
  * Normalize a provider name using the alias table.
  * Strips leading `~` marker if present.
@@ -228,8 +233,12 @@ function normalizeProvider(raw: string): string {
 function extractRegion(family: string): { family: string; region?: string } {
   const match = family.match(REGION_PATTERN);
   if (match) {
+    const remainingFamily = family.slice(0, match.index);
+    if (!hasValidFamilyRemainder(remainingFamily)) {
+      return { family };
+    }
     return {
-      family: family.slice(0, match.index),
+      family: remainingFamily,
       region: match[1],
     };
   }
@@ -242,8 +251,12 @@ function extractRegion(family: string): { family: string; region?: string } {
 function extractDateSuffix(family: string): { family: string; dateCandidate?: string } {
   const match = family.match(DATE_PATTERN);
   if (match) {
+    const remainingFamily = family.slice(0, match.index);
+    if (!hasValidFamilyRemainder(remainingFamily)) {
+      return { family };
+    }
     return {
-      family: family.slice(0, match.index),
+      family: remainingFamily,
       dateCandidate: match[1],
     };
   }
@@ -256,8 +269,12 @@ function extractDateSuffix(family: string): { family: string; dateCandidate?: st
 function extractDerivative(family: string): { family: string; derivative?: string } {
   const match = family.match(DERIVATIVE_PATTERN);
   if (match && match.index !== undefined) {
+    const remainingFamily = family.slice(0, match.index);
+    if (!hasValidFamilyRemainder(remainingFamily)) {
+      return { family };
+    }
     return {
-      family: family.slice(0, match.index),
+      family: remainingFamily,
       derivative: family.slice(match.index + 1), // skip leading dash
     };
   }
@@ -274,6 +291,11 @@ function extractDerivative(family: string): { family: string; derivative?: strin
  * Special prefixes like o1, o3, hy3 are part of the family; no version extracted.
  */
 function extractVersion(family: string): { version?: string } {
+  const unresolvedDate = family.match(DATE_PATTERN);
+  if (unresolvedDate?.index === 0) {
+    return {};
+  }
+
   // Check special family prefixes first — no version extraction
   for (const pattern of FAMILY_PREFIX_PATTERNS) {
     const m = family.match(pattern);
@@ -329,7 +351,7 @@ function stripAccessSuffixes(family: string): { family: string; stripped?: strin
   const match = family.match(accessPattern);
   if (match) {
     const remainingFamily = family.slice(0, match.index);
-    if (!/[a-z0-9]$/i.test(remainingFamily)) {
+    if (!hasValidFamilyRemainder(remainingFamily)) {
       return { family };
     }
     return {
