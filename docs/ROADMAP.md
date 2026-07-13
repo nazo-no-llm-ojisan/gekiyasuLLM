@@ -20,21 +20,26 @@
 | 地図 | 位置 |
 |---|---|
 | 大枠 | Phase 1–3 完了。ローカル本線は **M2監査・修正中** |
-| ローカル | **L12 / M1 完了**。M2実装候補は着地したが、同一feed縦貫通の完了証拠は未成立 |
+| ローカル | **L12 / M1 完了**。保存snapshot→generated feedは **#13完了**。actual pathとsame-feed catalogは未完 |
 | 次の契約ゲート | [Issue #12](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/12) model-id contract review |
+| 次の安全ゲート | [Issue #16](https://github.com/nazo-no-llm-ojisan/gekiyasuLLM/issues/16) feed trust unknownのfail-closed保持 |
 
 ```text
 M1 正しいルーティング  →  M2 データ縦貫通（監査・修正中）
      T-044–046              T-039,024,050,051
                                   ↓
-                            #12 → #13 → #14 / #15
+                         #12契約 / #13完了
                                   ↓
-                 Phase 3+ anomaly governance + M3 security gate
+                     #16 → #14     #15
+                                  ↓
+                Phase 3+ anomaly governance + M3 security gate
                                   ↓
                     Phase 4 日次レビュー・公開運用
 ```
 
-コミット `34a01e1` には T-039 / T-024 / T-050 / T-051 の実装候補がある。ただし、保存snapshot→generated feed、実HTTP/executor経路、ProxyとPagesの同一feed利用が未証明のため、M2も各Tも `done` にはしない。
+コミット `fd8fb47` と `62244eb` により、保存した価格fixtureからprovenance付きfeedを決定論的に生成する経路は監査済みとなった。実providerのprivate-code trustは根拠がなければfeedへ出力しない。
+
+ただしProxyのcatalogには、missing trustを`true`へ変換する既存処理があるため、#16完了までprivate-modeのfeed縦貫通は成立扱いにしない。M2全体もまだ`done`ではない。
 
 ---
 
