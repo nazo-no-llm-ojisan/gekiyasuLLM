@@ -16,6 +16,7 @@ docs/LOCAL_NOTES.md
 
 # Local agent scratch (audit chats, session notes — never commit)
 .agents/
+docs/superpowers/
 
 # OS / editor
 .DS_Store
